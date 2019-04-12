@@ -64,8 +64,8 @@ def peptide_fdr(psms, peptide_fdr_threshold, plot_path):
   pfdr = False
 
   peptides = psms.groupby(['modified_peptide','decoy'])['r_score'].max().reset_index()
-  targets = peptides[~peptides['decoy']]
-  decoys = peptides[peptides['decoy']]
+  targets = peptides[~peptides['decoy']].copy()
+  decoys = peptides[peptides['decoy']].copy()
 
   targets['p_value'] = pemp(targets['r_score'], decoys['r_score'])
   targets['q_value'] = qvalue(targets['p_value'], pi0est(targets['p_value'], pi0_lambda, pi0_method, pi0_smooth_df, pi0_smooth_log_pi0)['pi0'], pfdr)
@@ -82,8 +82,8 @@ def protein_fdr(psms, protein_fdr_threshold, plot_path):
   pfdr = False
 
   proteins = psms.groupby(['protein_id','decoy'])['r_score'].max().reset_index()
-  targets = proteins[~proteins['decoy']]
-  decoys = proteins[proteins['decoy']]
+  targets = proteins[~proteins['decoy']].copy()
+  decoys = proteins[proteins['decoy']].copy()
 
   targets['p_value'] = pemp(targets['r_score'], decoys['r_score'])
   targets['q_value'] = qvalue(targets['p_value'], pi0est(targets['p_value'], pi0_lambda, pi0_method, pi0_smooth_df, pi0_smooth_log_pi0)['pi0'], pfdr)
@@ -153,7 +153,7 @@ def generate(files, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_thresh
   psms_list = []
   for psm_file in psm_files:
     click.echo("Reading file %s." % psm_file)
-    psms_list.append(pd.read_table(psm_file, index_col=False))
+    psms_list.append(pd.read_csv(psm_file, index_col=False, sep='\t'))
   psms = pd.concat(psms_list).reset_index(drop=True)
 
   # Process PSMs
@@ -167,7 +167,7 @@ def generate(files, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_thresh
   click.echo(pepidr_stats)
   reference_run_base_name = pepidr_stats.loc[pepidr_stats['modified_peptide'].idxmax()]['base_name']
 
-  reference_run = pepidr[pepidr['base_name'] == reference_run_base_name]
+  reference_run = pepidr[pepidr['base_name'] == reference_run_base_name].copy()
   align_runs = pepidr[pepidr['base_name'] != reference_run_base_name]
 
   # Normalize RT of reference run

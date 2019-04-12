@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import os
+import click
 
 # Unimod parsing
 import xml.etree.ElementTree as ET
@@ -46,7 +47,7 @@ class unimod:
 
 		return(min_id)
 
-def match_modifications(peptide):
+def match_modifications(um, peptide):
 	modified_peptide = peptide['peptide_sequence']
 	modifications = {}
 	if "M|" in peptide['modifications']:
@@ -92,16 +93,16 @@ def read_mzxml(mzxml_path, scan_ids):
 		transitions = pd.DataFrame({'product_mz': [], 'precursor_mz': [], 'intensity': [], 'scan_id': [], })
 	return(transitions)
 
-def conversion(fraggerfile, mzxmlfile, peptidefile, unimodfile):
+def conversion(fraggerfile, mzxmlfile,  unimodfile, peptidefile):
 	fragger_names = ['scan_id','precursor_neutral_mass','retention_time','precursor_charge','rank','peptide_sequence','upstream_aa','downstream_aa','protein_id','matched_fragments','total_matched_fragments','peptide_neutral_mass','mass_difference','number_tryptic_terminii','number_missed_cleavages','modifications','hyperscore','nextscore','intercept_em','slope_em']
-	df = pd.read_table(fraggerfile, header=None, names=fragger_names, index_col=False)
+	df = pd.read_csv(fraggerfile, header=None, names=fragger_names, index_col=False, sep='\t')
 
 	# Initialize UniMod
 	um = unimod(unimodfile)
 
 	# Generate UniMod peptide sequence
 	click.echo("Info: Matching modifications to UniMod.")
-	df['modified_peptide'] = df[['peptide_sequence','modifications']].apply(match_modifications, axis=1)
+	df['modified_peptide'] = df[['peptide_sequence','modifications']].apply(lambda x: match_modifications(um, x), axis=1)
 
 	# Update protein identifiers and metadata
 	click.echo("Info: Matching peptides to proteins.")
@@ -137,8 +138,8 @@ def conversion(fraggerfile, mzxmlfile, peptidefile, unimodfile):
 	df = df.rename(index=str, columns={'hyperscore': 'main_var_hyperscore'})
 
 	# Generate spectrum dataframe
-	print("Info: Processing spectra from file %s." % sys.argv[5])
-	peaks = read_mzxml(sys.argv[5], df['scan_id'].unique().tolist())
+	print("Info: Processing spectra from file %s." % mzxmlfile)
+	peaks = read_mzxml(mzxmlfile, df['scan_id'].unique().tolist())
 
 	return df, peaks
 	
