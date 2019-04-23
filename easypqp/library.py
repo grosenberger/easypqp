@@ -122,6 +122,19 @@ def process_psms(psms, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_thr
 
   return psms
 
+def linear(run, reference_run):
+  dfm = pd.merge(run, reference_run[['modified_peptide','precursor_charge','irt']])
+
+  click.echo("Info: Peptide overlap between run and reference: %s." % dfm.shape[0])
+
+  # Fit lowess model
+  model = sm.OLS(dfm['irt'], dfm['retention_time']).fit()
+
+  # Apply lowess model
+  run['irt'] = model.predict(run['retention_time'])
+
+  return run
+
 def lowess(run, reference_run):
   dfm = pd.merge(run, reference_run[['modified_peptide','precursor_charge','irt']])
 
@@ -138,7 +151,7 @@ def lowess(run, reference_run):
 
   return run
 
-def generate(files, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path):
+def generate(files, linear_alignment, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path):
   # Parse input arguments
   psm_files = []
   spectra = []
@@ -162,24 +175,37 @@ def generate(files, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_thresh
   # Generate set of best replicate identifications per run
   pepidr = pepid.loc[pepid.groupby(['base_name','modified_peptide','precursor_charge'])['r_score'].idxmax()].sort_index()
 
-  # Select reference run
-  pepidr_stats = pepidr.groupby('base_name')[['modified_peptide']].count().reset_index()
-  click.echo(pepidr_stats)
-  reference_run_base_name = pepidr_stats.loc[pepidr_stats['modified_peptide'].idxmax()]['base_name']
+  # Prepare reference iRT list
+  if referencefile != None:
+    # Read reference file if present
+    reference_run = pd.read_csv(referencefile, index_col=False, sep='\t')
+    align_runs = pepidr
+    if not set(['modified_peptide','precursor_charge','irt']).issubset(reference_run.columns):
+      raise click.ClickException("Reference iRT file has wrong format. Requries columns 'modified_peptide', 'precursor_charge' and 'irt'.")
+    if reference_run.shape[0] < 10:
+      raise click.ClickException("Reference iRT file has too few data points. Requires at least 10.")
+  else:
+    # Select reference run
+    pepidr_stats = pepidr.groupby('base_name')[['modified_peptide']].count().reset_index()
+    click.echo(pepidr_stats)
+    reference_run_base_name = pepidr_stats.loc[pepidr_stats['modified_peptide'].idxmax()]['base_name']
 
-  reference_run = pepidr[pepidr['base_name'] == reference_run_base_name].copy()
-  align_runs = pepidr[pepidr['base_name'] != reference_run_base_name]
+    reference_run = pepidr[pepidr['base_name'] == reference_run_base_name].copy()
+    align_runs = pepidr[pepidr['base_name'] != reference_run_base_name]
 
-  # Normalize RT of reference run
-  min_max_scaler = preprocessing.MinMaxScaler()
-  reference_run['irt'] = min_max_scaler.fit_transform(reference_run[['retention_time']])*100
+    # Normalize RT of reference run
+    min_max_scaler = preprocessing.MinMaxScaler()
+    reference_run['irt'] = min_max_scaler.fit_transform(reference_run[['retention_time']])*100
 
   # Normalize RT of all runs against reference
-  aligned_runs = align_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run)).dropna()
-  pepida = pd.concat([reference_run, aligned_runs]).reset_index(drop=True)
+  if linear_alignment:
+    aligned_runs = align_runs.groupby('base_name').apply(lambda x: linear(x, reference_run)).dropna()
+  else:
+    aligned_runs = align_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run)).dropna()
+  pepida = pd.concat([reference_run, aligned_runs], sort=True).reset_index(drop=True)
 
   # Generate set of non-redundant global best replicate identifications
-  pepidb = pepida.loc[pepida.groupby(['modified_peptide','precursor_charge'])['r_score'].idxmax()].sort_index()
+  pepidb = pepida.loc[pepida.groupby(['modified_peptide','precursor_charge'])['r_score'].idxmax()].sort_index().reindex()
 
   # Prepare ID mzML pairing
   peak_files = pd.DataFrame({'path': spectra})

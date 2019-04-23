@@ -62,17 +62,19 @@ def convert(fraggerfile, mzxmlfile, unimodfile, pepidxfile, psmsfile, subpsmsfil
 # EasyPQP Library
 @cli.command()
 @click.argument('infiles', nargs=-1, type=click.Path(exists=True))
+@click.option('--linear/--no-linear', default=False, show_default=True, help='Conduct linear instead of non-linear alignment of runs.')
+@click.option('--reference_irt', 'referencefile', required=False, type=click.Path(exists=True), help='Optional iRT/CiRT reference file.')
 @click.option('--psm_fdr_threshold', default=0.01, show_default=True, type=float, help='PSM FDR threshold.')
 @click.option('--peptide_fdr_threshold', default=0.01, show_default=True, type=float, help='Peptide FDR threshold.')
 @click.option('--protein_fdr_threshold', default=0.01, show_default=True, type=float, help='Protein FDR threshold.')
 @click.option('--peptide_plot', 'peptide_plot_path', required=True, type=click.Path(exists=False), help='Output peptide-level PDF report.')
 @click.option('--protein_plot', 'protein_plot_path', required=True, type=click.Path(exists=False), help='Output protein-level PDF report.')
-def library(infiles, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path):
+def library(infiles, linear, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path):
     """
     Generate EasyPQP library
     """
 
-    generate(infiles, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path)
+    generate(infiles, linear, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path)
     click.echo("Info: Library successfully generated.")
 
 # EasyPQP Reduce
