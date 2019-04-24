@@ -122,10 +122,13 @@ def process_psms(psms, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_thr
 
   return psms
 
-def linear(run, reference_run):
+def linear(run, reference_run, min_peptides):
   dfm = pd.merge(run, reference_run[['modified_peptide','precursor_charge','irt']])
 
   click.echo("Info: Peptide overlap between run and reference: %s." % dfm.shape[0])
+  if dfm.shape[0] <= min_peptides:
+    click.echo("Info: Skipping run because not enough peptides could be found for alignment.")
+    return pd.DataFrame()
 
   # Fit lowess model
   model = sm.OLS(dfm['irt'], dfm['retention_time']).fit()
@@ -135,10 +138,13 @@ def linear(run, reference_run):
 
   return run
 
-def lowess(run, reference_run):
+def lowess(run, reference_run, min_peptides):
   dfm = pd.merge(run, reference_run[['modified_peptide','precursor_charge','irt']])
 
   click.echo("Info: Peptide overlap between run and reference: %s." % dfm.shape[0])
+  if dfm.shape[0] <= min_peptides:
+    click.echo("Info: Skipping run because not enough peptides could be found for alignment.")
+    return pd.DataFrame()
 
   # Fit lowess model
   lwf = sm.nonparametric.lowess(dfm['irt'], dfm['retention_time'], frac=.66)
@@ -151,7 +157,7 @@ def lowess(run, reference_run):
 
   return run
 
-def generate(files, linear_alignment, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path):
+def generate(files, linear_alignment, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path, min_peptides):
   # Parse input arguments
   psm_files = []
   spectra = []
@@ -199,9 +205,9 @@ def generate(files, linear_alignment, referencefile, psm_fdr_threshold, peptide_
 
   # Normalize RT of all runs against reference
   if linear_alignment:
-    aligned_runs = align_runs.groupby('base_name').apply(lambda x: linear(x, reference_run)).dropna()
+    aligned_runs = align_runs.groupby('base_name').apply(lambda x: linear(x, reference_run, min_peptides)).dropna()
   else:
-    aligned_runs = align_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run)).dropna()
+    aligned_runs = align_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run, min_peptides)).dropna()
   pepida = pd.concat([reference_run, aligned_runs], sort=True).reset_index(drop=True)
 
   # Generate set of non-redundant global best replicate identifications

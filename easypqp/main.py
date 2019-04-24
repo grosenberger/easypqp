@@ -69,12 +69,13 @@ def convert(fraggerfile, mzxmlfile, unimodfile, pepidxfile, psmsfile, subpsmsfil
 @click.option('--protein_fdr_threshold', default=0.01, show_default=True, type=float, help='Protein FDR threshold.')
 @click.option('--peptide_plot', 'peptide_plot_path', required=True, type=click.Path(exists=False), help='Output peptide-level PDF report.')
 @click.option('--protein_plot', 'protein_plot_path', required=True, type=click.Path(exists=False), help='Output protein-level PDF report.')
-def library(infiles, linear, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path):
+@click.option('--min_peptides', default=5, show_default=True, type=int, help='Minimum peptides required for successful alignment.')
+def library(infiles, linear, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path, min_peptides):
     """
     Generate EasyPQP library
     """
 
-    generate(infiles, linear, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path)
+    generate(infiles, linear, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path, min_peptides)
     click.echo("Info: Library successfully generated.")
 
 # EasyPQP Reduce
