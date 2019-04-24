@@ -211,7 +211,7 @@ def generate(files, linear_alignment, referencefile, psm_fdr_threshold, peptide_
   pepida = pd.concat([reference_run, aligned_runs], sort=True).reset_index(drop=True)
 
   # Generate set of non-redundant global best replicate identifications
-  pepidb = pepida.loc[pepida.groupby(['modified_peptide','precursor_charge'])['r_score'].idxmax()].sort_index().reindex()
+  pepidb = pepida.loc[pepida.groupby(['modified_peptide','precursor_charge'])['r_score'].idxmax()].sort_index()
 
   # Prepare ID mzML pairing
   peak_files = pd.DataFrame({'path': spectra})
@@ -228,11 +228,13 @@ def generate(files, linear_alignment, referencefile, psm_fdr_threshold, peptide_
     if "_Q1" in peak_file['base_name']:
       run_pqp = pd.merge(meta_run, peaks, on='scan_id')[['precursor_mz','product_mz','intensity','irt','protein_id','peptide_sequence','modified_peptide','precursor_charge']]
       run_pqp.columns = ['PrecursorMz','ProductMz','LibraryIntensity','NormalizedRetentionTime','ProteinId','PeptideSequence','ModifiedPeptideSequence','PrecursorCharge']
+      run_pqp['PrecursorCharge'] = run_pqp['PrecursorCharge'].astype(int)
       run_pqp_path = os.path.splitext(peak_file['path'])[0]+"_run_peaks.tsv"
       run_pqp.to_csv(run_pqp_path, sep="\t", index=False)
 
     # Generate global non-redundant PQP files
     global_pqp = pd.merge(meta_global, peaks, on='scan_id')[['precursor_mz','product_mz','intensity','irt','protein_id','peptide_sequence','modified_peptide','precursor_charge']]
     global_pqp.columns = ['PrecursorMz','ProductMz','LibraryIntensity','NormalizedRetentionTime','ProteinId','PeptideSequence','ModifiedPeptideSequence','PrecursorCharge']
+    global_pqp['PrecursorCharge'] = global_pqp['PrecursorCharge'].astype(int)
     global_pqp_path = os.path.splitext(peak_file['path'])[0]+"_global_peaks.tsv"
     global_pqp.to_csv(global_pqp_path, sep="\t", index=False)
