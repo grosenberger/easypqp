@@ -127,15 +127,16 @@ def conversion(fraggerfile, mzxmlfile,  unimodfile, peptidefile):
 
 	# DIA-Umpire quality tiers
 	if run_id.endswith("_Q1"):
-		df['var_quality'] = 1
+		df['quality'] = 1
 	elif run_id.endswith("_Q2"):
-		df['var_quality'] = 2
+		df['quality'] = 2
 	elif run_id.endswith("_Q3"):
-		df['var_quality'] = 3
+		df['quality'] = 3
 	else: # DDA data
-		df['var_quality'] = 0
+		df['quality'] = 0
 
-	df = df.rename(index=str, columns={'hyperscore': 'main_var_hyperscore'})
+	df = df.rename(index=str, columns={'hyperscore': 'var_hyperscore'})
+	df = df.rename(index=str, columns={'var_expectscore': 'main_var_expectscore'})
 
 	# Generate spectrum dataframe
 	print("Info: Processing spectra from file %s." % mzxmlfile)
