@@ -63,14 +63,14 @@ def peptide_fdr(psms, peptide_fdr_threshold, plot_path):
   pi0_smooth_log_pi0 = False
   pfdr = False
 
-  peptides = psms.groupby(['modified_peptide','decoy'])['r_score'].max().reset_index()
+  peptides = psms.groupby(['modified_peptide','decoy'])['pp'].max().reset_index()
   targets = peptides[~peptides['decoy']].copy()
   decoys = peptides[peptides['decoy']].copy()
 
-  targets['p_value'] = pemp(targets['r_score'], decoys['r_score'])
+  targets['p_value'] = pemp(targets['pp'], decoys['pp'])
   targets['q_value'] = qvalue(targets['p_value'], pi0est(targets['p_value'], pi0_lambda, pi0_method, pi0_smooth_df, pi0_smooth_log_pi0)['pi0'], pfdr)
 
-  plot(plot_path, "global peptide scores", targets['r_score'], decoys['r_score'])
+  plot(plot_path, "global peptide scores", targets['pp'], decoys['pp'])
   
   return targets[targets['q_value'] < peptide_fdr_threshold]['modified_peptide']
 
@@ -81,14 +81,14 @@ def protein_fdr(psms, protein_fdr_threshold, plot_path):
   pi0_smooth_log_pi0 = False
   pfdr = False
 
-  proteins = psms.groupby(['protein_id','decoy'])['r_score'].max().reset_index()
+  proteins = psms.groupby(['protein_id','decoy'])['pp'].max().reset_index()
   targets = proteins[~proteins['decoy']].copy()
   decoys = proteins[proteins['decoy']].copy()
 
-  targets['p_value'] = pemp(targets['r_score'], decoys['r_score'])
+  targets['p_value'] = pemp(targets['pp'], decoys['pp'])
   targets['q_value'] = qvalue(targets['p_value'], pi0est(targets['p_value'], pi0_lambda, pi0_method, pi0_smooth_df, pi0_smooth_log_pi0)['pi0'], pfdr)
 
-  plot(plot_path, "global protein scores", targets['r_score'], decoys['r_score'])
+  plot(plot_path, "global protein scores", targets['pp'], decoys['pp'])
   
   return targets[targets['q_value'] < protein_fdr_threshold]['protein_id']
 
@@ -174,12 +174,13 @@ def generate(files, linear_alignment, referencefile, psm_fdr_threshold, peptide_
     click.echo("Reading file %s." % psm_file)
     psms_list.append(pd.read_csv(psm_file, index_col=False, sep='\t'))
   psms = pd.concat(psms_list).reset_index(drop=True)
+  psms['pp'] = 1-psms['pep']
 
   # Process PSMs
   pepid = process_psms(psms, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path)
 
   # Generate set of best replicate identifications per run
-  pepidr = pepid.loc[pepid.groupby(['base_name','modified_peptide','precursor_charge'])['r_score'].idxmax()].sort_index()
+  pepidr = pepid.loc[pepid.groupby(['base_name','modified_peptide','precursor_charge'])['pp'].idxmax()].sort_index()
 
   # Prepare reference iRT list
   if referencefile != None:
@@ -211,7 +212,7 @@ def generate(files, linear_alignment, referencefile, psm_fdr_threshold, peptide_
   pepida = pd.concat([reference_run, aligned_runs], sort=True).reset_index(drop=True)
 
   # Generate set of non-redundant global best replicate identifications
-  pepidb = pepida.loc[pepida.groupby(['modified_peptide','precursor_charge'])['r_score'].idxmax()].sort_index()
+  pepidb = pepida.loc[pepida.groupby(['modified_peptide','precursor_charge'])['pp'].idxmax()].sort_index()
 
   # Prepare ID mzML pairing
   peak_files = pd.DataFrame({'path': spectra})
