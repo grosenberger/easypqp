@@ -67,8 +67,8 @@ def convert(fraggerfile, mzxmlfile, unimodfile, pepidxfile, psmsfile, subpsmsfil
 @click.option('--psm_fdr_threshold', default=0.01, show_default=True, type=float, help='PSM FDR threshold.')
 @click.option('--peptide_fdr_threshold', default=0.01, show_default=True, type=float, help='Peptide FDR threshold.')
 @click.option('--protein_fdr_threshold', default=0.01, show_default=True, type=float, help='Protein FDR threshold.')
-@click.option('--peptide_plot', 'peptide_plot_path', required=True, type=click.Path(exists=False), help='Output peptide-level PDF report.')
-@click.option('--protein_plot', 'protein_plot_path', required=True, type=click.Path(exists=False), help='Output protein-level PDF report.')
+@click.option('--peptide_plot', 'peptide_plot_path', default="easypqp_peptide_report.pdf", show_default=True, required=True, type=click.Path(exists=False), help='Output peptide-level PDF report.')
+@click.option('--protein_plot', 'protein_plot_path', default="easypqp_protein_report.pdf", show_default=True, required=True, type=click.Path(exists=False), help='Output protein-level PDF report.')
 @click.option('--min_peptides', default=5, show_default=True, type=int, help='Minimum peptides required for successful alignment.')
 def library(infiles, linear, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path, min_peptides):
     """

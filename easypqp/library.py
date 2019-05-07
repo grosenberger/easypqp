@@ -24,6 +24,7 @@ from pyprophet.stats import pemp, qvalue, pi0est
 # plotting
 from scipy.stats import gaussian_kde
 from numpy import linspace, concatenate
+from seaborn import regplot, lmplot
 
 def plot(path, title, targets, decoys):
   plt.figure(figsize=(10, 5))
@@ -124,24 +125,30 @@ def process_psms(psms, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_thr
 
 def linear(run, reference_run, min_peptides):
   dfm = pd.merge(run, reference_run[['modified_peptide','precursor_charge','irt']])
+  base_name = dfm['base_name'].unique()[0]
 
-  click.echo("Info: Peptide overlap between run and reference: %s." % dfm.shape[0])
+  click.echo("Info: Peptide overlap between run %s and reference: %s." % (base_name, dfm.shape[0]))
   if dfm.shape[0] <= min_peptides:
     click.echo("Info: Skipping run because not enough peptides could be found for alignment.")
     return pd.DataFrame()
 
-  # Fit lowess model
+  # Fit linear model
   model = sm.OLS(dfm['irt'], dfm['retention_time']).fit()
 
-  # Apply lowess model
+  # Apply linear model
   run['irt'] = model.predict(run['retention_time'])
+
+  # Plot regression
+  figure = lmplot(x='retention_time', y='irt', data=dfm)
+  figure.savefig("easypqp_alignment_" + base_name + ".pdf")
 
   return run
 
 def lowess(run, reference_run, min_peptides):
   dfm = pd.merge(run, reference_run[['modified_peptide','precursor_charge','irt']])
+  base_name = dfm['base_name'].unique()[0]
 
-  click.echo("Info: Peptide overlap between run and reference: %s." % dfm.shape[0])
+  click.echo("Info: Peptide overlap between run %s and reference: %s." % (base_name, dfm.shape[0]))
   if dfm.shape[0] <= min_peptides:
     click.echo("Info: Skipping run because not enough peptides could be found for alignment.")
     return pd.DataFrame()
@@ -154,6 +161,10 @@ def lowess(run, reference_run, min_peptides):
 
   # Apply lowess model
   run['irt'] = lwi(run['retention_time'])
+
+  # Plot regression
+  figure = lmplot(x='retention_time', y='irt', data=dfm, lowess=True)
+  figure.savefig("easypqp_alignment_" + base_name + ".pdf")
 
   return run
 
