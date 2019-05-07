@@ -33,7 +33,7 @@ setup(
     ],
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
     include_package_data=True,
-    install_requires=['Click','numpy','scipy','statsmodels','pandas','biopython','pyprophet','pyopenms','matplotlib','seaborn'],
+    install_requires=['Click','numpy','scipy == 1.2.1','statsmodels','pandas','biopython','pyprophet','pyopenms','matplotlib','seaborn'],
     # extras_require={  # Optional
     #     'dev': ['check-manifest'],
     #     'test': ['coverage'],
