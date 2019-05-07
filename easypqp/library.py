@@ -199,7 +199,7 @@ def generate(files, linear_alignment, referencefile, psm_fdr_threshold, peptide_
     reference_run = pd.read_csv(referencefile, index_col=False, sep='\t')
     align_runs = pepidr
     if not set(['modified_peptide','precursor_charge','irt']).issubset(reference_run.columns):
-      raise click.ClickException("Reference iRT file has wrong format. Requries columns 'modified_peptide', 'precursor_charge' and 'irt'.")
+      raise click.ClickException("Reference iRT file has wrong format. Requires columns 'modified_peptide', 'precursor_charge' and 'irt'.")
     if reference_run.shape[0] < 10:
       raise click.ClickException("Reference iRT file has too few data points. Requires at least 10.")
   else:
