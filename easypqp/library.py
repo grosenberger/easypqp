@@ -24,7 +24,7 @@ from pyprophet.stats import pemp, qvalue, pi0est
 # plotting
 from scipy.stats import gaussian_kde
 from numpy import linspace, concatenate
-from seaborn import regplot, lmplot
+from seaborn import lmplot
 
 def plot(path, title, targets, decoys):
   plt.figure(figsize=(10, 5))
@@ -56,6 +56,7 @@ def plot(path, title, targets, decoys):
 
   plt.suptitle(title)
   plt.savefig(path)
+  plt.close()
 
 def peptide_fdr(psms, peptide_fdr_threshold, plot_path):
   pi0_lambda = np.arange(0.05, 0.5, 0.05)
@@ -94,6 +95,9 @@ def protein_fdr(psms, protein_fdr_threshold, plot_path):
   return targets[targets['q_value'] < protein_fdr_threshold]['protein_id']
 
 def process_psms(psms, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path):
+  # Append columns
+  psms['base_name'] = psms['run_id'].apply(lambda x: os.path.splitext(os.path.basename(x))[0])
+
   # Only keep proteotypic peptides
   psms = psms[psms['proteotypic']]
 
@@ -118,40 +122,17 @@ def process_psms(psms, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_thr
 
   click.echo("Info: %s redundant PSMs identified (q-value < %s)" % (psms.shape[0], psm_fdr_threshold))
 
-  # Append columns
-  psms['base_name'] = psms['run_id'].apply(lambda x: os.path.splitext(os.path.basename(x))[0])
-
   return psms
 
-def linear(run, reference_run, min_peptides):
-  dfm = pd.merge(run, reference_run[['modified_peptide','precursor_charge','irt']])
-  base_name = dfm['base_name'].unique()[0]
-
-  click.echo("Info: Peptide overlap between run %s and reference: %s." % (base_name, dfm.shape[0]))
+def lowess(run, reference_run, min_peptides, main_path):
+  dfm = pd.merge(run, reference_run[['modified_peptide','precursor_charge','irt']], on=['modified_peptide','precursor_charge'])
+  click.echo("Info: Peptide overlap between run and reference: %s." % (dfm.shape[0]))
   if dfm.shape[0] <= min_peptides:
     click.echo("Info: Skipping run because not enough peptides could be found for alignment.")
     return pd.DataFrame()
 
-  # Fit linear model
-  model = sm.OLS(dfm['irt'], dfm['retention_time']).fit()
-
-  # Apply linear model
-  run['irt'] = model.predict(run['retention_time'])
-
-  # Plot regression
-  figure = lmplot(x='retention_time', y='irt', data=dfm)
-  figure.savefig("easypqp_alignment_" + base_name + ".pdf")
-
-  return run
-
-def lowess(run, reference_run, min_peptides):
-  dfm = pd.merge(run, reference_run[['modified_peptide','precursor_charge','irt']])
+  # Get base_name
   base_name = dfm['base_name'].unique()[0]
-
-  click.echo("Info: Peptide overlap between run %s and reference: %s." % (base_name, dfm.shape[0]))
-  if dfm.shape[0] <= min_peptides:
-    click.echo("Info: Skipping run because not enough peptides could be found for alignment.")
-    return pd.DataFrame()
 
   # Fit lowess model
   lwf = sm.nonparametric.lowess(dfm['irt'], dfm['retention_time'], frac=.66)
@@ -163,12 +144,13 @@ def lowess(run, reference_run, min_peptides):
   run['irt'] = lwi(run['retention_time'])
 
   # Plot regression
-  figure = lmplot(x='retention_time', y='irt', data=dfm, lowess=True)
-  figure.savefig("easypqp_alignment_" + base_name + ".pdf")
+  fig = lmplot(x='retention_time', y='irt', data=dfm, lowess=True)
+  fig.savefig(os.path.join(main_path, "easypqp_alignment_" + base_name + ".pdf"))
+  plt.close()
 
   return run
 
-def generate(files, linear_alignment, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path, min_peptides):
+def generate(files, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path, min_peptides):
   # Parse input arguments
   psm_files = []
   spectra = []
@@ -190,11 +172,14 @@ def generate(files, linear_alignment, referencefile, psm_fdr_threshold, peptide_
   # Process PSMs
   pepid = process_psms(psms, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path)
 
+  # Get main path for figures
+  main_path = os.path.dirname(os.path.abspath(peptide_plot_path))
+
   # Generate set of best replicate identifications per run
   pepidr = pepid.loc[pepid.groupby(['base_name','modified_peptide','precursor_charge'])['pp'].idxmax()].sort_index()
 
   # Prepare reference iRT list
-  if referencefile != None:
+  if referencefile is not None:
     # Read reference file if present
     reference_run = pd.read_csv(referencefile, index_col=False, sep='\t')
     align_runs = pepidr
@@ -216,11 +201,10 @@ def generate(files, linear_alignment, referencefile, psm_fdr_threshold, peptide_
     reference_run['irt'] = min_max_scaler.fit_transform(reference_run[['retention_time']])*100
 
   # Normalize RT of all runs against reference
-  if linear_alignment:
-    aligned_runs = align_runs.groupby('base_name').apply(lambda x: linear(x, reference_run, min_peptides)).dropna()
-  else:
-    aligned_runs = align_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run, min_peptides)).dropna()
-  pepida = pd.concat([reference_run, aligned_runs], sort=True).reset_index(drop=True)
+  aligned_runs = align_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run, min_peptides, main_path)).dropna()
+  pepida = aligned_runs
+  if referencefile is None:
+    pepida = pd.concat([reference_run, aligned_runs], sort=True).reset_index(drop=True)
 
   # Generate set of non-redundant global best replicate identifications
   pepidb = pepida.loc[pepida.groupby(['modified_peptide','precursor_charge'])['pp'].idxmax()].sort_index()

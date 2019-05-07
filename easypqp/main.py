@@ -62,7 +62,6 @@ def convert(fraggerfile, mzxmlfile, unimodfile, pepidxfile, psmsfile, subpsmsfil
 # EasyPQP Library
 @cli.command()
 @click.argument('infiles', nargs=-1, type=click.Path(exists=True))
-@click.option('--linear/--no-linear', default=False, show_default=True, help='Conduct linear instead of non-linear alignment of runs.')
 @click.option('--reference_irt', 'referencefile', required=False, type=click.Path(exists=True), help='Optional iRT/CiRT reference file.')
 @click.option('--psm_fdr_threshold', default=0.01, show_default=True, type=float, help='PSM FDR threshold.')
 @click.option('--peptide_fdr_threshold', default=0.01, show_default=True, type=float, help='Peptide FDR threshold.')
@@ -70,12 +69,12 @@ def convert(fraggerfile, mzxmlfile, unimodfile, pepidxfile, psmsfile, subpsmsfil
 @click.option('--peptide_plot', 'peptide_plot_path', default="easypqp_peptide_report.pdf", show_default=True, required=True, type=click.Path(exists=False), help='Output peptide-level PDF report.')
 @click.option('--protein_plot', 'protein_plot_path', default="easypqp_protein_report.pdf", show_default=True, required=True, type=click.Path(exists=False), help='Output protein-level PDF report.')
 @click.option('--min_peptides', default=5, show_default=True, type=int, help='Minimum peptides required for successful alignment.')
-def library(infiles, linear, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path, min_peptides):
+def library(infiles, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path, min_peptides):
     """
     Generate EasyPQP library
     """
 
-    generate(infiles, linear, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path, min_peptides)
+    generate(infiles, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path, min_peptides)
     click.echo("Info: Library successfully generated.")
 
 # EasyPQP Reduce
