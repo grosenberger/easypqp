@@ -1,8 +1,8 @@
+import os
 import click
 import sqlite3
 import pandas as pd
 from shutil import copyfile
-from .index import parse_fasta
 from .convert import conversion
 from .library import generate
 
@@ -15,39 +15,31 @@ def cli():
     Visit https://www.openswath.org for usage instructions and help.
     """
 
-# EasyPQP Index
-@cli.command()
-@click.option('--fasta', 'fastafile', required=True, type=click.Path(exists=True), help='The input FASTA file.')
-@click.option('--pepidx', 'pepidxfile', required=True, type=click.Path(exists=False), help='The input peptide index file.')
-def index(fastafile, pepidxfile):
-    """
-    Generate peptide index for EasyPQP
-    """
-
-    click.echo("Info: Indexing %s." % fastafile)
-    pepidx = parse_fasta(fastafile)
-
-    pepidx.to_pickle(pepidxfile)
-    click.echo("Info: Peptide index successfully converted and stored in %s." % pepidxfile)
-
-
 # EasyPQP Convert
 @cli.command()
-@click.option('--fragger', 'fraggerfile', required=True, type=click.Path(exists=True), help='The input MSFragger TSV file.')
+@click.option('--pepxml', 'pepxmlfile', required=True, type=click.Path(exists=True), help='The input MSFragger TSV file.')
 @click.option('--mzxml', 'mzxmlfile', required=True, type=click.Path(exists=True), help='The input mzXML file.')
 @click.option('--unimod', 'unimodfile', required=True, type=click.Path(exists=True), help='The input UniMod XML file.')
-@click.option('--pepidx', 'pepidxfile', required=True, type=click.Path(exists=True), help='The input peptide index file.')
-@click.option('--psms', 'psmsfile', required=True, type=click.Path(exists=False), help='Output PSMs file.')
-@click.option('--subpsms', 'subpsmsfile', required=True, type=click.Path(exists=False), help='Output subsampled PSMs file.')
-@click.option('--peaks', 'peaksfile', required=True, type=click.Path(exists=False), help='Output peaks file.')
+@click.option('--psms', 'psmsfile', required=False, type=click.Path(exists=False), help='Output PSMs file.')
+@click.option('--subpsms', 'subpsmsfile', required=False, type=click.Path(exists=False), help='Output subsampled PSMs file.')
+@click.option('--peaks', 'peaksfile', required=False, type=click.Path(exists=False), help='Output peaks file.')
+@click.option('--main_score', default="var_expectscore", show_default=True, type=str, help='Main score to use for PyProphet.')
 @click.option('--subsample_fraction', default=1.0, show_default=True, type=float, help='Data fraction used for subsampling.')
-def convert(fraggerfile, mzxmlfile, unimodfile, pepidxfile, psmsfile, subpsmsfile, peaksfile, subsample_fraction):
+def convert(pepxmlfile, mzxmlfile, unimodfile, psmsfile, subpsmsfile, peaksfile, main_score, subsample_fraction):
     """
-    Convert MSFragger TSV files for EasyPQP
+    Convert pepXML files for EasyPQP
     """
 
-    click.echo("Info: Converting %s." % fraggerfile)
-    psms, peaks = conversion(fraggerfile, mzxmlfile, unimodfile, pepidxfile)
+    run_id = os.path.splitext(os.path.basename(pepxmlfile))[0]
+    if psmsfile is None:
+        psmsfile = run_id + "_pyprophet.tsv"
+    if subpsmsfile is None:
+        subpsmsfile = run_id + "_subsampled.tsv"
+    if peaksfile is None:
+        peaksfile = run_id + ".peakpkl"
+
+    click.echo("Info: Converting %s." % pepxmlfile)
+    psms, peaks = conversion(pepxmlfile, mzxmlfile, unimodfile, main_score)
     subpsms = psms.sample(frac=subsample_fraction)
 
     psms.to_csv(psmsfile, sep="\t", index=False)
@@ -69,12 +61,13 @@ def convert(fraggerfile, mzxmlfile, unimodfile, pepidxfile, psmsfile, subpsmsfil
 @click.option('--peptide_plot', 'peptide_plot_path', default="easypqp_peptide_report.pdf", show_default=True, required=True, type=click.Path(exists=False), help='Output peptide-level PDF report.')
 @click.option('--protein_plot', 'protein_plot_path', default="easypqp_protein_report.pdf", show_default=True, required=True, type=click.Path(exists=False), help='Output protein-level PDF report.')
 @click.option('--min_peptides', default=5, show_default=True, type=int, help='Minimum peptides required for successful alignment.')
-def library(infiles, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path, min_peptides):
+@click.option('--proteotypic/--no-proteotypic', show_default=True, default=True, help='Use only proteotypic, unique, non-shared peptides.')
+def library(infiles, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path, min_peptides, proteotypic):
     """
     Generate EasyPQP library
     """
 
-    generate(infiles, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path, min_peptides)
+    generate(infiles, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path, min_peptides, proteotypic)
     click.echo("Info: Library successfully generated.")
 
 # EasyPQP Reduce

@@ -94,12 +94,15 @@ def protein_fdr(psms, protein_fdr_threshold, plot_path):
   
   return targets[targets['q_value'] < protein_fdr_threshold]['protein_id']
 
-def process_psms(psms, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path):
+def process_psms(psms, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path, proteotypic):
   # Append columns
   psms['base_name'] = psms['run_id'].apply(lambda x: os.path.splitext(os.path.basename(x))[0])
 
-  # Only keep proteotypic peptides
-  psms = psms[psms['proteotypic']]
+  # Filter proteotypic peptides
+  if proteotypic:
+    psms = psms[psms['num_tot_proteins'] == 1].copy()
+  else:
+    raise click.ClickException("Support for non-proteotypic peptides is not yet implemented.")
 
   # Prefilter PSMs
   psms = psms[psms['q_value'] < 0.1]
@@ -150,7 +153,7 @@ def lowess(run, reference_run, min_peptides, main_path):
 
   return run
 
-def generate(files, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path, min_peptides):
+def generate(files, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path, min_peptides, proteotypic):
   # Parse input arguments
   psm_files = []
   spectra = []
@@ -161,6 +164,12 @@ def generate(files, referencefile, psm_fdr_threshold, peptide_fdr_threshold, pro
     if 'peakpkl' in file:
       spectra.append(file)
 
+  if len(psm_files) == 0:
+    raise click.ClickException("No PyProphet files present. Need to have tag 'pyprophet' in filename.")
+
+  if len(spectra) == 0:
+    raise click.ClickException("No spectrum files present. Need to have tag 'peakpkl' in filename.")
+
   # Read all PSM files
   psms_list = []
   for psm_file in psm_files:
@@ -170,7 +179,7 @@ def generate(files, referencefile, psm_fdr_threshold, peptide_fdr_threshold, pro
   psms['pp'] = 1-psms['pep']
 
   # Process PSMs
-  pepid = process_psms(psms, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path)
+  pepid = process_psms(psms, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, peptide_plot_path, protein_plot_path, proteotypic)
 
   # Get main path for figures
   main_path = os.path.dirname(os.path.abspath(peptide_plot_path))
