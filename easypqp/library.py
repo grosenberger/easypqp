@@ -60,7 +60,7 @@ def plot(path, title, targets, decoys):
   plt.close()
 
 def peptide_fdr(psms, peptide_fdr_threshold, plot_path):
-  pi0_lambda = np.arange(0.05, 0.2, 0.05)
+  pi0_lambda = np.arange(0.05, 0.5, 0.05)
   pi0_method = 'bootstrap'
   pi0_smooth_df = 3
   pi0_smooth_log_pi0 = False
@@ -78,7 +78,7 @@ def peptide_fdr(psms, peptide_fdr_threshold, plot_path):
   return targets[targets['q_value'] < peptide_fdr_threshold]['modified_peptide']
 
 def protein_fdr(psms, protein_fdr_threshold, plot_path):
-  pi0_lambda = np.arange(0.05, 0.2, 0.05)
+  pi0_lambda = np.arange(0.05, 0.5, 0.05)
   pi0_method = 'bootstrap'
   pi0_smooth_df = 3
   pi0_smooth_log_pi0 = False
@@ -161,13 +161,13 @@ def generate(files, referencefile, psm_fdr_threshold, peptide_fdr_threshold, pro
   spectra = []
 
   for file in files:
-    if 'pyprophet' in file:
+    if 'psms' in file:
       psm_files.append(file)
     if 'peakpkl' in file:
       spectra.append(file)
 
   if len(psm_files) == 0:
-    raise click.ClickException("No PyProphet files present. Need to have tag 'pyprophet' in filename.")
+    raise click.ClickException("No PSMs files present. Need to have tag 'psms' in filename.")
 
   if len(spectra) == 0:
     raise click.ClickException("No spectrum files present. Need to have tag 'peakpkl' in filename.")

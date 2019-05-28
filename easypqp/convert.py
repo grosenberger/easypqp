@@ -312,8 +312,6 @@ def conversion(pepxmlfile, mzxmlfile, unimodfile, main_score, max_delta):
 	# Append PyProphet columns
 	run_id = os.path.splitext(os.path.basename(pepxmlfile))[0]
 	psms['group_id'] = psms['run_id'] + "_" + psms['scan_id'].astype(str)
-	psms['var_lengthscore'] = np.sqrt(psms['peptide_sequence'].str.len())
-	psms['var_charge'] = psms['precursor_charge']
 
 	if 'var_expect' in psms.columns:
 		psms = psms.rename(index=str, columns={'var_expect': 'expect'})

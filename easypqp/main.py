@@ -33,9 +33,9 @@ def convert(pepxmlfile, mzxmlfile, unimodfile, psmsfile, subpsmsfile, peaksfile,
 
     run_id = os.path.splitext(os.path.basename(pepxmlfile))[0]
     if psmsfile is None:
-        psmsfile = run_id + "_pyprophet.tsv"
+        psmsfile = run_id + "_psms.tsv"
     if subpsmsfile is None:
-        subpsmsfile = run_id + "_subsampled.tsv"
+        subpsmsfile = run_id + "_subpsms.tsv"
     if peaksfile is None:
         peaksfile = run_id + ".peakpkl"
 
