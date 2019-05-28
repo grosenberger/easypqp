@@ -24,8 +24,9 @@ def cli():
 @click.option('--subpsms', 'subpsmsfile', required=False, type=click.Path(exists=False), help='Output subsampled PSMs file.')
 @click.option('--peaks', 'peaksfile', required=False, type=click.Path(exists=False), help='Output peaks file.')
 @click.option('--main_score', default="var_expectscore", show_default=True, type=str, help='Main score to use for PyProphet.')
+@click.option('--max_delta', default=0.02, show_default=True, type=float, help='Maximum delta mass (Dalton) for UniMod annotation.')
 @click.option('--subsample_fraction', default=1.0, show_default=True, type=float, help='Data fraction used for subsampling.')
-def convert(pepxmlfile, mzxmlfile, unimodfile, psmsfile, subpsmsfile, peaksfile, main_score, subsample_fraction):
+def convert(pepxmlfile, mzxmlfile, unimodfile, psmsfile, subpsmsfile, peaksfile, main_score, max_delta, subsample_fraction):
     """
     Convert pepXML files for EasyPQP
     """
@@ -39,7 +40,7 @@ def convert(pepxmlfile, mzxmlfile, unimodfile, psmsfile, subpsmsfile, peaksfile,
         peaksfile = run_id + ".peakpkl"
 
     click.echo("Info: Converting %s." % pepxmlfile)
-    psms, peaks = conversion(pepxmlfile, mzxmlfile, unimodfile, main_score)
+    psms, peaks = conversion(pepxmlfile, mzxmlfile, unimodfile, main_score, max_delta)
     subpsms = psms.sample(frac=subsample_fraction)
 
     psms.to_csv(psmsfile, sep="\t", index=False)
