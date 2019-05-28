@@ -20,6 +20,7 @@ from scipy.interpolate import interp1d
 
 # error rate estimation
 from pyprophet.stats import pemp, qvalue, pi0est
+from pyprophet.ipf import compute_model_fdr
 
 # plotting
 from scipy.stats import gaussian_kde
@@ -59,7 +60,7 @@ def plot(path, title, targets, decoys):
   plt.close()
 
 def peptide_fdr(psms, peptide_fdr_threshold, plot_path):
-  pi0_lambda = np.arange(0.05, 0.5, 0.05)
+  pi0_lambda = np.arange(0.05, 0.2, 0.05)
   pi0_method = 'bootstrap'
   pi0_smooth_df = 3
   pi0_smooth_log_pi0 = False
@@ -77,7 +78,7 @@ def peptide_fdr(psms, peptide_fdr_threshold, plot_path):
   return targets[targets['q_value'] < peptide_fdr_threshold]['modified_peptide']
 
 def protein_fdr(psms, protein_fdr_threshold, plot_path):
-  pi0_lambda = np.arange(0.05, 0.5, 0.05)
+  pi0_lambda = np.arange(0.05, 0.2, 0.05)
   pi0_method = 'bootstrap'
   pi0_smooth_df = 3
   pi0_smooth_log_pi0 = False
@@ -104,8 +105,9 @@ def process_psms(psms, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_thr
   else:
     raise click.ClickException("Support for non-proteotypic peptides is not yet implemented.")
 
-  # Prefilter PSMs
-  psms = psms[psms['q_value'] < 0.1]
+  # Prepare PeptideProphet / iProphet results
+  if 'q_value' not in psms.columns:
+    psms['q_value'] = compute_model_fdr(psms['pep'].values)
 
   # Confident peptides and protein in global context
   peptides = peptide_fdr(psms, peptide_fdr_threshold, peptide_plot_path)

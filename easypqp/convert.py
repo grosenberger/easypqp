@@ -119,9 +119,9 @@ class pepxml:
 							unprocessed_proteins.append(alternative_protein.attrib['protein'])
 
 						# remove decoy results from mixed target/decoy hits
+						has_targets = False
+						has_decoys = False
 						for prot in unprocessed_proteins:
-							has_targets = False
-							has_decoys = False
 							if decoy_prefix in prot:
 								has_decoys = True
 							else:
@@ -129,11 +129,11 @@ class pepxml:
 
 						processed_proteins = []
 						for prot in unprocessed_proteins:
-							if has_targets or has_decoys:
-								processed_proteins.append(prot)
-							else:
+							if has_targets and has_decoys:
 								if decoy_prefix not in prot:
 									processed_proteins.append(prot)
+							else:
+								processed_proteins.append(prot)
 						num_tot_proteins = len(processed_proteins)
 
 						is_decoy = False
@@ -172,9 +172,19 @@ class pepxml:
 							for mod_aminoacid_mass in modification_info.findall('.//pepxml_ns:mod_aminoacid_mass', namespaces):
 								modifications = modifications + "|" + mod_aminoacid_mass.attrib['position'] + "$" + mod_aminoacid_mass.attrib['mass']
 
+						# parse search engine score information
 						scores = {}
 						for search_score in search_hit.findall('.//pepxml_ns:search_score', namespaces):
 							scores["var_" + search_score.attrib['name']] = float(search_score.attrib['value'])
+
+						# parse PeptideProphet or iProphet results if available
+						for analysis_result in search_hit.findall('.//pepxml_ns:analysis_result', namespaces):
+							if analysis_result.attrib['analysis'] == 'interprophet':
+								for interprophet_result in analysis_result.findall('.//pepxml_ns:interprophet_result', namespaces):
+									scores["pep"] = 1.0 - float(interprophet_result.attrib['probability'])
+							elif analysis_result.attrib['analysis'] == 'peptideprophet':
+								for peptideprophet_result in analysis_result.findall('.//pepxml_ns:peptideprophet_result', namespaces):
+									scores["pep"] = 1.0 - float(peptideprophet_result.attrib['probability'])
 
 						peptides.append({**{'run_id': base_name, 'scan_id': int(start_scan), 'hit_rank': int(hit_rank), 'massdiff': float(massdiff), 'precursor_charge': int(assumed_charge), 'retention_time': float(retention_time_sec), 'peptide_sequence': peptide, 'modifications': modifications, 'nterm_modification': nterm_modification, 'cterm_modification': cterm_modification, 'protein_id': protein, 'protein_description': protein_description, 'num_tot_proteins': num_tot_proteins, 'decoy': is_decoy}, **scores})
 
