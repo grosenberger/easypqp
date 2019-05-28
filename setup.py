@@ -11,7 +11,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 setup(
     name='easypqp',
     version='0.1.dev1',
-    description='EasyPQP: Simple library generation for OpenSWATH using MSFragger & PyProphet',
+    description='EasyPQP: Simple library generation for OpenSWATH',
     long_description=long_description,
     long_description_content_type='text/markdown',
     url="https://github.com/grosenberger/easypqp",

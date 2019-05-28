@@ -320,7 +320,8 @@ def conversion(pepxmlfile, mzxmlfile, unimodfile, main_score, max_delta):
 		psms['var_expectscore'] = 0.0 - np.log(psms['expect'])
 
 	if 'var_nextscore' in psms.columns and 'var_hyperscore' in psms.columns:
-		psms['var_deltascore'] = 1.0 - (psms['var_nextscore'] / psms['var_hyperscore'])
+		psms = psms.rename(index=str, columns={'var_nextscore': 'nextscore'})
+		psms['var_deltascore'] = 1.0 - (psms['nextscore'] / psms['var_hyperscore'])
 
 	# DIA-Umpire quality tiers
 	if run_id.endswith("_Q1"):
