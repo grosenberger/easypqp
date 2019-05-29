@@ -127,21 +127,18 @@ def process_psms(psms, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_thr
 
   return psms
 
-def lowess(run, reference_run, min_peptides, main_path):
+def lowess(run, reference_run, min_peptides, base_name, main_path):
   dfm = pd.merge(run, reference_run[['modified_peptide','precursor_charge','irt']], on=['modified_peptide','precursor_charge'])
   click.echo("Info: Peptide overlap between run and reference: %s." % (dfm.shape[0]))
   if dfm.shape[0] <= min_peptides:
     click.echo("Info: Skipping run because not enough peptides could be found for alignment.")
     return pd.DataFrame()
 
-  # Get base_name
-  base_name = dfm['base_name'].unique()[0]
-
   # Fit lowess model
   lwf = sm.nonparametric.lowess(dfm['irt'], dfm['retention_time'], frac=.66)
   lwf_x = list(zip(*lwf))[0]
   lwf_y = list(zip(*lwf))[1]
-  lwi = interp1d(lwf_x, lwf_y, bounds_error=False)
+  lwi = interp1d(lwf_x, lwf_y, bounds_error=False, fill_value="extrapolate")
 
   # Apply lowess model
   run['irt'] = lwi(run['retention_time'])
@@ -173,7 +170,7 @@ def generate(files, referencefile, psm_fdr_threshold, peptide_fdr_threshold, pro
   # Read all PSM files
   psms_list = []
   for psm_file in psm_files:
-    click.echo("Reading file %s." % psm_file)
+    click.echo("Info: Reading file %s." % psm_file)
     psms_list.append(pd.read_csv(psm_file, index_col=False, sep='\t'))
   psms = pd.concat(psms_list).reset_index(drop=True)
   psms['pp'] = 1-psms['pep']
@@ -210,7 +207,7 @@ def generate(files, referencefile, psm_fdr_threshold, peptide_fdr_threshold, pro
     reference_run['irt'] = min_max_scaler.fit_transform(reference_run[['retention_time']])*100
 
   # Normalize RT of all runs against reference
-  aligned_runs = align_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run, min_peptides, main_path)).dropna()
+  aligned_runs = align_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run, min_peptides, x.name, main_path))
   pepida = aligned_runs
   if referencefile is None:
     pepida = pd.concat([reference_run, aligned_runs], sort=True).reset_index(drop=True)
@@ -224,7 +221,7 @@ def generate(files, referencefile, psm_fdr_threshold, peptide_fdr_threshold, pro
 
   # Parse mzXML to retrieve peaks and store results in peak files
   for idx, peak_file in peak_files.iterrows():
-    click.echo("Parsing file %s." % peak_file['path'])
+    click.echo("Info: Parsing file %s." % peak_file['path'])
     meta_run = pepida[pepida['base_name'] == peak_file['base_name']]
     meta_global = pepidb[pepidb['base_name'] == peak_file['base_name']]
     peaks = pd.read_pickle(peak_file['path'])
