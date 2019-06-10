@@ -146,19 +146,23 @@ class pepxml:
 							if decoy_prefix + "sp|" in prot:
 								proteins[decoy_prefix + prot.split("|")[1]] = ""
 							elif "sp|" in prot:
-								proteins[prot.split("|")[1]] = prot.split("|")[2]
+								proteins[prot.split("|")[1]] = prot.split("|")[2].split(" ")[0].split("_")[0]
 							else:
 								proteins[prot] = prot
 
 						protein = ""
-						protein_description = ""
+						gene = ""
+
 						for key in sorted(proteins):
 							if protein == "":
 								protein = key
-								protein_description = proteins[key]
 							else:
 								protein = protein + ";" + key
-								protein_description = protein_description + ";" + proteins[key]
+
+							if gene == "":
+								gene = proteins[key]
+							else:
+								gene = gene + ";" + proteins[key]
 
 						# parse PTM information
 						modifications = "M"
@@ -186,7 +190,7 @@ class pepxml:
 								for peptideprophet_result in analysis_result.findall('.//pepxml_ns:peptideprophet_result', namespaces):
 									scores["pep"] = 1.0 - float(peptideprophet_result.attrib['probability'])
 
-						peptides.append({**{'run_id': base_name, 'scan_id': int(start_scan), 'hit_rank': int(hit_rank), 'massdiff': float(massdiff), 'precursor_charge': int(assumed_charge), 'retention_time': float(retention_time_sec), 'peptide_sequence': peptide, 'modifications': modifications, 'nterm_modification': nterm_modification, 'cterm_modification': cterm_modification, 'protein_id': protein, 'protein_description': protein_description, 'num_tot_proteins': num_tot_proteins, 'decoy': is_decoy}, **scores})
+						peptides.append({**{'run_id': base_name, 'scan_id': int(start_scan), 'hit_rank': int(hit_rank), 'massdiff': float(massdiff), 'precursor_charge': int(assumed_charge), 'retention_time': float(retention_time_sec), 'peptide_sequence': peptide, 'modifications': modifications, 'nterm_modification': nterm_modification, 'cterm_modification': cterm_modification, 'protein_id': protein, 'gene_id': gene, 'num_tot_proteins': num_tot_proteins, 'decoy': is_decoy}, **scores})
 
 		df = pd.DataFrame(peptides)
 		return(df)

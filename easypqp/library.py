@@ -207,7 +207,7 @@ def generate(files, referencefile, psm_fdr_threshold, peptide_fdr_threshold, pro
     reference_run['irt'] = min_max_scaler.fit_transform(reference_run[['retention_time']])*100
 
   # Normalize RT of all runs against reference
-  aligned_runs = align_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run, min_peptides, x.name, main_path))
+  aligned_runs = align_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run, min_peptides, x.name, main_path)).dropna()
   pepida = aligned_runs
   if referencefile is None:
     pepida = pd.concat([reference_run, aligned_runs], sort=True).reset_index(drop=True)
@@ -228,15 +228,15 @@ def generate(files, referencefile, psm_fdr_threshold, peptide_fdr_threshold, pro
     
     # Generate run-specific PQP files for OpenSWATH alignment
     if "_Q1" in peak_file['base_name']:
-      run_pqp = pd.merge(meta_run, peaks, on='scan_id')[['precursor_mz','product_mz','intensity','irt','protein_id','peptide_sequence','modified_peptide','precursor_charge']]
-      run_pqp.columns = ['PrecursorMz','ProductMz','LibraryIntensity','NormalizedRetentionTime','ProteinId','PeptideSequence','ModifiedPeptideSequence','PrecursorCharge']
+      run_pqp = pd.merge(meta_run, peaks, on='scan_id')[['precursor_mz','product_mz','intensity','irt','protein_id','gene_id','peptide_sequence','modified_peptide','precursor_charge']]
+      run_pqp.columns = ['PrecursorMz','ProductMz','LibraryIntensity','NormalizedRetentionTime','ProteinId','GeneName','PeptideSequence','ModifiedPeptideSequence','PrecursorCharge']
       run_pqp['PrecursorCharge'] = run_pqp['PrecursorCharge'].astype(int)
       run_pqp_path = os.path.splitext(peak_file['path'])[0]+"_run_peaks.tsv"
       run_pqp.to_csv(run_pqp_path, sep="\t", index=False)
 
     # Generate global non-redundant PQP files
-    global_pqp = pd.merge(meta_global, peaks, on='scan_id')[['precursor_mz','product_mz','intensity','irt','protein_id','peptide_sequence','modified_peptide','precursor_charge']]
-    global_pqp.columns = ['PrecursorMz','ProductMz','LibraryIntensity','NormalizedRetentionTime','ProteinId','PeptideSequence','ModifiedPeptideSequence','PrecursorCharge']
+    global_pqp = pd.merge(meta_global, peaks, on='scan_id')[['precursor_mz','product_mz','intensity','irt','protein_id','gene_id','peptide_sequence','modified_peptide','precursor_charge']]
+    global_pqp.columns = ['PrecursorMz','ProductMz','LibraryIntensity','NormalizedRetentionTime','ProteinId','GeneName','PeptideSequence','ModifiedPeptideSequence','PrecursorCharge']
     global_pqp['PrecursorCharge'] = global_pqp['PrecursorCharge'].astype(int)
     global_pqp_path = os.path.splitext(peak_file['path'])[0]+"_global_peaks.tsv"
     global_pqp.to_csv(global_pqp_path, sep="\t", index=False)
