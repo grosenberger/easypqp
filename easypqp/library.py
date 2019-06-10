@@ -207,10 +207,13 @@ def generate(files, referencefile, psm_fdr_threshold, peptide_fdr_threshold, pro
     reference_run['irt'] = min_max_scaler.fit_transform(reference_run[['retention_time']])*100
 
   # Normalize RT of all runs against reference
-  aligned_runs = align_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run, min_peptides, x.name, main_path)).dropna()
+  aligned_runs = align_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run, min_peptides, x.name, main_path))
   pepida = aligned_runs
   if referencefile is None:
     pepida = pd.concat([reference_run, aligned_runs], sort=True).reset_index(drop=True)
+
+  # Remove peptides without valid iRT
+  pepida = pepida.loc[np.isfinite(pepida['irt'])]
 
   # Generate set of non-redundant global best replicate identifications
   pepidb = pepida.loc[pepida.groupby(['modified_peptide','precursor_charge'])['pp'].idxmax()].sort_index()
