@@ -32,7 +32,7 @@ def convert(pepxmlfile, mzxmlfile, unimodfile, psmsfile, subpsmsfile, peaksfile,
     Convert pepXML files for EasyPQP
     """
 
-    run_id = os.path.splitext(os.path.basename(pepxmlfile))[0]
+    run_id = os.path.splitext(os.path.basename(mzxmlfile))[0]
     if psmsfile is None:
         psmsfile = run_id + "_psms.tsv"
     if subpsmsfile is None:
@@ -41,14 +41,15 @@ def convert(pepxmlfile, mzxmlfile, unimodfile, psmsfile, subpsmsfile, peaksfile,
         peaksfile = run_id + ".peakpkl"
 
     click.echo("Info: Converting %s." % pepxmlfile)
-    psms, peaks = conversion(pepxmlfile, mzxmlfile, unimodfile, main_score, max_delta)
-    subpsms = psms.sample(frac=subsample_fraction)
+    psms, peaks, tpp = conversion(pepxmlfile, mzxmlfile, unimodfile, main_score, max_delta)
 
     psms.to_csv(psmsfile, sep="\t", index=False)
     click.echo("Info: PSMs successfully converted and stored in %s." % psmsfile)
 
-    subpsms.to_csv(subpsmsfile, sep="\t", index=False)
-    click.echo("Info: Subsampled PSMs successfully converted and stored in %s." % subpsmsfile)
+    if not tpp:
+        subpsms = psms.sample(frac=subsample_fraction)
+        subpsms.to_csv(subpsmsfile, sep="\t", index=False)
+        click.echo("Info: Subsampled PSMs successfully converted and stored in %s." % subpsmsfile)
 
     peaks.to_pickle(peaksfile)
     click.echo("Info: Peaks successfully converted and stored in %s." % peaksfile)
