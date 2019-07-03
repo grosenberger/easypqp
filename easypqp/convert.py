@@ -277,41 +277,115 @@ class unimod:
 
 		return aamod, nterm_modification, cterm_modification
 
-def read_mzxml(mzxml_path, scan_ids):
+def read_mzxml(mzxml_path, psms, theoretical, max_delta_ppm):
 	fh = po.MzXMLFile()
 	fh.setLogType(po.LogType.CMD)
 	input_map = po.MSExperiment()
 	fh.load(mzxml_path, input_map)
 
 	peaks_list = []
-	for scan_id in scan_ids:
+	for ix, psm in psms.iterrows():
+		scan_id = psm['scan_id']
+		ionseries = theoretical[psm['modified_peptide']][psm['precursor_charge']]
 
 		spectrum = input_map.getSpectrum(scan_id - 1)
 
+		fragments = []
 		product_mzs = []
 		intensities = []
 		for peak in spectrum:
-			product_mzs.append(peak.getMZ())
-			intensities.append(peak.getIntensity())
+			fragment, product_mz = annotate_mass(peak.getMZ(), ionseries, max_delta_ppm)
+			if fragment is not None:
+				fragments.append(fragment)
+				product_mzs.append(product_mz)
+				intensities.append(peak.getIntensity())
 
-		peaks = pd.DataFrame({'product_mz': product_mzs, 'intensity': intensities})
-		peaks['precursor_mz'] = spectrum.getPrecursors()[0].getMZ()
+		peaks = pd.DataFrame({'fragment': fragments, 'product_mz': product_mzs, 'intensity': intensities})
 		peaks['scan_id'] = scan_id
+		peaks['precursor_mz'] = po.AASequence.fromString(po.String(psm['modified_peptide'])).getMonoWeight(po.Residue.ResidueType.Full, psm['precursor_charge']) / psm['precursor_charge'];
+		peaks['modified_peptide'] = psm['modified_peptide']
+		peaks['precursor_charge'] = psm['precursor_charge']
+
+		# Baseline normalization to highest annotated peak
+		peaks['intensity'] = peaks['intensity'] * (10000 / np.max(peaks['intensity']))
+
 		peaks_list.append(peaks)
 
 	if len(peaks_list) > 0:
 		transitions = pd.concat(peaks_list)
+		# Multiple peaks might be identically annotated, only use most intense
+		transitions = transitions.groupby(['scan_id','modified_peptide','precursor_charge','precursor_mz','fragment','product_mz'])['intensity'].max().reset_index()
 	else:
-		transitions = pd.DataFrame({'product_mz': [], 'precursor_mz': [], 'intensity': [], 'scan_id': [], })
+		transitions = pd.DataFrame({'scan_id': [], 'modified_peptide': [], 'precursor_charge': [], 'precursor_mz': [], 'fragment': [], 'product_mz': [], 'intensity': []})
 	return(transitions)
 
-def conversion(pepxmlfile, mzxmlfile, unimodfile, main_score, max_delta):
+def annotate_mass(mass, ionseries, max_delta_ppm):
+	top_fragment = None
+	top_mass = None
+	top_delta = 30
+	for ion in ionseries.keys():
+		ppm = np.abs(((mass-ionseries[ion])/ionseries[ion])*1e6)
+
+		if ppm < max_delta_ppm and ppm < top_delta:
+			top_fragment = ion
+			top_mass = ionseries[ion]
+			top_delta = ppm
+	return top_fragment, top_mass
+
+def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2,3,4], fragment_types=['b','y'], enable_specific_losses = False, enable_unspecific_losses = False):
+	peptide = po.AASequence.fromString(po.String(peptide_sequence))
+	sequence = peptide.toUnmodifiedString()
+
+	unspecific_losses = ["H2O1","H3N1","C1H2N2","C1H2N1O1"]
+
+	fragments = {}
+
+	for fragment_type in fragment_types:
+		for fragment_charge in fragment_charges:
+			if fragment_charge <= precursor_charge:
+				for fragment_ordinal in range(1,len(sequence)):
+					if fragment_type == 'a':
+						ion = peptide.getPrefix(fragment_ordinal)
+						mass = ion.getMonoWeight(po.Residue.ResidueType.AIon, fragment_charge) / fragment_charge;
+					elif fragment_type == 'b':
+						ion = peptide.getPrefix(fragment_ordinal)
+						mass = ion.getMonoWeight(po.Residue.ResidueType.BIon, fragment_charge) / fragment_charge;
+					elif fragment_type == 'c':
+						ion = peptide.getPrefix(fragment_ordinal)
+						mass = ion.getMonoWeight(po.Residue.ResidueType.CIon, fragment_charge) / fragment_charge;
+					elif fragment_type == 'x':
+						ion = peptide.getSuffix(fragment_ordinal)
+						mass = ion.getMonoWeight(po.Residue.ResidueType.XIon, fragment_charge) / fragment_charge;
+					elif fragment_type == 'y':
+						ion = peptide.getSuffix(fragment_ordinal)
+						mass = ion.getMonoWeight(po.Residue.ResidueType.YIon, fragment_charge) / fragment_charge;
+					elif fragment_type == 'z':
+						ion = peptide.getSuffix(fragment_ordinal)
+						mass = ion.getMonoWeight(po.Residue.ResidueType.ZIon, fragment_charge) / fragment_charge;
+
+					# Standard fragment ions
+					fragments[fragment_type + str(fragment_ordinal) + "^" + str(fragment_charge)] = mass
+
+					# Losses
+					if enable_specific_losses or enable_unspecific_losses:
+						for lossfragment_ordinal in range(1,ion.size()):
+							if (ion.getResidue(lossfragment_ordinal).hasNeutralLoss()):
+								losses = ion.getResidue(lossfragment_ordinal).getLossFormulas()
+								for loss in losses:
+									loss_type = loss.toString().decode("utf-8")
+
+									if (enable_specific_losses and loss_type not in unspecific_losses) or (enable_unspecific_losses and loss_type in unspecific_losses):
+										fragments[fragment_type + str(fragment_ordinal) + "-" + loss_type + "^" + str(fragment_charge)] = mass - (loss.getMonoWeight() / fragment_charge)
+
+	return(fragments)
+
+def conversion(pepxmlfile, mzxmlfile, unimodfile, main_score, max_delta_unimod, max_delta_ppm, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses):
 	# Parse basename
 	base_name = os.path.splitext(os.path.basename(mzxmlfile))[0]
 	click.echo("Info: Parsing run %s." % base_name)
 
 	# Initialize UniMod
-	um = unimod(unimodfile, max_delta)
+	um = unimod(unimodfile, max_delta_unimod)
 
 	# Parse pepXML
 	px = pepxml(pepxmlfile, um, base_name)
@@ -353,9 +427,18 @@ def conversion(pepxmlfile, mzxmlfile, unimodfile, main_score, max_delta):
 	else:
 		tpp = False
 
+	# Generate theoretical spectra
+	click.echo("Info: Generate theoretical spectra.")
+	theoretical = {}
+	for ix, peptide in psms[['modified_peptide','precursor_charge']].drop_duplicates().iterrows():
+		if peptide['modified_peptide'] not in theoretical.keys():
+			theoretical[peptide['modified_peptide']] = {}
+
+		theoretical[peptide['modified_peptide']][peptide['precursor_charge']] = generate_ionseries(peptide['modified_peptide'], peptide['precursor_charge'], fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses)
+
 	# Generate spectrum dataframe
 	click.echo("Info: Processing spectra from file %s." % mzxmlfile)
-	peaks = read_mzxml(mzxmlfile, psms['scan_id'].unique().tolist())
+	peaks = read_mzxml(mzxmlfile, psms[['scan_id','modified_peptide','precursor_charge']], theoretical, max_delta_ppm)
 
 	return psms, peaks, tpp
 	

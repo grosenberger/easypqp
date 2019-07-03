@@ -38,9 +38,9 @@ setup(
     #     'dev': ['check-manifest'],
     #     'test': ['coverage'],
     # },
-    # package_data={  # Optional
-    #     'sample': ['package_data.dat'],
-    # },
+    package_data={  # Optional
+        'unimod': ['data/unimod.xml'],
+    },
     entry_points={
         'console_scripts': [
             'easypqp=easypqp.main:cli',
