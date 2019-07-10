@@ -5,7 +5,8 @@ from statistics import median_low
 import click
 
 # Unimod parsing
-import xml.etree.ElementTree as ET
+import xml.etree.cElementTree as ET
+from xml.etree.cElementTree import iterparse
 
 # mzXML parsing
 import pyopenms as po
@@ -86,114 +87,117 @@ class pepxml:
 		peptides = []
 		namespaces = {'pepxml_ns': "http://regis-web.systemsbiology.net/pepXML"}
 		ET.register_namespace('', "http://regis-web.systemsbiology.net/pepXML")
-		tree = ET.parse(self.pepxml_file)
-		root = tree.getroot()
 
-		for msms_run_summary in root.findall('.//pepxml_ns:msms_run_summary', namespaces):
-			base_name = os.path.basename(msms_run_summary.attrib['base_name'])
+		context = iterparse(self.pepxml_file, events=("start", "end"))
+		context = iter(context)
 
-			# only proceed if base_name matches
-			if base_name == self.base_name:
-				# find decoy prefix
-				decoy_prefix = ""
-				for search_summary in msms_run_summary.findall('.//pepxml_ns:search_summary', namespaces):
-					for parameter in search_summary.findall('.//pepxml_ns:parameter', namespaces):
-						if parameter.attrib['name'] == 'decoy_prefix':
-							decoy_prefix = parameter.attrib['value']
+		for event, elem in context:
+			if event == "end" and elem.tag == "{http://regis-web.systemsbiology.net/pepXML}msms_run_summary":
+				base_name = os.path.basename(elem.attrib['base_name'])
 
-				# go through all spectrum queries
-				for spectrum_query in msms_run_summary.findall('.//pepxml_ns:spectrum_query', namespaces):
-					index = spectrum_query.attrib['index']
-					start_scan = spectrum_query.attrib['start_scan']
-					end_scan = spectrum_query.attrib['end_scan']
-					assumed_charge = spectrum_query.attrib['assumed_charge']
-					retention_time_sec = spectrum_query.attrib['retention_time_sec']
+				# only proceed if base_name matches
+				if base_name == self.base_name:
+					# find decoy prefix
+					decoy_prefix = ""
+					for search_summary in elem.findall('.//pepxml_ns:search_summary', namespaces):
+						for parameter in search_summary.findall('.//pepxml_ns:parameter', namespaces):
+							if parameter.attrib['name'] == 'decoy_prefix':
+								decoy_prefix = parameter.attrib['value']
 
-					for search_result in spectrum_query.findall(".//pepxml_ns:search_result", namespaces):
-						for search_hit in search_result.findall(".//pepxml_ns:search_hit", namespaces):
-							hit_rank = search_hit.attrib['hit_rank']
-							massdiff = search_hit.attrib['massdiff']
+					# go through all spectrum queries
+					for spectrum_query in elem.findall('.//pepxml_ns:spectrum_query', namespaces):
+						index = spectrum_query.attrib['index']
+						start_scan = spectrum_query.attrib['start_scan']
+						end_scan = spectrum_query.attrib['end_scan']
+						assumed_charge = spectrum_query.attrib['assumed_charge']
+						retention_time_sec = spectrum_query.attrib['retention_time_sec']
 
-							# parse peptide and protein information
-							peptide = search_hit.attrib['peptide']
-							unprocessed_proteins = [search_hit.attrib['protein']]
+						for search_result in spectrum_query.findall(".//pepxml_ns:search_result", namespaces):
+							for search_hit in search_result.findall(".//pepxml_ns:search_hit", namespaces):
+								hit_rank = search_hit.attrib['hit_rank']
+								massdiff = search_hit.attrib['massdiff']
 
-							for alternative_protein in search_hit.findall('.//pepxml_ns:alternative_protein', namespaces):
-								unprocessed_proteins.append(alternative_protein.attrib['protein'])
+								# parse peptide and protein information
+								peptide = search_hit.attrib['peptide']
+								unprocessed_proteins = [search_hit.attrib['protein']]
 
-							# remove decoy results from mixed target/decoy hits
-							has_targets = False
-							has_decoys = False
-							for prot in unprocessed_proteins:
-								if decoy_prefix in prot:
-									has_decoys = True
-								else:
-									has_targets = True
+								for alternative_protein in search_hit.findall('.//pepxml_ns:alternative_protein', namespaces):
+									unprocessed_proteins.append(alternative_protein.attrib['protein'])
 
-							processed_proteins = []
-							for prot in unprocessed_proteins:
-								if has_targets and has_decoys:
-									if decoy_prefix not in prot:
+								# remove decoy results from mixed target/decoy hits
+								has_targets = False
+								has_decoys = False
+								for prot in unprocessed_proteins:
+									if decoy_prefix in prot:
+										has_decoys = True
+									else:
+										has_targets = True
+
+								processed_proteins = []
+								for prot in unprocessed_proteins:
+									if has_targets and has_decoys:
+										if decoy_prefix not in prot:
+											processed_proteins.append(prot)
+									else:
 										processed_proteins.append(prot)
-								else:
-									processed_proteins.append(prot)
-							num_tot_proteins = len(processed_proteins)
+								num_tot_proteins = len(processed_proteins)
 
-							is_decoy = False
-							if has_decoys and not has_targets:
-								is_decoy = True
+								is_decoy = False
+								if has_decoys and not has_targets:
+									is_decoy = True
 
-							proteins = {}
-							for prot in processed_proteins:
-								# Remove UniProt prefixes if necessary
-								if decoy_prefix + "sp|" in prot:
-									proteins[decoy_prefix + prot.split("|")[1]] = ""
-								elif "sp|" in prot:
-									proteins[prot.split("|")[1]] = prot.split("|")[2].split(" ")[0].split("_")[0]
-								else:
-									proteins[prot] = prot
+								proteins = {}
+								for prot in processed_proteins:
+									# Remove UniProt prefixes if necessary
+									if decoy_prefix + "sp|" in prot:
+										proteins[decoy_prefix + prot.split("|")[1]] = ""
+									elif "sp|" in prot:
+										proteins[prot.split("|")[1]] = prot.split("|")[2].split(" ")[0].split("_")[0]
+									else:
+										proteins[prot] = prot
 
-							protein = ""
-							gene = ""
+								protein = ""
+								gene = ""
 
-							for key in sorted(proteins):
-								if protein == "":
-									protein = key
-								else:
-									protein = protein + ";" + key
+								for key in sorted(proteins):
+									if protein == "":
+										protein = key
+									else:
+										protein = protein + ";" + key
 
-								if gene == "":
-									gene = proteins[key]
-								else:
-									gene = gene + ";" + proteins[key]
+									if gene == "":
+										gene = proteins[key]
+									else:
+										gene = gene + ";" + proteins[key]
 
-							# parse PTM information
-							modifications = "M"
-							nterm_modification = ""
-							cterm_modification = ""
-							for modification_info in search_hit.findall('.//pepxml_ns:modification_info', namespaces):
-								if 'mod_nterm_mass' in modification_info.attrib:
-									nterm_modification = float(modification_info.attrib['mod_nterm_mass'])
-								if 'mod_cterm_mass' in modification_info.attrib:
-									cterm_modification = float(modification_info.attrib['mod_cterm_mass'])
-								for mod_aminoacid_mass in modification_info.findall('.//pepxml_ns:mod_aminoacid_mass', namespaces):
-									modifications = modifications + "|" + mod_aminoacid_mass.attrib['position'] + "$" + mod_aminoacid_mass.attrib['mass']
+								# parse PTM information
+								modifications = "M"
+								nterm_modification = ""
+								cterm_modification = ""
+								for modification_info in search_hit.findall('.//pepxml_ns:modification_info', namespaces):
+									if 'mod_nterm_mass' in modification_info.attrib:
+										nterm_modification = float(modification_info.attrib['mod_nterm_mass'])
+									if 'mod_cterm_mass' in modification_info.attrib:
+										cterm_modification = float(modification_info.attrib['mod_cterm_mass'])
+									for mod_aminoacid_mass in modification_info.findall('.//pepxml_ns:mod_aminoacid_mass', namespaces):
+										modifications = modifications + "|" + mod_aminoacid_mass.attrib['position'] + "$" + mod_aminoacid_mass.attrib['mass']
 
-							# parse search engine score information
-							scores = {}
-							for search_score in search_hit.findall('.//pepxml_ns:search_score', namespaces):
-								scores["var_" + search_score.attrib['name']] = float(search_score.attrib['value'])
+								# parse search engine score information
+								scores = {}
+								for search_score in search_hit.findall('.//pepxml_ns:search_score', namespaces):
+									scores["var_" + search_score.attrib['name']] = float(search_score.attrib['value'])
 
-							# parse PeptideProphet or iProphet results if available
-							for analysis_result in search_hit.findall('.//pepxml_ns:analysis_result', namespaces):
-								if analysis_result.attrib['analysis'] == 'interprophet':
-									for interprophet_result in analysis_result.findall('.//pepxml_ns:interprophet_result', namespaces):
-										scores["pep"] = 1.0 - float(interprophet_result.attrib['probability'])
-								elif analysis_result.attrib['analysis'] == 'peptideprophet':
-									for peptideprophet_result in analysis_result.findall('.//pepxml_ns:peptideprophet_result', namespaces):
-										scores["pep"] = 1.0 - float(peptideprophet_result.attrib['probability'])
+								# parse PeptideProphet or iProphet results if available
+								for analysis_result in search_hit.findall('.//pepxml_ns:analysis_result', namespaces):
+									if analysis_result.attrib['analysis'] == 'interprophet':
+										for interprophet_result in analysis_result.findall('.//pepxml_ns:interprophet_result', namespaces):
+											scores["pep"] = 1.0 - float(interprophet_result.attrib['probability'])
+									elif analysis_result.attrib['analysis'] == 'peptideprophet':
+										for peptideprophet_result in analysis_result.findall('.//pepxml_ns:peptideprophet_result', namespaces):
+											scores["pep"] = 1.0 - float(peptideprophet_result.attrib['probability'])
 
-							peptides.append({**{'run_id': base_name, 'scan_id': int(start_scan), 'hit_rank': int(hit_rank), 'massdiff': float(massdiff), 'precursor_charge': int(assumed_charge), 'retention_time': float(retention_time_sec), 'peptide_sequence': peptide, 'modifications': modifications, 'nterm_modification': nterm_modification, 'cterm_modification': cterm_modification, 'protein_id': protein, 'gene_id': gene, 'num_tot_proteins': num_tot_proteins, 'decoy': is_decoy}, **scores})
+								peptides.append({**{'run_id': base_name, 'scan_id': int(start_scan), 'hit_rank': int(hit_rank), 'massdiff': float(massdiff), 'precursor_charge': int(assumed_charge), 'retention_time': float(retention_time_sec), 'peptide_sequence': peptide, 'modifications': modifications, 'nterm_modification': nterm_modification, 'cterm_modification': cterm_modification, 'protein_id': protein, 'gene_id': gene, 'num_tot_proteins': num_tot_proteins, 'decoy': is_decoy}, **scores})
+				elem.clear()
 
 		df = pd.DataFrame(peptides)
 		return(df)
