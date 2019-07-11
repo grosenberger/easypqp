@@ -127,7 +127,7 @@ def process_psms(psms, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_thr
 
   return psms
 
-def lowess(run, reference_run, min_peptides, base_name, main_path):
+def lowess(run, reference_run, lowess_frac=0.66, min_peptides, base_name, main_path):
   dfm = pd.merge(run, reference_run[['modified_peptide','precursor_charge','irt']], on=['modified_peptide','precursor_charge'])
   click.echo("Info: Peptide overlap between run and reference: %s." % (dfm.shape[0]))
   if dfm.shape[0] <= min_peptides:
@@ -135,7 +135,7 @@ def lowess(run, reference_run, min_peptides, base_name, main_path):
     return pd.DataFrame()
 
   # Fit lowess model
-  lwf = sm.nonparametric.lowess(dfm['irt'], dfm['retention_time'], frac=.66)
+  lwf = sm.nonparametric.lowess(dfm['irt'], dfm['retention_time'], frac=lowess_frac)
   lwf_x = list(zip(*lwf))[0]
   lwf_y = list(zip(*lwf))[1]
   lwi = interp1d(lwf_x, lwf_y, bounds_error=False, fill_value="extrapolate")
@@ -150,7 +150,7 @@ def lowess(run, reference_run, min_peptides, base_name, main_path):
 
   return run
 
-def generate(files, outfile, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus):
+def generate(files, outfile, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, lowess_frac, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus):
   # Parse input arguments
   psm_files = []
   spectra = []
@@ -207,7 +207,7 @@ def generate(files, outfile, referencefile, psm_fdr_threshold, peptide_fdr_thres
     reference_run['irt'] = min_max_scaler.fit_transform(reference_run[['retention_time']])*100
 
   # Normalize RT of all runs against reference
-  aligned_runs = align_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run, min_peptides, x.name, main_path))
+  aligned_runs = align_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run, lowess_frac, min_peptides, x.name, main_path))
   pepida = aligned_runs
   if referencefile is None:
     pepida = pd.concat([reference_run, aligned_runs], sort=True).reset_index(drop=True)

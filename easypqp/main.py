@@ -71,18 +71,19 @@ def convert(pepxmlfile, mzxmlfile, unimodfile, psmsfile, subpsmsfile, peaksfile,
 @click.option('--psm_fdr_threshold', default=0.01, show_default=True, type=float, help='PSM FDR threshold.')
 @click.option('--peptide_fdr_threshold', default=0.01, show_default=True, type=float, help='Peptide FDR threshold.')
 @click.option('--protein_fdr_threshold', default=0.01, show_default=True, type=float, help='Protein FDR threshold.')
+@click.option('--lowess_fraction', default=0.1, show_default=True, type=float, help='Fraction of data points to use for lowess regression.')
 @click.option('--pi0_lambda', default=[0.1,0.5,0.05], show_default=True, type=(float, float, float), help='Use non-parametric estimation of p-values. Either use <START END STEPS>, e.g. 0.1, 1.0, 0.1 or set to fixed value, e.g. 0.4, 0, 0.', callback=transform_pi0_lambda)
 @click.option('--peptide_plot', 'peptide_plot_path', default="easypqp_peptide_report.pdf", show_default=True, required=True, type=click.Path(exists=False), help='Output peptide-level PDF report.')
 @click.option('--protein_plot', 'protein_plot_path', default="easypqp_protein_report.pdf", show_default=True, required=True, type=click.Path(exists=False), help='Output protein-level PDF report.')
 @click.option('--min_peptides', default=5, show_default=True, type=int, help='Minimum peptides required for successful alignment.')
 @click.option('--proteotypic/--no-proteotypic', show_default=True, default=True, help='Use only proteotypic, unique, non-shared peptides.')
 @click.option('--consensus/--no-consensus', show_default=True, default=True, help='Generate consensus instead of best replicate spectra.')
-def library(infiles, outfile, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus):
+def library(infiles, outfile, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, lowess_fraction, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus):
     """
     Generate EasyPQP library
     """
 
-    generate(infiles, outfile, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus)
+    generate(infiles, outfile, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, lowess_fraction, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus)
     click.echo("Info: Library successfully generated.")
 
 # EasyPQP Reduce
