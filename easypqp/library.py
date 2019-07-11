@@ -127,7 +127,7 @@ def process_psms(psms, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_thr
 
   return psms
 
-def lowess(run, reference_run, lowess_frac=0.66, min_peptides, base_name, main_path):
+def lowess(run, reference_run, lowess_frac, min_peptides, base_name, main_path):
   dfm = pd.merge(run, reference_run[['modified_peptide','precursor_charge','irt']], on=['modified_peptide','precursor_charge'])
   click.echo("Info: Peptide overlap between run and reference: %s." % (dfm.shape[0]))
   if dfm.shape[0] <= min_peptides:
