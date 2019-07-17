@@ -150,7 +150,7 @@ def lowess(run, reference_run, xcol, ycol, lowess_frac, min_peptides, base_name,
 
   return run
 
-def generate(files, outfile, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, lowess_frac, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus):
+def generate(files, outfile, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_frac, im_lowess_frac, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus):
   # Parse input arguments
   psm_files = []
   spectra = []
@@ -206,17 +206,15 @@ def generate(files, outfile, referencefile, psm_fdr_threshold, peptide_fdr_thres
     min_max_scaler = preprocessing.MinMaxScaler()
     reference_run['irt'] = min_max_scaler.fit_transform(reference_run[['retention_time']])*100
 
-    # Normalize IM of reference run
-
     # Remove ion mobility column if empty
     if not reference_run['ion_mobility'].isnull().values.any():
-      reference_run['im'] = min_max_scaler.fit_transform(reference_run[['ion_mobility']])*100
+      reference_run['im'] = reference_run['ion_mobility']
 
   # Normalize RT of all runs against reference
-  aligned_runs = align_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run, 'retention_time', 'irt', lowess_frac, min_peptides, x.name, main_path))
+  aligned_runs = align_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run, 'retention_time', 'irt', rt_lowess_frac, min_peptides, x.name, main_path))
 
   # Normalize IM of all runs against reference
-  aligned_runs = aligned_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run, 'ion_mobility', 'im', lowess_frac, min_peptides, x.name, main_path))
+  aligned_runs = aligned_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run, 'ion_mobility', 'im', im_lowess_frac, min_peptides, x.name, main_path))
   pepida = aligned_runs
 
   # Add reference run if internal calibration is used
