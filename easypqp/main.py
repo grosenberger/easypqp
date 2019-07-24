@@ -20,7 +20,7 @@ def cli():
 # EasyPQP Convert
 @cli.command()
 @click.option('--pepxml', 'pepxmlfile', required=True, type=click.Path(exists=True), help='The input MSFragger TSV file.')
-@click.option('--mzxml', 'mzxmlfile', required=True, type=click.Path(exists=True), help='The input mzXML file.')
+@click.option('--spectra', 'spectralfile', required=True, type=click.Path(exists=True), help='The input mzXML or MGF (timsTOF only) file.')
 @click.option('--unimod', 'unimodfile', required=False, type=click.Path(exists=True), help='The input UniMod XML file.')
 @click.option('--psms', 'psmsfile', required=False, type=click.Path(exists=False), help='Output PSMs file.')
 @click.option('--subpsms', 'subpsmsfile', required=False, type=click.Path(exists=False), help='Output subsampled PSMs file.')
@@ -33,7 +33,7 @@ def cli():
 @click.option('--enable_specific_losses/--no-enable_specific_losses', default=False, show_default=True, help='Enable specific fragment ion losses.')
 @click.option('--enable_unspecific_losses/--no-enable_unspecific_losses', default=False, show_default=True, help='Enable unspecific fragment ion losses.')
 @click.option('--subsample_fraction', default=1.0, show_default=True, type=float, help='Data fraction used for subsampling.')
-def convert(pepxmlfile, mzxmlfile, unimodfile, psmsfile, subpsmsfile, peaksfile, main_score, max_delta_unimod, max_delta_ppm, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, subsample_fraction):
+def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, subpsmsfile, peaksfile, main_score, max_delta_unimod, max_delta_ppm, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, subsample_fraction):
     """
     Convert pepXML files for EasyPQP
     """
@@ -41,7 +41,7 @@ def convert(pepxmlfile, mzxmlfile, unimodfile, psmsfile, subpsmsfile, peaksfile,
     if unimodfile is None:
         unimodfile = pkg_resources.resource_filename('easypqp', 'data/unimod.xml')
 
-    run_id = os.path.splitext(os.path.basename(mzxmlfile))[0]
+    run_id = os.path.splitext(os.path.basename(spectralfile))[0]
     if psmsfile is None:
         psmsfile = run_id + "_psms.tsv"
     if subpsmsfile is None:
@@ -50,7 +50,7 @@ def convert(pepxmlfile, mzxmlfile, unimodfile, psmsfile, subpsmsfile, peaksfile,
         peaksfile = run_id + ".peakpkl"
 
     click.echo("Info: Converting %s." % pepxmlfile)
-    psms, peaks, tpp = conversion(pepxmlfile, mzxmlfile, unimodfile, main_score, max_delta_unimod, max_delta_ppm, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses)
+    psms, peaks, tpp = conversion(pepxmlfile, spectralfile, unimodfile, main_score, max_delta_unimod, max_delta_ppm, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses)
 
     psms.to_csv(psmsfile, sep="\t", index=False)
     click.echo("Info: PSMs successfully converted and stored in %s." % psmsfile)

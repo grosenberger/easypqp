@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from statistics import median_low
 import click
+import re
 
 # Unimod parsing
 import xml.etree.cElementTree as ET
@@ -328,6 +329,92 @@ def read_mzxml(mzxml_path, psms, theoretical, max_delta_ppm):
 		transitions = pd.DataFrame({'scan_id': [], 'modified_peptide': [], 'precursor_charge': [], 'precursor_mz': [], 'fragment': [], 'product_mz': [], 'intensity': []})
 	return(transitions)
 
+
+def read_tims_mgf(tims_mgf_path, psms, theoretical, max_delta_ppm):
+	# read MGF
+	tims_data = dict()
+	precursor_mz = -1
+	precursor_intensity = -1
+	precursor_rt = -1
+	precursor_charge = 0
+	scan_number = -1
+	tims_peaks = []
+	f = open(tims_mgf_path, "r")
+	record = False
+	im_pattern = re.compile("[ \t]+")
+	scan_num_pattern = re.compile("Cmpd[ \t]+([0-9]+),")
+	for line in f:
+		line = line.strip()
+		if line:
+			if record and not line.startswith(("BEGIN", "TITLE", "RTINSECONDS", "PEPMASS", "CHARGE", "RAWSCANS", "END")):
+				temp = im_pattern.split(line)
+				tims_peaks.append(Tims_Peak(float(temp[0]), float(temp[1])))
+			elif line.startswith("BEGIN"):
+				record = True
+				precursor_mz = -1
+				precursor_intensity = -1
+				precursor_rt = -1
+				precursor_charge = 0
+				scan_number = -1
+				tims_peaks = []
+			elif record and line.startswith("TITLE"):
+				scan_num_match = scan_num_pattern.search(line)
+				if scan_num_match:
+					scan_number = int(scan_num_match.group(1))
+				else:
+					raise RuntimeError("Cannot find Cmpd number from " + line)
+			elif record and line.startswith("RTINSECONDS"):
+				precursor_rt = float(line.split("=")[1])
+			elif record and line.startswith("PEPMASS"):
+				temp = line.split("=")[1]
+				temp2 = im_pattern.split(temp)
+				precursor_mz = float(temp2[0])
+				if len(temp2) > 1:
+					precursor_intensity = float(temp2[1])
+			elif record and line.startswith("CHARGE"):
+				precursor_charge = int(line[7:-1])
+			elif record and line.startswith("END"):
+				tims_data[scan_number] = Tims_Spectrum(precursor_mz, precursor_intensity, precursor_rt, precursor_charge, tims_peaks)
+				record = False
+	f.close()
+
+	peaks_list = []
+	for ix, psm in psms.iterrows():
+		scan_id = psm['scan_id']
+		ionseries = theoretical[psm['modified_peptide']][psm['precursor_charge']]
+
+		tims_spectrum = tims_data[scan_id]
+
+		fragments = []
+		product_mzs = []
+		intensities = []
+		for tims_peak in tims_spectrum.tims_peaks:
+			fragment, product_mz = annotate_mass(tims_peak.mz, ionseries, max_delta_ppm)
+			if fragment is not None:
+				fragments.append(fragment)
+				product_mzs.append(product_mz)
+				intensities.append(tims_peak.intensity)
+
+		peaks = pd.DataFrame({'fragment': fragments, 'product_mz': product_mzs, 'intensity': intensities})
+		peaks['scan_id'] = scan_id
+		peaks['precursor_mz'] = po.AASequence.fromString(po.String(psm['modified_peptide'])).getMonoWeight(po.Residue.ResidueType.Full, psm['precursor_charge']) / psm['precursor_charge'];
+		peaks['modified_peptide'] = psm['modified_peptide']
+		peaks['precursor_charge'] = psm['precursor_charge']
+
+		# Baseline normalization to highest annotated peak
+		peaks['intensity'] = peaks['intensity'] * (10000 / np.max(peaks['intensity']))
+
+		peaks_list.append(peaks)
+
+	if len(peaks_list) > 0:
+		transitions = pd.concat(peaks_list)
+		# Multiple peaks might be identically annotated, only use most intense
+		transitions = transitions.groupby(['scan_id','modified_peptide','precursor_charge','precursor_mz','fragment','product_mz'])['intensity'].max().reset_index()
+	else:
+		transitions = pd.DataFrame({'scan_id': [], 'modified_peptide': [], 'precursor_charge': [], 'precursor_mz': [], 'fragment': [], 'product_mz': [], 'intensity': []})
+	return(transitions)
+
+
 def annotate_mass(mass, ionseries, max_delta_ppm):
 	top_fragment = None
 	top_mass = None
@@ -388,9 +475,9 @@ def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2
 
 	return(fragments)
 
-def conversion(pepxmlfile, mzxmlfile, unimodfile, main_score, max_delta_unimod, max_delta_ppm, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses):
+def conversion(pepxmlfile, spectralfile, unimodfile, main_score, max_delta_unimod, max_delta_ppm, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses):
 	# Parse basename
-	base_name = os.path.splitext(os.path.basename(mzxmlfile))[0]
+	base_name = os.path.splitext(os.path.basename(spectralfile))[0]
 	click.echo("Info: Parsing run %s." % base_name)
 
 	# Initialize UniMod
@@ -446,8 +533,25 @@ def conversion(pepxmlfile, mzxmlfile, unimodfile, main_score, max_delta_unimod, 
 		theoretical[peptide['modified_peptide']][peptide['precursor_charge']] = generate_ionseries(peptide['modified_peptide'], peptide['precursor_charge'], fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses)
 
 	# Generate spectrum dataframe
-	click.echo("Info: Processing spectra from file %s." % mzxmlfile)
-	peaks = read_mzxml(mzxmlfile, psms[['scan_id','modified_peptide','precursor_charge']], theoretical, max_delta_ppm)
+	click.echo("Info: Processing spectra from file %s." % spectralfile)
+	if spectralfile.lower().endswith(".mzxml"):
+		peaks = read_mzxml(spectralfile, psms[['scan_id','modified_peptide','precursor_charge']], theoretical, max_delta_ppm)
+	elif spectralfile.lower().endswith(".mgf"):
+		peaks = read_tims_mgf(spectralfile, psms[['scan_id','modified_peptide','precursor_charge']], theoretical, max_delta_ppm)
 
 	return psms, peaks, tpp
-	
+
+
+class Tims_Spectrum:
+	def __init__(self, precursor_mz, precursor_intensity, precursor_rt, precursor_charge, tims_peaks):
+		self.precursor_mz = precursor_mz
+		self.precursor_intensity = precursor_intensity
+		self.precursor_rt = precursor_rt
+		self.precursor_charge = precursor_charge
+		self.tims_peaks = tims_peaks
+
+
+class Tims_Peak:
+	def __init__(self, mz, intensity):
+		self.mz = mz
+		self.intensity = intensity
