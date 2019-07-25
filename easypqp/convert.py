@@ -335,59 +335,46 @@ def read_mzxml(mzxml_path, psms, theoretical, max_delta_ppm):
 
 def read_tims_mgf(tims_mgf_path, psms, theoretical, max_delta_ppm):
 	# read MGF
-	tims_data = dict()
-	scan_number = -1
-	mz_intensity_str_array = []
-	f = open(tims_mgf_path, "r")
-	record = False
-	im_pattern = re.compile("[ \t]+")
-	scan_num_pattern = re.compile("Cmpd[ \t]+([0-9]+),")
-	for line in f:
-		line = line.strip()
-		if line:
-			if record and not line.startswith(("BEGIN", "TITLE", "RTINSECONDS", "PEPMASS", "CHARGE", "RAWSCANS", "END")):
-				mz_intensity_str_array.append(line)
-			elif line.startswith("BEGIN"):
-				record = True
-				scan_number = -1
-				mz_intensity_str_array = []
-			elif record and line.startswith("TITLE"):
-				scan_num_match = scan_num_pattern.search(line)
-				if scan_num_match:
-					scan_number = int(scan_num_match.group(1))
-				else:
-					raise RuntimeError("Cannot find Cmpd number from " + line)
-			elif record and line.startswith("END"):
-				mz_intensity_array = []
-				for i in range(0, len(mz_intensity_str_array)):
-					temp = im_pattern.split(mz_intensity_str_array[i])
-					mz_intensity_array.append([float(temp[0]), float(temp[1])])
-				tims_data[scan_number] = mz_intensity_array
-				record = False
-	f.close()
+	import mmap
+	record_pattern = re.compile(b'''BEGIN IONS\r?
+(.*?)
+END IONS''', re.MULTILINE | re.DOTALL)
+	scan_num_pattern = re.compile(b'TITLE=Cmpd\s+([0-9]+),')
+	peaks_pattern = re.compile(b'^([\\d.]+)\s+([\\d.]+)', re.MULTILINE)
+
+	tims_data = {}
+	with open(tims_mgf_path, "rb") as f:
+		mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+		for e in record_pattern.finditer(mm):
+			rec = e.group(1)
+			scan_num_findall = scan_num_pattern.findall(rec)
+			if len(scan_num_findall) == 1:
+				scan_num = int(scan_num_findall[0])
+			else:
+				raise RuntimeError("Cannot find Cmpd number from " + rec)
+			tims_data[scan_num] = np.array(peaks_pattern.findall(rec), dtype=float)
 
 	peaks_list = []
-	for ix, psm in psms.iterrows():
-		scan_id = psm['scan_id']
-		ionseries = theoretical[psm['modified_peptide']][psm['precursor_charge']]
+	for scan_id, modified_peptide, precursor_charge in psms.itertuples(index=False):
+		ionseries = theoretical[modified_peptide][precursor_charge]
 
 		mz_intensity_array = tims_data[scan_id]
 
 		fragments = []
 		product_mzs = []
 		intensities = []
-		for i in range(0, len(mz_intensity_array)):
-			fragment, product_mz = annotate_mass(mz_intensity_array[i][0], ionseries, max_delta_ppm)
+		for mz, intensity in mz_intensity_array:
+			fragment, product_mz = annotate_mass(mz, ionseries, max_delta_ppm)
 			if fragment is not None:
 				fragments.append(fragment)
 				product_mzs.append(product_mz)
-				intensities.append(mz_intensity_array[i][1])
+				intensities.append(intensity)
 
 		peaks = pd.DataFrame({'fragment': fragments, 'product_mz': product_mzs, 'intensity': intensities})
 		peaks['scan_id'] = scan_id
-		peaks['precursor_mz'] = po.AASequence.fromString(po.String(psm['modified_peptide'])).getMonoWeight(po.Residue.ResidueType.Full, psm['precursor_charge']) / psm['precursor_charge'];
-		peaks['modified_peptide'] = psm['modified_peptide']
-		peaks['precursor_charge'] = psm['precursor_charge']
+		peaks['precursor_mz'] = po.AASequence.fromString(po.String(modified_peptide)).getMonoWeight(po.Residue.ResidueType.Full, precursor_charge) / precursor_charge;
+		peaks['modified_peptide'] = modified_peptide
+		peaks['precursor_charge'] = precursor_charge
 
 		# Baseline normalization to highest annotated peak
 		peaks['intensity'] = peaks['intensity'] * (10000 / np.max(peaks['intensity']))
@@ -400,7 +387,7 @@ def read_tims_mgf(tims_mgf_path, psms, theoretical, max_delta_ppm):
 		transitions = transitions.groupby(['scan_id','modified_peptide','precursor_charge','precursor_mz','fragment','product_mz'])['intensity'].max().reset_index()
 	else:
 		transitions = pd.DataFrame({'scan_id': [], 'modified_peptide': [], 'precursor_charge': [], 'precursor_mz': [], 'fragment': [], 'product_mz': [], 'intensity': []})
-	return(transitions)
+	return transitions
 
 
 def annotate_mass(mass, ionseries, max_delta_ppm):
