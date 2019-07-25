@@ -26,6 +26,7 @@ def cli():
 @click.option('--subpsms', 'subpsmsfile', required=False, type=click.Path(exists=False), help='Output subsampled PSMs file.')
 @click.option('--peaks', 'peaksfile', required=False, type=click.Path(exists=False), help='Output peaks file.')
 @click.option('--main_score', default="var_expectscore", show_default=True, type=str, help='Main score to use for PyProphet.')
+@click.option('--exclude-range', 'exclude_range_str', default="-1.5,3", show_default=True, required=False, type=str, help='massdiff in this range will not be mapped to UniMod.')
 @click.option('--max_delta_unimod', default=0.02, show_default=True, type=float, help='Maximum delta mass (Dalton) for UniMod annotation.')
 @click.option('--max_delta_ppm', default=15, show_default=True, type=float, help='Maximum delta mass (PPM) for annotation.')
 @click.option('--fragment_types', default=['b','y'], show_default=True, type=list, help='Allowed fragment ion types (a,b,c,x,y,z).')
@@ -33,7 +34,7 @@ def cli():
 @click.option('--enable_specific_losses/--no-enable_specific_losses', default=False, show_default=True, help='Enable specific fragment ion losses.')
 @click.option('--enable_unspecific_losses/--no-enable_unspecific_losses', default=False, show_default=True, help='Enable unspecific fragment ion losses.')
 @click.option('--subsample_fraction', default=1.0, show_default=True, type=float, help='Data fraction used for subsampling.')
-def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, subpsmsfile, peaksfile, main_score, max_delta_unimod, max_delta_ppm, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, subsample_fraction):
+def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, subpsmsfile, peaksfile, main_score, exclude_range_str, max_delta_unimod, max_delta_ppm, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, subsample_fraction):
     """
     Convert pepXML files for EasyPQP
     """
@@ -49,8 +50,11 @@ def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, subpsmsfile, peaksfi
     if peaksfile is None:
         peaksfile = run_id + ".peakpkl"
 
+    temp = exclude_range_str.split(',')
+    exclude_range = [float(temp[0]), float(temp[1])]
+
     click.echo("Info: Converting %s." % pepxmlfile)
-    psms, peaks, tpp = conversion(pepxmlfile, spectralfile, unimodfile, main_score, max_delta_unimod, max_delta_ppm, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses)
+    psms, peaks, tpp = conversion(pepxmlfile, spectralfile, unimodfile, main_score, exclude_range, max_delta_unimod, max_delta_ppm, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses)
 
     psms.to_csv(psmsfile, sep="\t", index=False)
     click.echo("Info: PSMs successfully converted and stored in %s." % psmsfile)

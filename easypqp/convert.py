@@ -13,10 +13,11 @@ from xml.etree.cElementTree import iterparse
 import pyopenms as po
 
 class pepxml:
-	def __init__(self, pepxml_file, unimod, base_name):
+	def __init__(self, pepxml_file, unimod, base_name, exclude_range):
 		self.pepxml_file = pepxml_file
 		self.base_name = base_name
 		self.psms = self.parse_pepxml()
+		self.exclude_range = exclude_range
 		self.match_unimod(unimod)
 
 	def get(self):
@@ -43,13 +44,15 @@ class pepxml:
 					delta_mass = float(mass) - monomeric_masses[peptide['peptide_sequence'][int(site)-1]]
 					modifications[int(site)] = delta_mass
 
-			# parse open modifications
-			oms_sequence = peptide['peptide_sequence']
-			for site in modifications.keys():
-				oms_sequence = oms_sequence[:site-1] + "_" + oms_sequence[site:]
+			massdiff = float(peptide['massdiff'])
+			if massdiff < self.exclude_range[0] or massdiff > self.exclude_range[1]:
+				# parse open modifications
+				oms_sequence = peptide['peptide_sequence']
+				for site in modifications.keys():
+					oms_sequence = oms_sequence[:site-1] + "_" + oms_sequence[site:]
 
-			oms_modifications, nterm_modification, cterm_modification = um.get_oms_id(oms_sequence, peptide['massdiff'], nterm_modification, cterm_modification)
-			modifications = {**modifications, **oms_modifications}
+				oms_modifications, nterm_modification, cterm_modification = um.get_oms_id(oms_sequence, peptide['massdiff'], nterm_modification, cterm_modification)
+				modifications = {**modifications, **oms_modifications}
 
 			for site in sorted(modifications, reverse=True):
 				record_id = um.get_id(peptide['peptide_sequence'][site-1], 'Anywhere', modifications[site])
@@ -460,7 +463,7 @@ def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2
 
 	return(fragments)
 
-def conversion(pepxmlfile, spectralfile, unimodfile, main_score, max_delta_unimod, max_delta_ppm, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses):
+def conversion(pepxmlfile, spectralfile, unimodfile, main_score, exclude_range, max_delta_unimod, max_delta_ppm, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses):
 	# Parse basename
 	base_name = os.path.splitext(os.path.basename(spectralfile))[0]
 	click.echo("Info: Parsing run %s." % base_name)
@@ -469,7 +472,7 @@ def conversion(pepxmlfile, spectralfile, unimodfile, main_score, max_delta_unimo
 	um = unimod(unimodfile, max_delta_unimod)
 
 	# Parse pepXML
-	px = pepxml(pepxmlfile, um, base_name)
+	px = pepxml(pepxmlfile, um, base_name, exclude_range)
 	psms = px.get()
 
 	# Generate UniMod peptide sequence
