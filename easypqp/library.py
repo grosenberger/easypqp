@@ -93,37 +93,59 @@ def protein_fdr(psms, protein_fdr_threshold, pi0_lambda, plot_path):
   
   return targets[targets['q_value'] < protein_fdr_threshold]['protein_id']
 
-def process_psms(psms, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, proteotypic):
+def process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, proteotypic):
   # Append columns
   psms['base_name'] = psms['run_id'].apply(lambda x: os.path.splitext(os.path.basename(x))[0])
 
-  # Filter proteotypic peptides
-  if proteotypic:
-    psms = psms[psms['num_tot_proteins'] == 1].copy()
+  if None not in (psmtsv, peptidetsv):
+    # Read psm.tsv and peptide.tsv
+    peptidetsv_df = pd.read_csv(peptidetsv, index_col=False, sep='\t', usecols=["Peptide", "Gene", "Protein ID"])
+    psmtsv_df = pd.read_csv(psmtsv, index_col=False, sep='\t', usecols=["Spectrum", "Peptide"])
+
+    # Filter out PSMs whose peptides are not in peptide.tsv
+    psmtsv_df = psmtsv_df[psmtsv_df["Peptide"].isin(peptidetsv_df["Peptide"])]
+
+    # Generate a group_id column
+    temp_df = psmtsv_df["Spectrum"].str.split("\\.", expand=True)
+    psmtsv_df["group_id"] = temp_df.iloc[:, 0] + "_" + pd.to_numeric(temp_df.iloc[:, -2]).astype(str)
+
+    # Filter psm dataframe
+    psms = psms[psms["group_id"].isin(psmtsv_df["group_id"])]
+
+    # Update gene_id and protein_id
+    psms = psms.merge(peptidetsv_df, how="left", left_on="peptide_sequence", right_on="Peptide")
+    psms.drop(["gene_id", "protein_id"], inplace=True, axis=1)
+    psms.rename(columns={"Gene": "gene_id", "Protein ID": "protein_id"}, inplace=True)
+    psms["num_tot_proteins"] = 1
+    click.echo("Info: %s redundant PSMs identified after filtering with %s and %s" % (psms.shape[0], psmtsv, peptidetsv))
   else:
-    raise click.ClickException("Support for non-proteotypic peptides is not yet implemented.")
+    # Filter proteotypic peptides
+    if proteotypic:
+      psms = psms[psms['num_tot_proteins'] == 1].copy()
+    else:
+      raise click.ClickException("Support for non-proteotypic peptides is not yet implemented.")
 
-  # Prepare PeptideProphet / iProphet results
-  if 'q_value' not in psms.columns:
-    psms['q_value'] = compute_model_fdr(psms['pep'].values)
+    # Prepare PeptideProphet / iProphet results
+    if 'q_value' not in psms.columns:
+      psms['q_value'] = compute_model_fdr(psms['pep'].values)
 
-  # Confident peptides and protein in global context
-  peptides = peptide_fdr(psms, peptide_fdr_threshold, pi0_lambda, peptide_plot_path)
-  click.echo("Info: %s modified peptides identified (q-value < %s)" % (len(peptides), peptide_fdr_threshold))
-  proteins = protein_fdr(psms, protein_fdr_threshold, pi0_lambda, protein_plot_path)
-  click.echo("Info: %s proteins identified (q-value < %s)" % (len(proteins), protein_fdr_threshold))
+    # Confident peptides and protein in global context
+    peptides = peptide_fdr(psms, peptide_fdr_threshold, pi0_lambda, peptide_plot_path)
+    click.echo("Info: %s modified peptides identified (q-value < %s)" % (len(peptides), peptide_fdr_threshold))
+    proteins = protein_fdr(psms, protein_fdr_threshold, pi0_lambda, protein_plot_path)
+    click.echo("Info: %s proteins identified (q-value < %s)" % (len(proteins), protein_fdr_threshold))
 
-  # Filter peptides and proteins
-  psms = psms[psms['modified_peptide'].isin(peptides)]
-  psms = psms[psms['protein_id'].isin(proteins)]
+    # Filter peptides and proteins
+    psms = psms[psms['modified_peptide'].isin(peptides)]
+    psms = psms[psms['protein_id'].isin(proteins)]
 
-  # Filter PSMs
-  psms = psms[psms['q_value'] < psm_fdr_threshold]
+    # Filter PSMs
+    psms = psms[psms['q_value'] < psm_fdr_threshold]
 
-  # Remove decoys
-  psms = psms[~psms['decoy']]
+    # Remove decoys
+    psms = psms[~psms['decoy']]
 
-  click.echo("Info: %s redundant PSMs identified (q-value < %s)" % (psms.shape[0], psm_fdr_threshold))
+    click.echo("Info: %s redundant PSMs identified (q-value < %s)" % (psms.shape[0], psm_fdr_threshold))
 
   return psms
 
@@ -150,7 +172,7 @@ def lowess(run, reference_run, xcol, ycol, lowess_frac, min_peptides, base_name,
 
   return run
 
-def generate(files, outfile, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_frac, im_lowess_frac, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus):
+def generate(files, outfile, psmtsv, peptidetsv, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_frac, im_lowess_frac, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus):
   # Parse input arguments
   psm_files = []
   spectra = []
@@ -167,6 +189,14 @@ def generate(files, outfile, referencefile, psm_fdr_threshold, peptide_fdr_thres
   if len(spectra) == 0:
     raise click.ClickException("No spectrum files present. Need to have tag 'peakpkl' in filename.")
 
+  if peptidetsv is not None and psmtsv is None:
+    raise click.ClickException("There is a peptide.tsv but no psm.tsv.")
+  elif peptidetsv is None and psmtsv is not None:
+    raise click.ClickException("There is a psm.tsv but no peptide.tsv.")
+
+  if None not in (psmtsv, peptidetsv):
+    click.echo("Info: There are psm.tsv and peptide.tsv. Will ignore --psm_fdr_threshold, --peptide_fdr_threshold, --protein_fdr_threshold, --pi0_lambda, ----proteotypic, and --no-proteotypic.")
+
   # Read all PSM files
   psms_list = []
   for psm_file in psm_files:
@@ -176,7 +206,7 @@ def generate(files, outfile, referencefile, psm_fdr_threshold, peptide_fdr_thres
   psms['pp'] = 1-psms['pep']
 
   # Process PSMs
-  pepid = process_psms(psms, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, proteotypic)
+  pepid = process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, proteotypic)
 
   # Get main path for figures
   main_path = os.path.dirname(os.path.abspath(peptide_plot_path))
