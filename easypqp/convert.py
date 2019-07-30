@@ -394,12 +394,12 @@ def annotate_mass(mass, ionseries, max_delta_ppm):
 	top_fragment = None
 	top_mass = None
 	top_delta = 30
-	for ion in ionseries.keys():
-		ppm = np.abs(((mass-ionseries[ion])/ionseries[ion])*1e6)
-
+	ions, ion_masses = ionseries
+	ppms = np.abs((mass - ion_masses) / ion_masses * 1e6)
+	for ion, ion_mass, ppm in zip(ions, ion_masses, ppms):
 		if ppm < max_delta_ppm and ppm < top_delta:
 			top_fragment = ion
-			top_mass = ionseries[ion]
+			top_mass = ion_mass
 			top_delta = ppm
 	return top_fragment, top_mass
 
@@ -448,7 +448,7 @@ def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2
 									if (enable_specific_losses and loss_type not in unspecific_losses) or (enable_unspecific_losses and loss_type in unspecific_losses):
 										fragments[fragment_type + str(fragment_ordinal) + "-" + loss_type + "^" + str(fragment_charge)] = mass - (loss.getMonoWeight() / fragment_charge)
 
-	return(fragments)
+	return list(fragments.keys()), np.fromiter(fragments.values(), np.float, len(fragments))
 
 def conversion(pepxmlfile, spectralfile, unimodfile, main_score, exclude_range, max_delta_unimod, max_delta_ppm, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses):
 	# Parse basename
