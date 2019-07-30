@@ -26,7 +26,7 @@ def cli():
 @click.option('--subpsms', 'subpsmsfile', required=False, type=click.Path(exists=False), help='Output subsampled PSMs file.')
 @click.option('--peaks', 'peaksfile', required=False, type=click.Path(exists=False), help='Output peaks file.')
 @click.option('--main_score', default="var_expectscore", show_default=True, type=str, help='Main score to use for PyProphet.')
-@click.option('--exclude-range', 'exclude_range_str', default="-1.5,3", show_default=True, required=False, type=str, help='massdiff in this range will not be mapped to UniMod.')
+@click.option('--exclude-range', 'exclude_range_str', default="-1.5,3.5", show_default=True, required=False, type=str, help='massdiff in this range will not be mapped to UniMod.')
 @click.option('--max_delta_unimod', default=0.02, show_default=True, type=float, help='Maximum delta mass (Dalton) for UniMod annotation.')
 @click.option('--max_delta_ppm', default=15, show_default=True, type=float, help='Maximum delta mass (PPM) for annotation.')
 @click.option('--fragment_types', default=['b','y'], show_default=True, type=list, help='Allowed fragment ion types (a,b,c,x,y,z).')
