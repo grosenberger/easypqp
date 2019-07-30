@@ -93,64 +93,86 @@ def protein_fdr(psms, protein_fdr_threshold, pi0_lambda, plot_path):
   
   return targets[targets['q_value'] < protein_fdr_threshold]['protein_id']
 
-def process_psms(psms, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, proteotypic):
+def process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, proteotypic):
   # Append columns
   psms['base_name'] = psms['run_id'].apply(lambda x: os.path.splitext(os.path.basename(x))[0])
 
-  # Filter proteotypic peptides
-  if proteotypic:
-    psms = psms[psms['num_tot_proteins'] == 1].copy()
+  if None not in (psmtsv, peptidetsv):
+    # Read psm.tsv and peptide.tsv
+    peptidetsv_df = pd.read_csv(peptidetsv, index_col=False, sep='\t', usecols=["Peptide", "Gene", "Protein ID"])
+    psmtsv_df = pd.read_csv(psmtsv, index_col=False, sep='\t', usecols=["Spectrum", "Peptide"])
+
+    # Filter out PSMs whose peptides are not in peptide.tsv
+    psmtsv_df = psmtsv_df[psmtsv_df["Peptide"].isin(peptidetsv_df["Peptide"])]
+
+    # Generate a group_id column
+    temp_df = psmtsv_df["Spectrum"].str.split("\\.", expand=True)
+    psmtsv_df["group_id"] = temp_df.iloc[:, 0] + "_" + pd.to_numeric(temp_df.iloc[:, -2]).astype(str)
+
+    # Filter psm dataframe
+    psms = psms[psms["group_id"].isin(psmtsv_df["group_id"])]
+
+    # Update gene_id and protein_id
+    psms = psms.merge(peptidetsv_df, how="left", left_on="peptide_sequence", right_on="Peptide")
+    psms.drop(["gene_id", "protein_id"], inplace=True, axis=1)
+    psms.rename(columns={"Gene": "gene_id", "Protein ID": "protein_id"}, inplace=True)
+    psms["num_tot_proteins"] = 1
+    click.echo("Info: %s redundant PSMs identified after filtering with %s and %s" % (psms.shape[0], psmtsv, peptidetsv))
   else:
-    raise click.ClickException("Support for non-proteotypic peptides is not yet implemented.")
+    # Filter proteotypic peptides
+    if proteotypic:
+      psms = psms[psms['num_tot_proteins'] == 1].copy()
+    else:
+      raise click.ClickException("Support for non-proteotypic peptides is not yet implemented.")
 
-  # Prepare PeptideProphet / iProphet results
-  if 'q_value' not in psms.columns:
-    psms['q_value'] = compute_model_fdr(psms['pep'].values)
+    # Prepare PeptideProphet / iProphet results
+    if 'q_value' not in psms.columns:
+      psms['q_value'] = compute_model_fdr(psms['pep'].values)
 
-  # Confident peptides and protein in global context
-  peptides = peptide_fdr(psms, peptide_fdr_threshold, pi0_lambda, peptide_plot_path)
-  click.echo("Info: %s modified peptides identified (q-value < %s)" % (len(peptides), peptide_fdr_threshold))
-  proteins = protein_fdr(psms, protein_fdr_threshold, pi0_lambda, protein_plot_path)
-  click.echo("Info: %s proteins identified (q-value < %s)" % (len(proteins), protein_fdr_threshold))
+    # Confident peptides and protein in global context
+    peptides = peptide_fdr(psms, peptide_fdr_threshold, pi0_lambda, peptide_plot_path)
+    click.echo("Info: %s modified peptides identified (q-value < %s)" % (len(peptides), peptide_fdr_threshold))
+    proteins = protein_fdr(psms, protein_fdr_threshold, pi0_lambda, protein_plot_path)
+    click.echo("Info: %s proteins identified (q-value < %s)" % (len(proteins), protein_fdr_threshold))
 
-  # Filter peptides and proteins
-  psms = psms[psms['modified_peptide'].isin(peptides)]
-  psms = psms[psms['protein_id'].isin(proteins)]
+    # Filter peptides and proteins
+    psms = psms[psms['modified_peptide'].isin(peptides)]
+    psms = psms[psms['protein_id'].isin(proteins)]
 
-  # Filter PSMs
-  psms = psms[psms['q_value'] < psm_fdr_threshold]
+    # Filter PSMs
+    psms = psms[psms['q_value'] < psm_fdr_threshold]
 
-  # Remove decoys
-  psms = psms[~psms['decoy']]
+    # Remove decoys
+    psms = psms[~psms['decoy']]
 
-  click.echo("Info: %s redundant PSMs identified (q-value < %s)" % (psms.shape[0], psm_fdr_threshold))
+    click.echo("Info: %s redundant PSMs identified (q-value < %s)" % (psms.shape[0], psm_fdr_threshold))
 
   return psms
 
-def lowess(run, reference_run, lowess_frac, min_peptides, base_name, main_path):
-  dfm = pd.merge(run, reference_run[['modified_peptide','precursor_charge','irt']], on=['modified_peptide','precursor_charge'])
+def lowess(run, reference_run, xcol, ycol, lowess_frac, min_peptides, base_name, main_path):
+  dfm = pd.merge(run, reference_run[['modified_peptide','precursor_charge',ycol]], on=['modified_peptide','precursor_charge'])
   click.echo("Info: Peptide overlap between run and reference: %s." % (dfm.shape[0]))
   if dfm.shape[0] <= min_peptides:
     click.echo("Info: Skipping run because not enough peptides could be found for alignment.")
     return pd.DataFrame()
 
   # Fit lowess model
-  lwf = sm.nonparametric.lowess(dfm['irt'], dfm['retention_time'], frac=lowess_frac)
+  lwf = sm.nonparametric.lowess(dfm[ycol], dfm[xcol], frac=lowess_frac)
   lwf_x = list(zip(*lwf))[0]
   lwf_y = list(zip(*lwf))[1]
   lwi = interp1d(lwf_x, lwf_y, bounds_error=False, fill_value="extrapolate")
 
   # Apply lowess model
-  run['irt'] = lwi(run['retention_time'])
+  run[ycol] = lwi(run[xcol])
 
   # Plot regression
-  fig = lmplot(x='retention_time', y='irt', data=dfm, lowess=True)
+  fig = lmplot(x=xcol, y=ycol, data=dfm, lowess=True)
   fig.savefig(os.path.join(main_path, "easypqp_alignment_" + base_name + ".pdf"))
   plt.close()
 
   return run
 
-def generate(files, outfile, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, lowess_frac, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus):
+def generate(files, outfile, psmtsv, peptidetsv, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_frac, im_lowess_frac, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus):
   # Parse input arguments
   psm_files = []
   spectra = []
@@ -167,6 +189,14 @@ def generate(files, outfile, referencefile, psm_fdr_threshold, peptide_fdr_thres
   if len(spectra) == 0:
     raise click.ClickException("No spectrum files present. Need to have tag 'peakpkl' in filename.")
 
+  if peptidetsv is not None and psmtsv is None:
+    raise click.ClickException("There is a peptide.tsv but no psm.tsv.")
+  elif peptidetsv is None and psmtsv is not None:
+    raise click.ClickException("There is a psm.tsv but no peptide.tsv.")
+
+  if None not in (psmtsv, peptidetsv):
+    click.echo("Info: There are psm.tsv and peptide.tsv. Will ignore --psm_fdr_threshold, --peptide_fdr_threshold, --protein_fdr_threshold, --pi0_lambda, ----proteotypic, and --no-proteotypic.")
+
   # Read all PSM files
   psms_list = []
   for psm_file in psm_files:
@@ -176,7 +206,7 @@ def generate(files, outfile, referencefile, psm_fdr_threshold, peptide_fdr_thres
   psms['pp'] = 1-psms['pep']
 
   # Process PSMs
-  pepid = process_psms(psms, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, proteotypic)
+  pepid = process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, proteotypic)
 
   # Get main path for figures
   main_path = os.path.dirname(os.path.abspath(peptide_plot_path))
@@ -189,8 +219,8 @@ def generate(files, outfile, referencefile, psm_fdr_threshold, peptide_fdr_thres
     # Read reference file if present
     reference_run = pd.read_csv(referencefile, index_col=False, sep='\t')
     align_runs = pepidr
-    if not set(['modified_peptide','precursor_charge','irt']).issubset(reference_run.columns):
-      raise click.ClickException("Reference iRT file has wrong format. Requires columns 'modified_peptide', 'precursor_charge' and 'irt'.")
+    if not set(['modified_peptide','precursor_charge','irt']).issubset(reference_run.columns) or set(['modified_peptide','precursor_charge','irt','im']).issubset(reference_run.columns):
+      raise click.ClickException("Reference iRT file has wrong format. Requires columns 'modified_peptide', 'precursor_charge' and 'irt'. For ion mobility data, the optional column 'im' can be supplied.")
     if reference_run.shape[0] < 10:
       raise click.ClickException("Reference iRT file has too few data points. Requires at least 10.")
   else:
@@ -206,14 +236,30 @@ def generate(files, outfile, referencefile, psm_fdr_threshold, peptide_fdr_thres
     min_max_scaler = preprocessing.MinMaxScaler()
     reference_run['irt'] = min_max_scaler.fit_transform(reference_run[['retention_time']])*100
 
+    # Remove ion mobility column if empty
+    if not reference_run['ion_mobility'].isnull().values.any():
+      reference_run['im'] = reference_run['ion_mobility']
+
   # Normalize RT of all runs against reference
-  aligned_runs = align_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run, lowess_frac, min_peptides, x.name, main_path))
+  aligned_runs = align_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run, 'retention_time', 'irt', rt_lowess_frac, min_peptides, x.name, main_path))
+
+  # Normalize IM of all runs against reference
+  aligned_runs = aligned_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run, 'ion_mobility', 'im', im_lowess_frac, min_peptides, x.name, main_path))
   pepida = aligned_runs
+
+  # Add reference run if internal calibration is used
   if referencefile is None:
     pepida = pd.concat([reference_run, aligned_runs], sort=True).reset_index(drop=True)
 
   # Remove peptides without valid iRT
   pepida = pepida.loc[np.isfinite(pepida['irt'])]
+
+  # Remove peptides without valid IM
+  if not reference_run['ion_mobility'].isnull().values.any():
+    pepida = pepida.loc[np.isfinite(pepida['im'])]
+  else:
+    pepida['im'] = np.nan
+
 
   # Generate set of non-redundant global best replicate identifications
   pepidb = pepida.loc[pepida.groupby(['modified_peptide','precursor_charge'])['pp'].idxmax()].sort_index()
@@ -232,8 +278,8 @@ def generate(files, outfile, referencefile, psm_fdr_threshold, peptide_fdr_thres
     
     # Generate run-specific PQP files for OpenSWATH alignment
     if consensus or ("_Q1" in peak_file['base_name']):
-      run_pqp = pd.merge(meta_run, peaks, on=['modified_peptide','precursor_charge','scan_id'])[['precursor_mz','product_mz','fragment','intensity','irt','protein_id','gene_id','peptide_sequence','modified_peptide','precursor_charge']]
-      run_pqp.columns = ['PrecursorMz','ProductMz','Annotation','LibraryIntensity','NormalizedRetentionTime','ProteinId','GeneName','PeptideSequence','ModifiedPeptideSequence','PrecursorCharge']
+      run_pqp = pd.merge(meta_run, peaks, on=['modified_peptide','precursor_charge','scan_id'])[['precursor_mz','product_mz','fragment','intensity','irt','im','protein_id','gene_id','peptide_sequence','modified_peptide','precursor_charge']]
+      run_pqp.columns = ['PrecursorMz','ProductMz','Annotation','LibraryIntensity','NormalizedRetentionTime','PrecursorIonMobility','ProteinId','GeneName','PeptideSequence','ModifiedPeptideSequence','PrecursorCharge']
       run_pqp['PrecursorCharge'] = run_pqp['PrecursorCharge'].astype(int)
       run_pqp_path = os.path.splitext(peak_file['path'])[0]+"_run_peaks.tsv"
       run_pqp.to_csv(run_pqp_path, sep="\t", index=False)
@@ -242,15 +288,15 @@ def generate(files, outfile, referencefile, psm_fdr_threshold, peptide_fdr_thres
 
     # Generate global non-redundant PQP files
     if not consensus:
-      global_pqp = pd.merge(meta_global, peaks, on=['modified_peptide','precursor_charge','scan_id'])[['precursor_mz','product_mz','fragment','intensity','irt','protein_id','gene_id','peptide_sequence','modified_peptide','precursor_charge']]
-      global_pqp.columns = ['PrecursorMz','ProductMz','Annotation','LibraryIntensity','NormalizedRetentionTime','ProteinId','GeneName','PeptideSequence','ModifiedPeptideSequence','PrecursorCharge']
+      global_pqp = pd.merge(meta_global, peaks, on=['modified_peptide','precursor_charge','scan_id'])[['precursor_mz','product_mz','fragment','intensity','irt','im','protein_id','gene_id','peptide_sequence','modified_peptide','precursor_charge']]
+      global_pqp.columns = ['PrecursorMz','ProductMz','Annotation','LibraryIntensity','NormalizedRetentionTime','PrecursorIonMobility','ProteinId','GeneName','PeptideSequence','ModifiedPeptideSequence','PrecursorCharge']
       global_pqp['PrecursorCharge'] = global_pqp['PrecursorCharge'].astype(int)
       replicate_pqp.append(global_pqp)
 
   # Aggregate consensus spectra
   pqp = pd.concat(replicate_pqp)
   if consensus:
-    pqp_irt = pqp[['ModifiedPeptideSequence','PrecursorCharge','NormalizedRetentionTime']].drop_duplicates().groupby(['ModifiedPeptideSequence','PrecursorCharge'])['NormalizedRetentionTime'].median().reset_index()
+    pqp_irt = pqp[['ModifiedPeptideSequence','PrecursorCharge','NormalizedRetentionTime','PrecursorIonMobility']].drop_duplicates().groupby(['ModifiedPeptideSequence','PrecursorCharge'])[['NormalizedRetentionTime','PrecursorIonMobility']].median().reset_index()
     pqp_mass = pqp.groupby(['PrecursorMz','ProductMz','Annotation','ProteinId','GeneName','PeptideSequence','ModifiedPeptideSequence','PrecursorCharge'])['LibraryIntensity'].median().reset_index()
     pqp = pd.merge(pqp_mass,pqp_irt, on=['ModifiedPeptideSequence','PrecursorCharge'])
 
