@@ -514,4 +514,7 @@ def conversion(pepxmlfile, spectralfile, unimodfile, main_score, exclude_range, 
 	elif spectralfile.lower().endswith(".mgf"):
 		peaks = read_tims_mgf(spectralfile, psms[['scan_id','modified_peptide','precursor_charge']], theoretical, max_delta_ppm)
 
+	# Round floating numbers
+	peaks = peaks.round(6)
+
 	return psms, peaks, tpp
