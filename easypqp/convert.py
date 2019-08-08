@@ -92,11 +92,10 @@ class pepxml:
 		namespaces = {'pepxml_ns': "http://regis-web.systemsbiology.net/pepXML"}
 		ET.register_namespace('', "http://regis-web.systemsbiology.net/pepXML")
 
-		context = iterparse(self.pepxml_file, events=("start", "end"))
-		context = iter(context)
+		context = iterparse(self.pepxml_file, events=("end",))
 
 		for event, elem in context:
-			if event == "end" and elem.tag == "{http://regis-web.systemsbiology.net/pepXML}msms_run_summary":
+			if elem.tag == "{http://regis-web.systemsbiology.net/pepXML}msms_run_summary":
 				base_name = os.path.basename(elem.attrib['base_name'])
 
 				# only proceed if base_name matches
@@ -391,17 +390,14 @@ END IONS''', re.MULTILINE | re.DOTALL)
 
 
 def annotate_mass(mass, ionseries, max_delta_ppm):
-	top_fragment = None
-	top_mass = None
 	top_delta = 30
 	ions, ion_masses = ionseries
 	ppms = np.abs((mass - ion_masses) / ion_masses * 1e6)
-	for ion, ion_mass, ppm in zip(ions, ion_masses, ppms):
-		if ppm < max_delta_ppm and ppm < top_delta:
-			top_fragment = ion
-			top_mass = ion_mass
-			top_delta = ppm
-	return top_fragment, top_mass
+	idx = ppms.argmin()
+	if ppms[idx] < min(max_delta_ppm, top_delta):
+		return ions[idx], ion_masses[idx]
+	return None, None
+
 
 def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2,3,4], fragment_types=['b','y'], enable_specific_losses = False, enable_unspecific_losses = False):
 	peptide = po.AASequence.fromString(po.String(peptide_sequence))
