@@ -244,7 +244,9 @@ def generate(files, outfile, psmtsv, peptidetsv, referencefile, psm_fdr_threshol
   aligned_runs = align_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run, 'retention_time', 'irt', rt_lowess_frac, min_peptides, x.name, main_path))
 
   # Normalize IM of all runs against reference
-  aligned_runs = aligned_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run, 'ion_mobility', 'im', im_lowess_frac, min_peptides, x.name, main_path))
+  if not reference_run['ion_mobility'].isnull().values.any():
+    aligned_runs = aligned_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run, 'ion_mobility', 'im', im_lowess_frac, min_peptides, x.name, main_path))
+    
   pepida = aligned_runs
 
   # Add reference run if internal calibration is used
