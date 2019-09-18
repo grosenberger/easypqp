@@ -172,7 +172,7 @@ def lowess(run, reference_run, xcol, ycol, lowess_frac, min_peptides, base_name,
 
   return run
 
-def generate(files, outfile, psmtsv, peptidetsv, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_frac, im_lowess_frac, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus):
+def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, im_referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_frac, im_lowess_frac, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus):
   # Parse input arguments
   psm_files = []
   spectra = []
@@ -214,54 +214,67 @@ def generate(files, outfile, psmtsv, peptidetsv, referencefile, psm_fdr_threshol
   # Generate set of best replicate identifications per run
   pepidr = pepid.loc[pepid.groupby(['base_name','modified_peptide','precursor_charge'])['pp'].idxmax()].sort_index()
 
-  # Prepare reference iRT list
-  if referencefile is not None:
+  # Prepare reference IM list
+  enable_im = False
+  if im_referencefile is not None:
+    enable_im = True
     # Read reference file if present
-    reference_run = pd.read_csv(referencefile, index_col=False, sep='\t')
+    im_reference_run = pd.read_csv(im_referencefile, index_col=False, sep='\t')
     align_runs = pepidr
-    if not set(['modified_peptide','precursor_charge','irt']).issubset(reference_run.columns) or set(['modified_peptide','precursor_charge','irt','im']).issubset(reference_run.columns):
-      raise click.ClickException("Reference iRT file has wrong format. Requires columns 'modified_peptide', 'precursor_charge' and 'irt'. For ion mobility data, the optional column 'im' can be supplied.")
-    if reference_run.shape[0] < 10:
+    if not set(['modified_peptide','precursor_charge','im']).issubset(im_referencefile.columns):
+      raise click.ClickException("Reference IM file has wrong format. Requires columns 'modified_peptide', 'precursor_charge' and 'im'.")
+    if im_reference_run.shape[0] < 10:
+      raise click.ClickException("Reference IM file has too few data points. Requires at least 10.")
+  elif 'ion_mobility' in pepidr.columns:
+    enable_im = True
+    # Select reference run
+    pepidr_stats = pepidr.groupby('base_name')[['modified_peptide']].count().reset_index()
+    click.echo(pepidr_stats)
+    im_reference_run_base_name = pepidr_stats.loc[pepidr_stats['modified_peptide'].idxmax()]['base_name']
+
+    im_reference_run = pepidr[pepidr['base_name'] == im_reference_run_base_name].copy()
+
+    # Set IM of reference run
+    im_reference_run['im'] = im_reference_run['ion_mobility']
+
+  # Prepare reference iRT list
+  if rt_referencefile is not None:
+    # Read reference file if present
+    rt_reference_run = pd.read_csv(rt_referencefile, index_col=False, sep='\t')
+    align_runs = pepidr
+    if not set(['modified_peptide','precursor_charge','irt']).issubset(rt_reference_run.columns):
+      raise click.ClickException("Reference iRT file has wrong format. Requires columns 'modified_peptide', 'precursor_charge' and 'irt'.")
+    if rt_reference_run.shape[0] < 10:
       raise click.ClickException("Reference iRT file has too few data points. Requires at least 10.")
   else:
     # Select reference run
     pepidr_stats = pepidr.groupby('base_name')[['modified_peptide']].count().reset_index()
     click.echo(pepidr_stats)
-    reference_run_base_name = pepidr_stats.loc[pepidr_stats['modified_peptide'].idxmax()]['base_name']
+    rt_reference_run_base_name = pepidr_stats.loc[pepidr_stats['modified_peptide'].idxmax()]['base_name']
 
-    reference_run = pepidr[pepidr['base_name'] == reference_run_base_name].copy()
-    align_runs = pepidr[pepidr['base_name'] != reference_run_base_name]
+    rt_reference_run = pepidr[pepidr['base_name'] == rt_reference_run_base_name].copy()
 
     # Normalize RT of reference run
     min_max_scaler = preprocessing.MinMaxScaler()
-    reference_run['irt'] = min_max_scaler.fit_transform(reference_run[['retention_time']])*100
-
-    # Remove ion mobility column if empty
-    if not reference_run['ion_mobility'].isnull().values.any():
-      reference_run['im'] = reference_run['ion_mobility']
+    rt_reference_run['irt'] = min_max_scaler.fit_transform(rt_reference_run[['retention_time']])*100
 
   # Normalize RT of all runs against reference
-  aligned_runs = align_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run, 'retention_time', 'irt', rt_lowess_frac, min_peptides, x.name, main_path))
+  aligned_runs = align_runs.groupby('base_name').apply(lambda x: lowess(x, rt_reference_run, 'retention_time', 'irt', rt_lowess_frac, min_peptides, x.name, main_path))
 
   # Normalize IM of all runs against reference
-  if not reference_run['ion_mobility'].isnull().values.any():
-    aligned_runs = aligned_runs.groupby('base_name').apply(lambda x: lowess(x, reference_run, 'ion_mobility', 'im', im_lowess_frac, min_peptides, x.name, main_path))
+  if enable_im:
+    aligned_runs = aligned_runs.groupby('base_name').apply(lambda x: lowess(x, im_reference_run, 'ion_mobility', 'im', im_lowess_frac, min_peptides, x.name, main_path))
     
   pepida = aligned_runs
-
-  # Add reference run if internal calibration is used
-  if referencefile is None:
-    pepida = pd.concat([reference_run, aligned_runs], sort=True).reset_index(drop=True)
 
   # Remove peptides without valid iRT
   pepida = pepida.loc[np.isfinite(pepida['irt'])]
 
   # Remove peptides without valid IM
-  if not reference_run['ion_mobility'].isnull().values.any():
+  if enable_im:
     pepida = pepida.loc[np.isfinite(pepida['im'])]
   else:
     pepida['im'] = np.nan
-
 
   # Generate set of non-redundant global best replicate identifications
   pepidb = pepida.loc[pepida.groupby(['modified_peptide','precursor_charge'])['pp'].idxmax()].sort_index()
