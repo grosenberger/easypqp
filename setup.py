@@ -39,7 +39,7 @@ setup(
     #     'test': ['coverage'],
     # },
     package_data={  # Optional
-        'unimod': ['data/unimod.xml'],
+        'easypqp': ['data/unimod.xml'],
     },
     entry_points={
         'console_scripts': [
