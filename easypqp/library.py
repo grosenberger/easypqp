@@ -260,7 +260,7 @@ def generate(files, outfile, psmtsv, peptidetsv, referencefile, psm_fdr_threshol
   if not reference_run['ion_mobility'].isnull().values.any():
     pepida = pepida.loc[np.isfinite(pepida['im'])]
   else:
-    pepida['im'] = np.nan
+    pepida.loc[:, 'im'] = np.nan
 
 
   # Generate set of non-redundant global best replicate identifications
