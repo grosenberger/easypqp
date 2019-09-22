@@ -149,7 +149,7 @@ def process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_thresh
 
   return psms
 
-def lowess(run, reference_run, xcol, ycol, lowess_frac, min_peptides, base_name, main_path):
+def lowess(run, reference_run, xcol, ycol, lowess_frac, min_peptides, filename, main_path):
   dfm = pd.merge(run, reference_run[['modified_peptide','precursor_charge',ycol]], on=['modified_peptide','precursor_charge'])
   click.echo("Info: Peptide overlap between run and reference: %s." % (dfm.shape[0]))
   if dfm.shape[0] <= min_peptides:
@@ -166,8 +166,11 @@ def lowess(run, reference_run, xcol, ycol, lowess_frac, min_peptides, base_name,
   run[ycol] = lwi(run[xcol])
 
   # Plot regression
-  fig = lmplot(x=xcol, y=ycol, data=dfm, lowess=True)
-  fig.savefig(os.path.join(main_path, "easypqp_alignment_" + base_name + ".pdf"))
+  plt.plot(dfm[xcol], dfm[ycol], 'o')
+  plt.plot(run[xcol], run[ycol])
+  plt.xlabel(xcol)
+  plt.ylabel(ycol)
+  plt.savefig(os.path.join(main_path, filename + ".pdf"))
   plt.close()
 
   return run
@@ -259,11 +262,11 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, im_referencef
     rt_reference_run['irt'] = min_max_scaler.fit_transform(rt_reference_run[['retention_time']])*100
 
   # Normalize RT of all runs against reference
-  aligned_runs = align_runs.groupby('base_name').apply(lambda x: lowess(x, rt_reference_run, 'retention_time', 'irt', rt_lowess_frac, min_peptides, x.name, main_path))
+  aligned_runs = align_runs.groupby('base_name').apply(lambda x: lowess(x, rt_reference_run, 'retention_time', 'irt', rt_lowess_frac, min_peptides, "easypqp_rt_alignment_" + x.name, main_path))
 
   # Normalize IM of all runs against reference
   if enable_im:
-    aligned_runs = aligned_runs.groupby('base_name').apply(lambda x: lowess(x, im_reference_run, 'ion_mobility', 'im', im_lowess_frac, min_peptides, x.name, main_path))
+    aligned_runs = aligned_runs.groupby('base_name').apply(lambda x: lowess(x, im_reference_run, 'ion_mobility', 'im', im_lowess_frac, min_peptides, "easypqp_im_alignment_" + x.name, main_path))
     
   pepida = aligned_runs
 
