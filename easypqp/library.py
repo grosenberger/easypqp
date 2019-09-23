@@ -15,6 +15,7 @@ import pandas as pd
 
 # alignment
 from sklearn import preprocessing
+import sklearn.isotonic
 import statsmodels.api as sm
 from scipy.interpolate import interp1d
 
@@ -158,9 +159,11 @@ def lowess(run, reference_run, xcol, ycol, lowess_frac, min_peptides, filename, 
 
   # Fit lowess model
   lwf = sm.nonparametric.lowess(dfm[ycol], dfm[xcol], frac=lowess_frac)
-  lwf_x = list(zip(*lwf))[0]
-  lwf_y = list(zip(*lwf))[1]
-  lwi = interp1d(lwf_x, lwf_y, bounds_error=False, fill_value="extrapolate")
+  lwf_x = lwf[:, 0]
+  ir = sklearn.isotonic.IsotonicRegression() # make the regression strictly increasing
+  lwf_y = ir.fit_transform(lwf_x, lwf[:, 1])
+  mask = np.concatenate([[True], np.diff(lwf_y) != 0]) # remove non increasing points
+  lwi = interp1d(lwf_x[mask], lwf_y[mask], bounds_error=False, fill_value="extrapolate")
 
   # Apply lowess model
   run[ycol] = lwi(run[xcol])
