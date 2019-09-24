@@ -73,7 +73,8 @@ def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, subpsmsfile, peaksfi
 @click.option('--out', 'outfile', required=True, type=click.Path(exists=False), help='Output TSV peptide query parameter file.')
 @click.option('--psmtsv', 'psmtsv', required=False, type=click.Path(exists=False), help='psm.tsv file from Philosopher.')
 @click.option('--peptidetsv', 'peptidetsv', required=False, type=click.Path(exists=False), help='peptide.tsv file from Philosopher.')
-@click.option('--reference', 'referencefile', required=False, type=click.Path(exists=True), help='Optional iRT/CiRT/IM reference file.')
+@click.option('--rt_reference', 'rt_referencefile', required=False, type=click.Path(exists=True), help='Optional iRT/CiRT reference file.')
+@click.option('--im_reference', 'im_referencefile', required=False, type=click.Path(exists=True), help='Optional IM reference file.')
 @click.option('--psm_fdr_threshold', default=0.01, show_default=True, type=float, help='PSM FDR threshold.')
 @click.option('--peptide_fdr_threshold', default=0.01, show_default=True, type=float, help='Peptide FDR threshold.')
 @click.option('--protein_fdr_threshold', default=0.01, show_default=True, type=float, help='Protein FDR threshold.')
@@ -85,12 +86,12 @@ def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, subpsmsfile, peaksfi
 @click.option('--min_peptides', default=5, show_default=True, type=int, help='Minimum peptides required for successful alignment.')
 @click.option('--proteotypic/--no-proteotypic', show_default=True, default=True, help='Use only proteotypic, unique, non-shared peptides.')
 @click.option('--consensus/--no-consensus', show_default=True, default=True, help='Generate consensus instead of best replicate spectra.')
-def library(infiles, outfile, psmtsv, peptidetsv, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_fraction, im_lowess_fraction, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus):
+def library(infiles, outfile, psmtsv, peptidetsv, rt_referencefile, im_referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_fraction, im_lowess_fraction, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus):
     """
     Generate EasyPQP library
     """
 
-    generate(infiles, outfile, psmtsv, peptidetsv, referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_fraction, im_lowess_fraction, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus)
+    generate(infiles, outfile, psmtsv, peptidetsv, rt_referencefile, im_referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_fraction, im_lowess_fraction, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus)
     click.echo("Info: Library successfully generated.")
 
 # EasyPQP Reduce
