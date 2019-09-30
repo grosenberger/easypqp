@@ -518,4 +518,4 @@ def conversion(pepxmlfile, spectralfile, unimodfile, main_score, exclude_range, 
 
 		return psms, peaks, tpp
 	else:
-		return pd.DataFrame(), pd.DataFrame(), True
+		return pd.DataFrame({'run_id': [], 'scan_id': [], 'hit_rank': [], 'massdiff': [], 'precursor_charge': [], 'retention_time': [], 'ion_mobility': [], 'peptide_sequence': [], 'modifications': [], 'nterm_modification': [], 'cterm_modification': [], 'protein_id': [], 'gene_id': [], 'num_tot_proteins': [], 'decoy': []}), pd.DataFrame({'scan_id': [], 'modified_peptide': [], 'precursor_charge': [], 'precursor_mz': [], 'fragment': [], 'product_mz': [], 'intensity': []}), True
