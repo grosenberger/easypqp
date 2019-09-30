@@ -228,7 +228,6 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, im_referencef
     enable_im = True
     # Read reference file if present
     im_reference_run = pd.read_csv(im_referencefile, index_col=False, sep='\t')
-    align_runs = pepidr
     if not set(['modified_peptide','precursor_charge','im']).issubset(im_referencefile.columns):
       raise click.ClickException("Reference IM file has wrong format. Requires columns 'modified_peptide', 'precursor_charge' and 'im'.")
     if im_reference_run.shape[0] < 10:
@@ -249,7 +248,6 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, im_referencef
   if rt_referencefile is not None:
     # Read reference file if present
     rt_reference_run = pd.read_csv(rt_referencefile, index_col=False, sep='\t')
-    align_runs = pepidr
     if not set(['modified_peptide','precursor_charge','irt']).issubset(rt_reference_run.columns):
       raise click.ClickException("Reference iRT file has wrong format. Requires columns 'modified_peptide', 'precursor_charge' and 'irt'.")
     if rt_reference_run.shape[0] < 10:
@@ -267,7 +265,7 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, im_referencef
     rt_reference_run['irt'] = min_max_scaler.fit_transform(rt_reference_run[['retention_time']])*100
 
   # Normalize RT of all runs against reference
-  aligned_runs = align_runs.groupby('base_name').apply(lambda x: lowess(x, rt_reference_run, 'retention_time', 'irt', rt_lowess_frac, min_peptides, "easypqp_rt_alignment_" + x.name, main_path))
+  aligned_runs = pepidr.groupby('base_name').apply(lambda x: lowess(x, rt_reference_run, 'retention_time', 'irt', rt_lowess_frac, min_peptides, "easypqp_rt_alignment_" + x.name, main_path))
 
   # Normalize IM of all runs against reference
   if enable_im:
