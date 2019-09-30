@@ -85,7 +85,8 @@ class pepxml:
 
 			return modified_peptide
 
-		self.psms['modified_peptide'] = self.psms[['peptide_sequence','modifications','nterm_modification','cterm_modification','massdiff']].apply(lambda x: match_modifications(unimod, x), axis=1)
+		if self.psms.shape[0] > 0:
+			self.psms['modified_peptide'] = self.psms[['peptide_sequence','modifications','nterm_modification','cterm_modification','massdiff']].apply(lambda x: match_modifications(unimod, x), axis=1)
 
 	def parse_pepxml(self):
 		peptides = []
