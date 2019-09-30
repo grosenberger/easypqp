@@ -518,5 +518,4 @@ def conversion(pepxmlfile, spectralfile, unimodfile, main_score, exclude_range, 
 
 		return psms, peaks, tpp
 	else:
-		return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
-		
+		return pd.DataFrame(), pd.DataFrame(), True
