@@ -234,7 +234,6 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, im_referencef
     if im_reference_run.shape[0] < 10:
       raise click.ClickException("Reference IM file has too few data points. Requires at least 10.")
   elif 'ion_mobility' in pepidr.columns:
-  if 'ion_mobility' in pepidr.columns:
     if pepidr['ion_mobility'].unique() == np.nan:
       enable_im = False
     else:
