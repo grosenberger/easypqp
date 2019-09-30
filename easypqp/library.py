@@ -269,11 +269,11 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, im_referencef
     rt_reference_run['irt'] = min_max_scaler.fit_transform(rt_reference_run[['retention_time']])*100
 
   # Normalize RT of all runs against reference
-  aligned_runs = pepidr.groupby('base_name').apply(lambda x: lowess(x, rt_reference_run, 'retention_time', 'irt', rt_lowess_frac, min_peptides, "easypqp_rt_alignment_" + x.name, main_path))
+  aligned_runs = pepidr.groupby('base_name').apply(lambda x: lowess(x, rt_reference_run, 'retention_time', 'irt', rt_lowess_frac, min_peptides, "easypqp_rt_alignment_" + x.name, main_path)).reset_index(level='base_name', drop=True)
 
   # Normalize IM of all runs against reference
   if enable_im:
-    aligned_runs = aligned_runs.groupby('base_name').apply(lambda x: lowess(x, im_reference_run, 'ion_mobility', 'im', im_lowess_frac, min_peptides, "easypqp_im_alignment_" + x.name, main_path))
+    aligned_runs = aligned_runs.groupby('base_name').apply(lambda x: lowess(x, im_reference_run, 'ion_mobility', 'im', im_lowess_frac, min_peptides, "easypqp_im_alignment_" + x.name, main_path)).reset_index(level='base_name', drop=True)
     
   pepida = aligned_runs
 
@@ -298,25 +298,26 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, im_referencef
   for idx, peak_file in peak_files.iterrows():
     click.echo("Info: Parsing file %s." % peak_file['path'])
     meta_run = pepida[pepida['base_name'] == peak_file['base_name']]
-    meta_global = pepidb[pepidb['base_name'] == peak_file['base_name']]
-    peaks = pd.read_pickle(peak_file['path'])
-    
-    # Generate run-specific PQP files for OpenSWATH alignment
-    if consensus or ("_Q1" in peak_file['base_name']):
-      run_pqp = pd.merge(meta_run, peaks, on=['modified_peptide','precursor_charge','scan_id'])[['precursor_mz','product_mz','fragment','intensity','irt','im','protein_id','gene_id','peptide_sequence','modified_peptide','precursor_charge']]
-      run_pqp.columns = ['PrecursorMz','ProductMz','Annotation','LibraryIntensity','NormalizedRetentionTime','PrecursorIonMobility','ProteinId','GeneName','PeptideSequence','ModifiedPeptideSequence','PrecursorCharge']
-      run_pqp['PrecursorCharge'] = run_pqp['PrecursorCharge'].astype(int)
-      run_pqp_path = os.path.splitext(peak_file['path'])[0]+"_run_peaks.tsv"
-      run_pqp.to_csv(run_pqp_path, sep="\t", index=False)
-      if consensus:
-        replicate_pqp.append(run_pqp)
+    if meta_run.shape[0] > 0:
+      meta_global = pepidb[pepidb['base_name'] == peak_file['base_name']]
+      peaks = pd.read_pickle(peak_file['path'])
+      
+      # Generate run-specific PQP files for OpenSWATH alignment
+      if consensus or ("_Q1" in peak_file['base_name']):
+        run_pqp = pd.merge(meta_run, peaks, on=['modified_peptide','precursor_charge','scan_id'])[['precursor_mz','product_mz','fragment','intensity','irt','im','protein_id','gene_id','peptide_sequence','modified_peptide','precursor_charge']]
+        run_pqp.columns = ['PrecursorMz','ProductMz','Annotation','LibraryIntensity','NormalizedRetentionTime','PrecursorIonMobility','ProteinId','GeneName','PeptideSequence','ModifiedPeptideSequence','PrecursorCharge']
+        run_pqp['PrecursorCharge'] = run_pqp['PrecursorCharge'].astype(int)
+        run_pqp_path = os.path.splitext(peak_file['path'])[0]+"_run_peaks.tsv"
+        run_pqp.to_csv(run_pqp_path, sep="\t", index=False)
+        if consensus:
+          replicate_pqp.append(run_pqp)
 
-    # Generate global non-redundant PQP files
-    if not consensus:
-      global_pqp = pd.merge(meta_global, peaks, on=['modified_peptide','precursor_charge','scan_id'])[['precursor_mz','product_mz','fragment','intensity','irt','im','protein_id','gene_id','peptide_sequence','modified_peptide','precursor_charge']]
-      global_pqp.columns = ['PrecursorMz','ProductMz','Annotation','LibraryIntensity','NormalizedRetentionTime','PrecursorIonMobility','ProteinId','GeneName','PeptideSequence','ModifiedPeptideSequence','PrecursorCharge']
-      global_pqp['PrecursorCharge'] = global_pqp['PrecursorCharge'].astype(int)
-      replicate_pqp.append(global_pqp)
+      # Generate global non-redundant PQP files
+      if not consensus:
+        global_pqp = pd.merge(meta_global, peaks, on=['modified_peptide','precursor_charge','scan_id'])[['precursor_mz','product_mz','fragment','intensity','irt','im','protein_id','gene_id','peptide_sequence','modified_peptide','precursor_charge']]
+        global_pqp.columns = ['PrecursorMz','ProductMz','Annotation','LibraryIntensity','NormalizedRetentionTime','PrecursorIonMobility','ProteinId','GeneName','PeptideSequence','ModifiedPeptideSequence','PrecursorCharge']
+        global_pqp['PrecursorCharge'] = global_pqp['PrecursorCharge'].astype(int)
+        replicate_pqp.append(global_pqp)
 
   # Aggregate consensus spectra
   pqp = pd.concat(replicate_pqp)
