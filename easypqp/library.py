@@ -224,6 +224,7 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, im_referencef
 
   # Prepare reference IM list
   enable_im = False
+
   if im_referencefile is not None:
     enable_im = True
     # Read reference file if present
@@ -233,16 +234,20 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, im_referencef
     if im_reference_run.shape[0] < 10:
       raise click.ClickException("Reference IM file has too few data points. Requires at least 10.")
   elif 'ion_mobility' in pepidr.columns:
-    enable_im = True
-    # Select reference run
-    pepidr_stats = pepidr.groupby('base_name')[['modified_peptide']].count().reset_index()
-    click.echo(pepidr_stats)
-    im_reference_run_base_name = pepidr_stats.loc[pepidr_stats['modified_peptide'].idxmax()]['base_name']
+  if 'ion_mobility' in pepidr.columns:
+    if pepidr['ion_mobility'].unique() == np.nan:
+      enable_im = False
+    else:
+      enable_im = True
+      # Select reference run
+      pepidr_stats = pepidr.groupby('base_name')[['modified_peptide']].count().reset_index()
+      click.echo(pepidr_stats)
+      im_reference_run_base_name = pepidr_stats.loc[pepidr_stats['modified_peptide'].idxmax()]['base_name']
 
-    im_reference_run = pepidr[pepidr['base_name'] == im_reference_run_base_name].copy()
+      im_reference_run = pepidr[pepidr['base_name'] == im_reference_run_base_name].copy()
 
-    # Set IM of reference run
-    im_reference_run['im'] = im_reference_run['ion_mobility']
+      # Set IM of reference run
+      im_reference_run['im'] = im_reference_run['ion_mobility']
 
   # Prepare reference iRT list
   if rt_referencefile is not None:
@@ -265,7 +270,7 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, im_referencef
     rt_reference_run['irt'] = min_max_scaler.fit_transform(rt_reference_run[['retention_time']])*100
 
   # Normalize RT of all runs against reference
-  aligned_runs = pepidr.groupby('base_name').apply(lambda x: lowess(x, rt_reference_run, 'retention_time', 'irt', rt_lowess_frac, min_peptides, "easypqp_rt_alignment_" + x.name, main_path))
+  aligned_runs = pepidr.groupby('base_name').apply(lambda x: lowess(x, rt_reference_run, 'retention_time', 'irt', rt_lowess_frac, min_peptides, "easypqp_rt_alignment_" + x.name, main_path)).reset_index()
 
   # Normalize IM of all runs against reference
   if enable_im:
