@@ -269,7 +269,7 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, im_referencef
     rt_reference_run['irt'] = min_max_scaler.fit_transform(rt_reference_run[['retention_time']])*100
 
   # Normalize RT of all runs against reference
-  aligned_runs = pepidr.groupby('base_name').apply(lambda x: lowess(x, rt_reference_run, 'retention_time', 'irt', rt_lowess_frac, min_peptides, "easypqp_rt_alignment_" + x.name, main_path)).reset_index(level='base_name')
+  aligned_runs = pepidr.groupby('base_name').apply(lambda x: lowess(x, rt_reference_run, 'retention_time', 'irt', rt_lowess_frac, min_peptides, "easypqp_rt_alignment_" + x.name, main_path))
 
   # Normalize IM of all runs against reference
   if enable_im:
