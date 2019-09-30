@@ -209,7 +209,7 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, im_referencef
     click.echo("Info: Reading file %s." % psm_file)
     psm_tab = pd.read_csv(psm_file, index_col=False, sep='\t')
     if psm_tab.shape[0] > 0:
-      psms_list.append()
+      psms_list.append(psm_tab)
   psms = pd.concat(psms_list).reset_index(drop=True)
   psms['pp'] = 1-psms['pep']
 
