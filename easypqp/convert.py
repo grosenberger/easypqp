@@ -459,59 +459,64 @@ def conversion(pepxmlfile, spectralfile, unimodfile, main_score, exclude_range, 
 	px = pepxml(pepxmlfile, um, base_name, exclude_range)
 	psms = px.get()
 
-	# Generate UniMod peptide sequence
-	click.echo("Info: Matching modifications to UniMod.")
+	# Continue if any PSMS are present
+	if psms.shape[0] > 0:
+		# Generate UniMod peptide sequence
+		click.echo("Info: Matching modifications to UniMod.")
 
-	# Append PyProphet columns
-	run_id = os.path.splitext(os.path.basename(pepxmlfile))[0]
-	psms['group_id'] = psms['run_id'] + "_" + psms['scan_id'].astype(str)
+		# Append PyProphet columns
+		run_id = os.path.splitext(os.path.basename(spectralfile))[0]
+		psms['group_id'] = psms['run_id'] + "_" + psms['scan_id'].astype(str)
 
-	if 'var_expect' in psms.columns:
-		psms = psms.rename(index=str, columns={'var_expect': 'expect'})
-		psms['var_expectscore'] = 0.0 - np.log(psms['expect'])
+		if 'var_expect' in psms.columns:
+			psms = psms.rename(index=str, columns={'var_expect': 'expect'})
+			psms['var_expectscore'] = 0.0 - np.log(psms['expect'])
 
-	if 'var_nextscore' in psms.columns and 'var_hyperscore' in psms.columns:
-		psms = psms.rename(index=str, columns={'var_nextscore': 'nextscore'})
-		psms['var_deltascore'] = 1.0 - (psms['nextscore'] / psms['var_hyperscore'])
+		if 'var_nextscore' in psms.columns and 'var_hyperscore' in psms.columns:
+			psms = psms.rename(index=str, columns={'var_nextscore': 'nextscore'})
+			psms['var_deltascore'] = 1.0 - (psms['nextscore'] / psms['var_hyperscore'])
 
-	# DIA-Umpire quality tiers
-	if run_id.endswith("_Q1"):
-		psms['quality'] = 1
-	elif run_id.endswith("_Q2"):
-		psms['quality'] = 2
-	elif run_id.endswith("_Q3"):
-		psms['quality'] = 3
-	else: # DDA data
-		psms['quality'] = 0
+		# DIA-Umpire quality tiers
+		if run_id.endswith("_Q1"):
+			psms['quality'] = 1
+		elif run_id.endswith("_Q2"):
+			psms['quality'] = 2
+		elif run_id.endswith("_Q3"):
+			psms['quality'] = 3
+		else: # DDA data
+			psms['quality'] = 0
 
-	if main_score not in psms.columns:
-		raise click.ClickException("Error: Main score '%s' is not present in pepXML." % main_score)
+		if main_score not in psms.columns:
+			raise click.ClickException("Error: Main score '%s' is not present in pepXML." % main_score)
 
-	psms = psms.rename(index=str, columns={main_score: 'main_' + main_score})
+		psms = psms.rename(index=str, columns={main_score: 'main_' + main_score})
 
-	# Check if pepXML is processed by TPP
-	if 'pep' in psms.columns:
-		tpp = True
+		# Check if pepXML is processed by TPP
+		if 'pep' in psms.columns:
+			tpp = True
+		else:
+			tpp = False
+
+		# Generate theoretical spectra
+		click.echo("Info: Generate theoretical spectra.")
+		theoretical = {}
+		for ix, peptide in psms[['modified_peptide','precursor_charge']].drop_duplicates().iterrows():
+			if peptide['modified_peptide'] not in theoretical.keys():
+				theoretical[peptide['modified_peptide']] = {}
+
+			theoretical[peptide['modified_peptide']][peptide['precursor_charge']] = generate_ionseries(peptide['modified_peptide'], peptide['precursor_charge'], fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses)
+
+		# Generate spectrum dataframe
+		click.echo("Info: Processing spectra from file %s." % spectralfile)
+		if spectralfile.lower().endswith(".mzxml"):
+			peaks = read_mzxml(spectralfile, psms[['scan_id','modified_peptide','precursor_charge']], theoretical, max_delta_ppm)
+		elif spectralfile.lower().endswith(".mgf"):
+			peaks = read_tims_mgf(spectralfile, psms[['scan_id','modified_peptide','precursor_charge']], theoretical, max_delta_ppm)
+
+		# Round floating numbers
+		peaks = peaks.round(6)
+
+		return psms, peaks, tpp
 	else:
-		tpp = False
-
-	# Generate theoretical spectra
-	click.echo("Info: Generate theoretical spectra.")
-	theoretical = {}
-	for ix, peptide in psms[['modified_peptide','precursor_charge']].drop_duplicates().iterrows():
-		if peptide['modified_peptide'] not in theoretical.keys():
-			theoretical[peptide['modified_peptide']] = {}
-
-		theoretical[peptide['modified_peptide']][peptide['precursor_charge']] = generate_ionseries(peptide['modified_peptide'], peptide['precursor_charge'], fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses)
-
-	# Generate spectrum dataframe
-	click.echo("Info: Processing spectra from file %s." % spectralfile)
-	if spectralfile.lower().endswith(".mzxml"):
-		peaks = read_mzxml(spectralfile, psms[['scan_id','modified_peptide','precursor_charge']], theoretical, max_delta_ppm)
-	elif spectralfile.lower().endswith(".mgf"):
-		peaks = read_tims_mgf(spectralfile, psms[['scan_id','modified_peptide','precursor_charge']], theoretical, max_delta_ppm)
-
-	# Round floating numbers
-	peaks = peaks.round(6)
-
-	return psms, peaks, tpp
+		return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+		
