@@ -75,7 +75,7 @@ def peptide_fdr(psms, peptide_fdr_threshold, pi0_lambda, plot_path):
 
   plot(plot_path, "global peptide scores", targets['pp'], decoys['pp'])
   
-  return targets[targets['q_value'] < peptide_fdr_threshold]['modified_peptide']
+  return targets[targets['q_value'] < peptide_fdr_threshold]['modified_peptide'], np.min(targets[targets['q_value'] < peptide_fdr_threshold]['pp'])
 
 def protein_fdr(psms, protein_fdr_threshold, pi0_lambda, plot_path):
   pi0_method = 'bootstrap'
@@ -92,7 +92,7 @@ def protein_fdr(psms, protein_fdr_threshold, pi0_lambda, plot_path):
 
   plot(plot_path, "global protein scores", targets['pp'], decoys['pp'])
   
-  return targets[targets['q_value'] < protein_fdr_threshold]['protein_id']
+  return targets[targets['q_value'] < protein_fdr_threshold]['protein_id'], np.min(targets[targets['q_value'] < protein_fdr_threshold]['pp'])
 
 def process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, proteotypic):
   # Append columns
@@ -131,10 +131,10 @@ def process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_thresh
       psms['q_value'] = compute_model_fdr(psms['pep'].values)
 
     # Confident peptides and protein in global context
-    peptides = peptide_fdr(psms, peptide_fdr_threshold, pi0_lambda, peptide_plot_path)
-    click.echo("Info: %s modified peptides identified (q-value < %s)" % (len(peptides), peptide_fdr_threshold))
-    proteins = protein_fdr(psms, protein_fdr_threshold, pi0_lambda, protein_plot_path)
-    click.echo("Info: %s proteins identified (q-value < %s)" % (len(proteins), protein_fdr_threshold))
+    peptides, peptide_pp_threshold = peptide_fdr(psms, peptide_fdr_threshold, pi0_lambda, peptide_plot_path)
+    click.echo("Info: %s modified peptides identified (q-value < %s; PP threshold = %s)" % (len(peptides), peptide_fdr_threshold, peptide_pp_threshold))
+    proteins, protein_pp_threshold = protein_fdr(psms, protein_fdr_threshold, pi0_lambda, protein_plot_path)
+    click.echo("Info: %s proteins identified (q-value < %s; PP threshold = %s)" % (len(proteins), protein_fdr_threshold, protein_pp_threshold))
 
     # Filter peptides and proteins
     psms = psms[psms['modified_peptide'].isin(peptides)]
@@ -146,12 +146,19 @@ def process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_thresh
     # Remove decoys
     psms = psms[~psms['decoy']]
 
-    click.echo("Info: %s redundant PSMs identified (q-value < %s)" % (psms.shape[0], psm_fdr_threshold))
+    click.echo("Info: %s redundant PSMs identified (q-value < %s; PP threshold = %s)" % (psms.shape[0], psm_fdr_threshold, np.min(1-psms['pep'])))
 
   return psms
 
-def lowess(run, reference_run, xcol, ycol, lowess_frac, min_peptides, filename, main_path):
-  dfm = pd.merge(run, reference_run[['modified_peptide','precursor_charge',ycol]], on=['modified_peptide','precursor_charge'])
+def lowess(run, reference_run, xcol, ycol, lowess_frac, psm_fdr_threshold, min_peptides, filename, main_path):
+  # Filter alignment data
+  run_alignment = run[run['q_value'] < psm_fdr_threshold]
+  if 'q_value' in reference_run:
+    reference_run_alignment = reference_run[reference_run['q_value'] < psm_fdr_threshold]
+  else:
+    reference_run_alignment = reference_run
+
+  dfm = pd.merge(run_alignment, reference_run_alignment[['modified_peptide','precursor_charge',ycol]], on=['modified_peptide','precursor_charge'])
   click.echo("Info: Peptide overlap between run and reference: %s." % (dfm.shape[0]))
   if dfm.shape[0] <= min_peptides:
     click.echo("Info: Skipping run because not enough peptides could be found for alignment.")
@@ -178,7 +185,7 @@ def lowess(run, reference_run, xcol, ycol, lowess_frac, min_peptides, filename, 
 
   return run
 
-def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, im_referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_frac, im_lowess_frac, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus):
+def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, im_referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_frac, rt_psm_fdr_threshold, im_lowess_frac, im_psm_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus):
   # Parse input arguments
   psm_files = []
   spectra = []
@@ -269,11 +276,11 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, im_referencef
     rt_reference_run['irt'] = min_max_scaler.fit_transform(rt_reference_run[['retention_time']])*100
 
   # Normalize RT of all runs against reference
-  aligned_runs = pepidr.groupby('base_name').apply(lambda x: lowess(x, rt_reference_run, 'retention_time', 'irt', rt_lowess_frac, min_peptides, "easypqp_rt_alignment_" + x.name, main_path)).reset_index(level='base_name', drop=True)
+  aligned_runs = pepidr.groupby('base_name').apply(lambda x: lowess(x, rt_reference_run, 'retention_time', 'irt', rt_lowess_frac, rt_psm_fdr_threshold, min_peptides, "easypqp_rt_alignment_" + x.name, main_path))
 
   # Normalize IM of all runs against reference
   if enable_im:
-    aligned_runs = aligned_runs.groupby('base_name').apply(lambda x: lowess(x, im_reference_run, 'ion_mobility', 'im', im_lowess_frac, min_peptides, "easypqp_im_alignment_" + x.name, main_path)).reset_index(level='base_name', drop=True)
+    aligned_runs = aligned_runs.groupby('base_name').apply(lambda x: lowess(x, im_reference_run, 'ion_mobility', 'im', im_lowess_frac, im_psm_fdr_threshold, min_peptides, "easypqp_im_alignment_" + x.name, main_path))
     
   pepida = aligned_runs
 
