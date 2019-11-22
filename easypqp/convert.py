@@ -200,10 +200,16 @@ class pepxml:
 									if analysis_result.attrib['analysis'] == 'interprophet':
 										for interprophet_result in analysis_result.findall('.//pepxml_ns:interprophet_result', namespaces):
 											scores["pep"] = 1.0 - float(interprophet_result.attrib['probability'])
+											prev_pep = scores["pep"]
 									elif analysis_result.attrib['analysis'] == 'peptideprophet':
 										for peptideprophet_result in analysis_result.findall('.//pepxml_ns:peptideprophet_result', namespaces):
 											scores["pep"] = 1.0 - float(peptideprophet_result.attrib['probability'])
+											prev_pep = scores["pep"]
 
+								if "pep" not in scores:
+									# If 2 search hits have the same rank only the first one has the analysis_result explicitly written out.
+									scores["pep"] = prev_pep
+                                                                        
 								peptides.append({**{'run_id': base_name, 'scan_id': int(start_scan), 'hit_rank': int(hit_rank), 'massdiff': float(massdiff), 'precursor_charge': int(assumed_charge), 'retention_time': float(retention_time_sec), 'ion_mobility': float(ion_mobility), 'peptide_sequence': peptide, 'modifications': modifications, 'nterm_modification': nterm_modification, 'cterm_modification': cterm_modification, 'protein_id': protein, 'gene_id': gene, 'num_tot_proteins': num_tot_proteins, 'decoy': is_decoy}, **scores})
 				elem.clear()
 
