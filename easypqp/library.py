@@ -153,6 +153,9 @@ def process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_thresh
 def lowess(run, reference_run, xcol, ycol, lowess_frac, psm_fdr_threshold, min_peptides, filename, main_path):
   # Filter alignment data
   run_alignment = run[run['q_value'] < psm_fdr_threshold]
+  run_alignment = run[run['q_value'] < psm_fdr_threshold] \
+    if 'q_value' in run else \
+    run
   if 'q_value' in reference_run:
     reference_run_alignment = reference_run[reference_run['q_value'] < psm_fdr_threshold]
   else:
