@@ -20,8 +20,11 @@ import statsmodels.api as sm
 from scipy.interpolate import interp1d
 
 # error rate estimation
-from pyprophet.stats import pemp, qvalue, pi0est
-from pyprophet.ipf import compute_model_fdr
+try:
+  from pyprophet.stats import pemp, qvalue, pi0est
+  from pyprophet.ipf import compute_model_fdr
+except ModuleNotFoundError:
+  pass
 
 # plotting
 from scipy.stats import gaussian_kde
