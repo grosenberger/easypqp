@@ -4,7 +4,7 @@ import click
 import sqlite3
 import pandas as pd
 from shutil import copyfile
-from .convert import conversion
+from .convert import conversion, basename_spectralfile
 from .library import generate
 try:
     from pyprophet.data_handling import transform_pi0_lambda
@@ -45,7 +45,7 @@ def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, subpsmsfile, peaksfi
     if unimodfile is None:
         unimodfile = pkg_resources.resource_filename('easypqp', 'data/unimod.xml')
 
-    run_id = os.path.splitext(os.path.basename(spectralfile))[0]
+    run_id = basename_spectralfile(spectralfile)
     if psmsfile is None:
         psmsfile = run_id + "_psms.tsv"
     if subpsmsfile is None:

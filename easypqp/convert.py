@@ -339,13 +339,18 @@ def read_mzxml(mzxml_path, psms, theoretical, max_delta_ppm):
 	return(transitions)
 
 
-def read_tims_mgf(tims_mgf_path, psms, theoretical, max_delta_ppm):
-	# read MGF
+def read_mgf(tims_mgf_path, psms, theoretical, max_delta_ppm):
+	'''
+	read TimsTOF's MGF or MSFragger's calibrated.mgf
+	'''
+	is_tims = not tims_mgf_path.endswith('calibrated.mgf')
 	import mmap
 	record_pattern = re.compile(b'''BEGIN IONS\r?
 (.*?)
 END IONS''', re.MULTILINE | re.DOTALL)
-	scan_num_pattern = re.compile(b'TITLE=Cmpd\s+([0-9]+),')
+	scan_num_pattern = re.compile(b'TITLE=Cmpd\s+([0-9]+),') \
+		if is_tims else \
+		re.compile(b'TITLE=.+?\.([0-9]+?)\.')
 	peaks_pattern = re.compile(b'^([\\d.]+)\s+([\\d.]+)', re.MULTILINE)
 
 	tims_data = {}
@@ -357,7 +362,9 @@ END IONS''', re.MULTILINE | re.DOTALL)
 			if len(scan_num_findall) == 1:
 				scan_num = int(scan_num_findall[0])
 			else:
-				raise RuntimeError("Cannot find Cmpd number from " + rec)
+				raise RuntimeError("Cannot find Cmpd number from " + rec
+								   if is_tims else
+								   "Cannot find scan number from " + rec)
 			tims_data[scan_num] = np.array(peaks_pattern.findall(rec), dtype=float)
 
 	peaks_list = []
@@ -455,7 +462,7 @@ def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2
 
 def conversion(pepxmlfile, spectralfile, unimodfile, main_score, exclude_range, max_delta_unimod, max_delta_ppm, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses):
 	# Parse basename
-	base_name = os.path.splitext(os.path.basename(spectralfile))[0]
+	base_name = basename_spectralfile(spectralfile)
 	click.echo("Info: Parsing run %s." % base_name)
 
 	# Initialize UniMod
@@ -471,7 +478,7 @@ def conversion(pepxmlfile, spectralfile, unimodfile, main_score, exclude_range, 
 		click.echo("Info: Matching modifications to UniMod.")
 
 		# Append PyProphet columns
-		run_id = os.path.splitext(os.path.basename(spectralfile))[0]
+		run_id = basename_spectralfile(spectralfile)
 		psms['group_id'] = psms['run_id'] + "_" + psms['scan_id'].astype(str)
 
 		if 'var_expect' in psms.columns:
@@ -517,7 +524,7 @@ def conversion(pepxmlfile, spectralfile, unimodfile, main_score, exclude_range, 
 		if spectralfile.lower().endswith(".mzxml"):
 			peaks = read_mzxml(spectralfile, psms[['scan_id','modified_peptide','precursor_charge']], theoretical, max_delta_ppm)
 		elif spectralfile.lower().endswith(".mgf"):
-			peaks = read_tims_mgf(spectralfile, psms[['scan_id','modified_peptide','precursor_charge']], theoretical, max_delta_ppm)
+			peaks = read_mgf(spectralfile, psms[['scan_id', 'modified_peptide', 'precursor_charge']], theoretical, max_delta_ppm)
 
 		# Round floating numbers
 		peaks = peaks.round(6)
@@ -525,3 +532,13 @@ def conversion(pepxmlfile, spectralfile, unimodfile, main_score, exclude_range, 
 		return psms, peaks, tpp
 	else:
 		return pd.DataFrame({'run_id': [], 'scan_id': [], 'hit_rank': [], 'massdiff': [], 'precursor_charge': [], 'retention_time': [], 'ion_mobility': [], 'peptide_sequence': [], 'modifications': [], 'nterm_modification': [], 'cterm_modification': [], 'protein_id': [], 'gene_id': [], 'num_tot_proteins': [], 'decoy': []}), pd.DataFrame({'scan_id': [], 'modified_peptide': [], 'precursor_charge': [], 'precursor_mz': [], 'fragment': [], 'product_mz': [], 'intensity': []}), True
+
+def basename_spectralfile(spectralfile):
+	'''
+	take the basename of a spectral filename
+	and strip trailing `_calibrated` if any, for MSFragger's MGF.
+	:param spectralfile: name of spectral file
+	:return: basename without trailing `_calibrated`
+	'''
+	x = os.path.splitext(os.path.basename(spectralfile))[0]
+	return x[:-len('_calibrated')] if x.endswith('_calibrated') else x
