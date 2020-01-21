@@ -6,7 +6,10 @@ import pandas as pd
 from shutil import copyfile
 from .convert import conversion
 from .library import generate
-from pyprophet.data_handling import transform_pi0_lambda
+try:
+    from pyprophet.data_handling import transform_pi0_lambda
+except ModuleNotFoundError:
+    transform_pi0_lambda = None
 
 @click.group(chain=True)
 @click.version_option()
