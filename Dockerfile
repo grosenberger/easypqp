@@ -2,7 +2,8 @@
 FROM python:3.7.3
 
 # install numpy
-RUN pip install numpy pyprophet
+RUN pip install numpy
+RUN pip install pyprophet
 
 # install EasyPQP and dependencies
 ADD . /easypqp
