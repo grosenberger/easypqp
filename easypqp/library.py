@@ -190,19 +190,19 @@ def lowess(run, reference_run, xcol, ycol, lowess_frac, psm_fdr_threshold, min_p
 
   return run
 
-def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, im_referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_frac, rt_psm_fdr_threshold, im_lowess_frac, im_psm_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus):
+def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, rt_filter, im_referencefile, im_filter, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_frac, rt_psm_fdr_threshold, im_lowess_frac, im_psm_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus):
   # Parse input arguments
   psm_files = []
   spectra = []
 
   for file in files:
-    if 'psms' in file:
+    if 'psmpkl' in file:
       psm_files.append(file)
     if 'peakpkl' in file:
       spectra.append(file)
 
   if len(psm_files) == 0:
-    raise click.ClickException("No PSMs files present. Need to have tag 'psms' in filename.")
+    raise click.ClickException("No PSMs files present. Need to have tag 'psmpkl' in filename.")
 
   if len(spectra) == 0:
     raise click.ClickException("No spectrum files present. Need to have tag 'peakpkl' in filename.")
@@ -219,7 +219,7 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, im_referencef
   psms_list = []
   for psm_file in psm_files:
     click.echo("Info: Reading file %s." % psm_file)
-    psm_tab = pd.read_csv(psm_file, index_col=False, sep='\t')
+    psm_tab = pd.read_pickle(psm_file)
     if psm_tab.shape[0] > 0:
       psms_list.append(psm_tab)
   psms = pd.concat(psms_list).reset_index(drop=True)
@@ -253,6 +253,12 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, im_referencef
       # Select reference run
       pepidr_stats = pepidr.groupby('base_name')[['modified_peptide']].count().reset_index()
       click.echo(pepidr_stats)
+
+      if im_filter is not None:
+        click.echo("Info: Filter candidate IM reference runs by tag '%s'." % im_filter)
+        pepidr_stats = pepidr_stats[pepidr_stats['base_name'].str.contains(im_filter)]
+        click.echo(pepidr_stats)
+
       im_reference_run_base_name = pepidr_stats.loc[pepidr_stats['modified_peptide'].idxmax()]['base_name']
 
       im_reference_run = pepidr[pepidr['base_name'] == im_reference_run_base_name].copy()
@@ -272,6 +278,12 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, im_referencef
     # Select reference run
     pepidr_stats = pepidr.groupby('base_name')[['modified_peptide']].count().reset_index()
     click.echo(pepidr_stats)
+
+    if rt_filter is not None:
+      click.echo("Info: Filter candidate RT reference runs by tag '%s'." % rt_filter)
+      pepidr_stats = pepidr_stats[pepidr_stats['base_name'].str.contains(rt_filter)]
+      click.echo(pepidr_stats)
+
     rt_reference_run_base_name = pepidr_stats.loc[pepidr_stats['modified_peptide'].idxmax()]['base_name']
 
     rt_reference_run = pepidr[pepidr['base_name'] == rt_reference_run_base_name].copy()

@@ -26,9 +26,7 @@ def cli():
 @click.option('--spectra', 'spectralfile', required=True, type=click.Path(exists=True), help='The input mzXML or MGF (timsTOF only) file.')
 @click.option('--unimod', 'unimodfile', required=False, type=click.Path(exists=True), help='The input UniMod XML file.')
 @click.option('--psms', 'psmsfile', required=False, type=click.Path(exists=False), help='Output PSMs file.')
-@click.option('--subpsms', 'subpsmsfile', required=False, type=click.Path(exists=False), help='Output subsampled PSMs file.')
 @click.option('--peaks', 'peaksfile', required=False, type=click.Path(exists=False), help='Output peaks file.')
-@click.option('--main_score', default="var_expectscore", show_default=True, type=str, help='Main score to use for PyProphet.')
 @click.option('--exclude-range', 'exclude_range_str', default="-1.5,3.5", show_default=True, required=False, type=str, help='massdiff in this range will not be mapped to UniMod.')
 @click.option('--max_delta_unimod', default=0.02, show_default=True, type=float, help='Maximum delta mass (Dalton) for UniMod annotation.')
 @click.option('--max_delta_ppm', default=15, show_default=True, type=float, help='Maximum delta mass (PPM) for annotation.')
@@ -37,7 +35,7 @@ def cli():
 @click.option('--enable_specific_losses/--no-enable_specific_losses', default=False, show_default=True, help='Enable specific fragment ion losses.')
 @click.option('--enable_unspecific_losses/--no-enable_unspecific_losses', default=False, show_default=True, help='Enable unspecific fragment ion losses.')
 @click.option('--subsample_fraction', default=1.0, show_default=True, type=float, help='Data fraction used for subsampling.')
-def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, subpsmsfile, peaksfile, main_score, exclude_range_str, max_delta_unimod, max_delta_ppm, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, subsample_fraction):
+def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, peaksfile, exclude_range_str, max_delta_unimod, max_delta_ppm, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, subsample_fraction):
     """
     Convert pepXML files for EasyPQP
     """
@@ -47,9 +45,7 @@ def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, subpsmsfile, peaksfi
 
     run_id = basename_spectralfile(spectralfile)
     if psmsfile is None:
-        psmsfile = run_id + "_psms.tsv"
-    if subpsmsfile is None:
-        subpsmsfile = run_id + "_subpsms.tsv"
+        psmsfile = run_id + ".psmpkl"
     if peaksfile is None:
         peaksfile = run_id + ".peakpkl"
 
@@ -57,15 +53,10 @@ def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, subpsmsfile, peaksfi
     exclude_range = [float(temp[0]), float(temp[1])]
 
     click.echo("Info: Converting %s." % pepxmlfile)
-    psms, peaks, tpp = conversion(pepxmlfile, spectralfile, unimodfile, main_score, exclude_range, max_delta_unimod, max_delta_ppm, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses)
+    psms, peaks = conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses)
 
-    psms.to_csv(psmsfile, sep="\t", index=False)
+    psms.to_pickle(psmsfile)
     click.echo("Info: PSMs successfully converted and stored in %s." % psmsfile)
-
-    if not tpp:
-        subpsms = psms.sample(frac=subsample_fraction)
-        subpsms.to_csv(subpsmsfile, sep="\t", index=False)
-        click.echo("Info: Subsampled PSMs successfully converted and stored in %s." % subpsmsfile)
 
     peaks.to_pickle(peaksfile)
     click.echo("Info: Peaks successfully converted and stored in %s." % peaksfile)
@@ -77,7 +68,9 @@ def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, subpsmsfile, peaksfi
 @click.option('--psmtsv', 'psmtsv', required=False, type=click.Path(exists=False), help='psm.tsv file from Philosopher.')
 @click.option('--peptidetsv', 'peptidetsv', required=False, type=click.Path(exists=False), help='peptide.tsv file from Philosopher.')
 @click.option('--rt_reference', 'rt_referencefile', required=False, type=click.Path(exists=True), help='Optional iRT/CiRT reference file.')
+@click.option('--rt_filter', 'rt_filter', required=False, type=str, help='Optional tag to filter candidate RT reference runs.')
 @click.option('--im_reference', 'im_referencefile', required=False, type=click.Path(exists=True), help='Optional IM reference file.')
+@click.option('--im_filter', 'im_filter', required=False, type=str, help='Optional tag to filter candidate IM reference runs.')
 @click.option('--psm_fdr_threshold', default=0.01, show_default=True, type=float, help='PSM FDR threshold.')
 @click.option('--peptide_fdr_threshold', default=0.01, show_default=True, type=float, help='Peptide FDR threshold.')
 @click.option('--protein_fdr_threshold', default=0.01, show_default=True, type=float, help='Protein FDR threshold.')
@@ -91,12 +84,12 @@ def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, subpsmsfile, peaksfi
 @click.option('--min_peptides', default=5, show_default=True, type=int, help='Minimum peptides required for successful alignment.')
 @click.option('--proteotypic/--no-proteotypic', show_default=True, default=True, help='Use only proteotypic, unique, non-shared peptides.')
 @click.option('--consensus/--no-consensus', show_default=True, default=True, help='Generate consensus instead of best replicate spectra.')
-def library(infiles, outfile, psmtsv, peptidetsv, rt_referencefile, im_referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_fraction, rt_psm_fdr_threshold, im_lowess_fraction, im_psm_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus):
+def library(infiles, outfile, psmtsv, peptidetsv, rt_referencefile, rt_filter, im_referencefile, im_filter, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_fraction, rt_psm_fdr_threshold, im_lowess_fraction, im_psm_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus):
     """
     Generate EasyPQP library
     """
 
-    generate(infiles, outfile, psmtsv, peptidetsv, rt_referencefile, im_referencefile, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_fraction, rt_psm_fdr_threshold, im_lowess_fraction, im_psm_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus)
+    generate(infiles, outfile, psmtsv, peptidetsv, rt_referencefile, rt_filter, im_referencefile, im_filter, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_fraction, rt_psm_fdr_threshold, im_lowess_fraction, im_psm_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus)
     click.echo("Info: Library successfully generated.")
 
 # EasyPQP Reduce

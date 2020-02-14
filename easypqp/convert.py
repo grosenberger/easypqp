@@ -460,7 +460,7 @@ def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2
 
 	return list(fragments.keys()), np.fromiter(fragments.values(), np.float, len(fragments))
 
-def conversion(pepxmlfile, spectralfile, unimodfile, main_score, exclude_range, max_delta_unimod, max_delta_ppm, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses):
+def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses):
 	# Parse basename
 	base_name = basename_spectralfile(spectralfile)
 	click.echo("Info: Parsing run %s." % base_name)
@@ -469,46 +469,12 @@ def conversion(pepxmlfile, spectralfile, unimodfile, main_score, exclude_range, 
 	um = unimod(unimodfile, max_delta_unimod)
 
 	# Parse pepXML
+	click.echo("Info: Parsing pepXML.")
 	px = pepxml(pepxmlfile, um, base_name, exclude_range)
 	psms = px.get()
 
 	# Continue if any PSMS are present
 	if psms.shape[0] > 0:
-		# Generate UniMod peptide sequence
-		click.echo("Info: Matching modifications to UniMod.")
-
-		# Append PyProphet columns
-		run_id = basename_spectralfile(spectralfile)
-		psms['group_id'] = psms['run_id'] + "_" + psms['scan_id'].astype(str)
-
-		if 'var_expect' in psms.columns:
-			psms = psms.rename(index=str, columns={'var_expect': 'expect'})
-			psms['var_expectscore'] = 0.0 - np.log(psms['expect'])
-
-		if 'var_nextscore' in psms.columns and 'var_hyperscore' in psms.columns:
-			psms = psms.rename(index=str, columns={'var_nextscore': 'nextscore'})
-			psms['var_deltascore'] = 1.0 - (psms['nextscore'] / psms['var_hyperscore'])
-
-		# DIA-Umpire quality tiers
-		if run_id.endswith("_Q1"):
-			psms['quality'] = 1
-		elif run_id.endswith("_Q2"):
-			psms['quality'] = 2
-		elif run_id.endswith("_Q3"):
-			psms['quality'] = 3
-		else: # DDA data
-			psms['quality'] = 0
-
-		if main_score not in psms.columns:
-			raise click.ClickException("Error: Main score '%s' is not present in pepXML." % main_score)
-
-		psms = psms.rename(index=str, columns={main_score: 'main_' + main_score})
-
-		# Check if pepXML is processed by TPP
-		if 'pep' in psms.columns:
-			tpp = True
-		else:
-			tpp = False
 
 		# Generate theoretical spectra
 		click.echo("Info: Generate theoretical spectra.")
@@ -529,9 +495,9 @@ def conversion(pepxmlfile, spectralfile, unimodfile, main_score, exclude_range, 
 		# Round floating numbers
 		peaks = peaks.round(6)
 
-		return psms, peaks, tpp
+		return psms, peaks
 	else:
-		return pd.DataFrame({'run_id': [], 'scan_id': [], 'hit_rank': [], 'massdiff': [], 'precursor_charge': [], 'retention_time': [], 'ion_mobility': [], 'peptide_sequence': [], 'modifications': [], 'nterm_modification': [], 'cterm_modification': [], 'protein_id': [], 'gene_id': [], 'num_tot_proteins': [], 'decoy': []}), pd.DataFrame({'scan_id': [], 'modified_peptide': [], 'precursor_charge': [], 'precursor_mz': [], 'fragment': [], 'product_mz': [], 'intensity': []}), True
+		return pd.DataFrame({'run_id': [], 'scan_id': [], 'hit_rank': [], 'massdiff': [], 'precursor_charge': [], 'retention_time': [], 'ion_mobility': [], 'peptide_sequence': [], 'modifications': [], 'nterm_modification': [], 'cterm_modification': [], 'protein_id': [], 'gene_id': [], 'num_tot_proteins': [], 'decoy': []}), pd.DataFrame({'scan_id': [], 'modified_peptide': [], 'precursor_charge': [], 'precursor_mz': [], 'fragment': [], 'product_mz': [], 'intensity': []})
 
 def basename_spectralfile(spectralfile):
 	'''
