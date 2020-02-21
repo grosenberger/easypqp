@@ -475,6 +475,8 @@ def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_un
 
 	# Continue if any PSMS are present
 	if psms.shape[0] > 0:
+		run_id = basename_spectralfile(spectralfile)
+		psms['group_id'] = psms['run_id'] + "_" + psms['scan_id'].astype(str)
 
 		# Generate theoretical spectra
 		click.echo("Info: Generate theoretical spectra.")
