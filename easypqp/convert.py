@@ -362,9 +362,9 @@ END IONS''', re.MULTILINE | re.DOTALL)
 			if len(scan_num_findall) == 1:
 				scan_num = int(scan_num_findall[0])
 			else:
-				raise RuntimeError("Cannot find Cmpd number from " + rec
+				raise RuntimeError("Cannot find Cmpd number from " + rec.decode()
 								   if is_tims else
-								   "Cannot find scan number from " + rec)
+								   "Cannot find scan number from " + rec.decode())
 			tims_data[scan_num] = np.array(peaks_pattern.findall(rec), dtype=float)
 
 	peaks_list = []
