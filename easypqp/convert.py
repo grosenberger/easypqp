@@ -1,3 +1,4 @@
+import itertools
 import numpy as np
 import pandas as pd
 import os
@@ -54,13 +55,19 @@ class pepxml:
 				oms_modifications, nterm_modification, cterm_modification = um.get_oms_id(oms_sequence, peptide['massdiff'], nterm_modification, cterm_modification)
 				modifications = {**modifications, **oms_modifications}
 
+			peptide_sequence = peptide['peptide_sequence']
+			peptide_length = len(peptide_sequence)
 			for site in sorted(modifications, reverse=True):
-				record_id = um.get_id(peptide['peptide_sequence'][site-1], 'Anywhere', modifications[site])
+				positions = ('Anywhere', 'Any N-term', 'Protein N-term') if site == 1 else \
+					('Anywhere', 'Any C-term', 'Protein C-term') if site == peptide_length else \
+						'Anywhere'
+				record_id = um.get_id(peptide_sequence[site - 1], positions, modifications[site])
 
 				if record_id == -1:
 					raise click.ClickException("Error: Could not annotate site %s (%s) from peptide %s with delta mass %s." % (site, peptide['peptide_sequence'][site-1], peptide['peptide_sequence'], modifications[site]))
-
-				modified_peptide = modified_peptide[:site] + "(UniMod:" + str(record_id) + ")" + modified_peptide[site:]
+				modified_peptide = "(UniMod:" + str(record_id) + ")" + modified_peptide \
+					if site == 1 else \
+					modified_peptide[:site] + "(UniMod:" + str(record_id) + ")" + modified_peptide[site:]
 
 			if nterm_modification is not "":
 				record_id_nterm = um.get_id("N-term", 'Any N-term', nterm_modification)
@@ -250,7 +257,11 @@ class unimod:
 	def get_id(self, site, position, delta_mass):
 		candidates = {}
 		min_id = -1
-		for key, value in self.ptms[site][position].items():
+		ptms_site = self.ptms[site]
+		kvs = itertools.chain.from_iterable(ptms_site[p].items() for p in position) \
+			if isinstance(position, (list, tuple)) else \
+			ptms_site[position].items()
+		for key, value in kvs:
 			delta_mod = abs(value - float(delta_mass))
 			if delta_mod < self.max_delta:
 				if key in candidates.keys():
