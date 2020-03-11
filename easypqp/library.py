@@ -104,14 +104,14 @@ def process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_thresh
   if None not in (psmtsv, peptidetsv):
     # Read psm.tsv and peptide.tsv
     peptidetsv_df = pd.read_csv(peptidetsv, index_col=False, sep='\t', usecols=["Peptide", "Gene", "Protein ID"])
-    psmtsv_df = pd.read_csv(psmtsv, index_col=False, sep='\t', usecols=["Spectrum", "Peptide"])
+    psmtsv_df = pd.read_csv(psmtsv, index_col=False, sep='\t', usecols=["Spectrum", 'Spectrum File', "Peptide"])
 
     # Filter out PSMs whose peptides are not in peptide.tsv
     psmtsv_df = psmtsv_df[psmtsv_df["Peptide"].isin(peptidetsv_df["Peptide"])]
 
     # Generate a group_id column
-    temp_df = psmtsv_df["Spectrum"].str.split("\\.", expand=True)
-    psmtsv_df["group_id"] = temp_df.iloc[:, 0] + "_" + pd.to_numeric(temp_df.iloc[:, -2]).astype(str)
+    temp_df = psmtsv_df["Spectrum"].str.split('.', expand=True)
+    psmtsv_df["group_id"] = temp_df.iloc[:, 0] + "_" + pd.to_numeric(temp_df.iloc[:, -2]).astype(str) + psmtsv_df['Spectrum File'].str.extract('(_rank[0-9]+)', expand=False)
 
     # Filter psm dataframe
     psms = psms[psms["group_id"].isin(psmtsv_df["group_id"])]
@@ -189,6 +189,23 @@ def lowess(run, reference_run, xcol, ycol, lowess_frac, psm_fdr_threshold, min_p
   plt.close()
 
   return run
+
+
+def remove_rank_suffix(x):
+  '''
+
+  :param x:
+  :return:
+
+  >>> remove_rank_suffix('23aug2017_hela_serum_timecourse_4mz_narrow_6_rank4')
+  '23aug2017_hela_serum_timecourse_4mz_narrow_6'
+  >>> remove_rank_suffix('23aug2017_hela_serum_timecourse_4mz_narrow_6_rank44')
+  '23aug2017_hela_serum_timecourse_4mz_narrow_6'
+  >>> remove_rank_suffix('23aug2017_hela_serum_timecourse_4mz_narrow_6')
+  '23aug2017_hela_serum_timecourse_4mz_narrow_6'
+  '''
+  import re
+  return re.compile('(.+?)(?:_rank[0-9]+)?').fullmatch(x).group(1)
 
 def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, rt_filter, im_referencefile, im_filter, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_frac, rt_psm_fdr_threshold, im_lowess_frac, im_psm_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus):
   # Parse input arguments
@@ -315,7 +332,7 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, rt_filter, im
 
   # Prepare ID mzML pairing
   peak_files = pd.DataFrame({'path': spectra})
-  peak_files['base_name'] = peak_files['path'].apply(lambda x: os.path.splitext(os.path.basename(x))[0])
+  peak_files['base_name'] = peak_files['path'].apply(lambda x: remove_rank_suffix(os.path.splitext(os.path.basename(x))[0]))
 
   # Parse mzXML to retrieve peaks and store results in peak files
   replicate_pqp = []

@@ -1,4 +1,6 @@
 import itertools
+import pathlib
+
 import numpy as np
 import pandas as pd
 import os
@@ -314,7 +316,7 @@ class unimod:
 
 		return aamod, nterm_modification, cterm_modification
 
-def read_mzxml(mzxml_path, psms, theoretical, max_delta_ppm):
+def read_mzxml(mzxml_path, psms, theoretical, max_delta_ppm):  # todo: add a similar read_mzml
 	fh = po.MzXMLFile()
 	fh.setLogType(po.LogType.CMD)
 	input_map = po.MSExperiment()
@@ -494,7 +496,8 @@ def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_un
 	# Continue if any PSMS are present
 	if psms.shape[0] > 0:
 		run_id = basename_spectralfile(spectralfile)
-		psms['group_id'] = psms['run_id'] + "_" + psms['scan_id'].astype(str)
+		rank = re.compile('_rank([0-9]+)\\.').search(pathlib.Path(pepxmlfile).name).group(1)
+		psms['group_id'] = psms['run_id'] + "_" + psms['scan_id'].astype(str) + '_rank' + rank
 
 		# Generate theoretical spectra
 		click.echo("Info: Generate theoretical spectra.")
