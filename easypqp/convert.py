@@ -1,4 +1,6 @@
 import itertools
+import pathlib
+
 import numpy as np
 import pandas as pd
 import os
@@ -314,11 +316,12 @@ class unimod:
 
 		return aamod, nterm_modification, cterm_modification
 
-def read_mzxml(mzxml_path, psms, theoretical, max_delta_ppm):
-	fh = po.MzXMLFile()
+def read_mzml_or_mzxml_impl(path, psms, theoretical, max_delta_ppm, filetype):
+	assert filetype in ('mzml', 'mzxml')
+	fh = po.MzMLFile() if filetype=='mzml' else po.MzXMLFile()
 	fh.setLogType(po.LogType.CMD)
 	input_map = po.MSExperiment()
-	fh.load(mzxml_path, input_map)
+	fh.load(path, input_map)
 
 	peaks_list = []
 	for ix, psm in psms.iterrows():
@@ -494,7 +497,8 @@ def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_un
 	# Continue if any PSMS are present
 	if psms.shape[0] > 0:
 		run_id = basename_spectralfile(spectralfile)
-		psms['group_id'] = psms['run_id'] + "_" + psms['scan_id'].astype(str)
+		rank = re.compile('_rank([0-9]+)\\.').search(pathlib.Path(pepxmlfile).name).group(1)
+		psms['group_id'] = psms['run_id'] + "_" + psms['scan_id'].astype(str) + '_rank' + rank
 
 		# Generate theoretical spectra
 		click.echo("Info: Generate theoretical spectra.")
@@ -508,7 +512,9 @@ def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_un
 		# Generate spectrum dataframe
 		click.echo("Info: Processing spectra from file %s." % spectralfile)
 		if spectralfile.lower().endswith(".mzxml"):
-			peaks = read_mzxml(spectralfile, psms[['scan_id','modified_peptide','precursor_charge']], theoretical, max_delta_ppm)
+			peaks = read_mzml_or_mzxml_impl(spectralfile, psms[['scan_id','modified_peptide','precursor_charge']], theoretical, max_delta_ppm, 'mzxml')
+		elif spectralfile.casefold().endswith(".mzml"):
+			peaks = read_mzml_or_mzxml_impl(spectralfile, psms[['scan_id', 'modified_peptide', 'precursor_charge']], theoretical, max_delta_ppm, 'mzml')
 		elif spectralfile.lower().endswith(".mgf"):
 			peaks = read_mgf(spectralfile, psms[['scan_id', 'modified_peptide', 'precursor_charge']], theoretical, max_delta_ppm)
 
