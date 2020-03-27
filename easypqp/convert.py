@@ -497,8 +497,9 @@ def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_un
 	# Continue if any PSMS are present
 	if psms.shape[0] > 0:
 		run_id = basename_spectralfile(spectralfile)
-		rank = re.compile('_rank([0-9]+)\\.').search(pathlib.Path(pepxmlfile).name).group(1)
-		psms['group_id'] = psms['run_id'] + "_" + psms['scan_id'].astype(str) + '_rank' + rank
+		rank = re.compile(r'_rank([0-9]+)\.').search(pathlib.Path(pepxmlfile).name)
+		rank_str = '' if rank is None else '_rank' + rank.group(1)
+		psms['group_id'] = psms['run_id'] + "_" + psms['scan_id'].astype(str) + rank_str
 
 		# Generate theoretical spectra
 		click.echo("Info: Generate theoretical spectra.")
