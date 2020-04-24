@@ -69,14 +69,14 @@ def peptide_fdr(psms, peptide_fdr_threshold, pi0_lambda, plot_path):
   pi0_smooth_log_pi0 = False
   pfdr = False
 
-  peptides = psms.groupby(['modified_peptide','decoy'])['pp'].max().reset_index()
+  peptides = psms.groupby(['modified_peptide','decoy','q_value'])['pp'].max().reset_index()
   targets = peptides[~peptides['decoy']].copy()
   decoys = peptides[peptides['decoy']].copy()
 
-  targets['p_value'] = pemp(targets['pp'], decoys['pp'])
-  targets['q_value'] = qvalue(targets['p_value'], pi0est(targets['p_value'], pi0_lambda, pi0_method, pi0_smooth_df, pi0_smooth_log_pi0)['pi0'], pfdr)
+  #targets['p_value'] = pemp(targets['pp'], decoys['pp'])
+  #targets['q_value'] = qvalue(targets['p_value'], pi0est(targets['p_value'], pi0_lambda, pi0_method, pi0_smooth_df, pi0_smooth_log_pi0)['pi0'], pfdr)
 
-  plot(plot_path, "global peptide scores", targets['pp'], decoys['pp'])
+  #plot(plot_path, "global peptide scores", targets['pp'], decoys['pp'])
   
   return targets[targets['q_value'] < peptide_fdr_threshold]['modified_peptide'], np.min(targets[targets['q_value'] < peptide_fdr_threshold]['pp'])
 
@@ -86,14 +86,14 @@ def protein_fdr(psms, protein_fdr_threshold, pi0_lambda, plot_path):
   pi0_smooth_log_pi0 = False
   pfdr = False
 
-  proteins = psms.groupby(['protein_id','decoy'])['pp'].max().reset_index()
+  proteins = psms.groupby(['protein_id','decoy','q_value'])['pp'].max().reset_index()
   targets = proteins[~proteins['decoy']].copy()
   decoys = proteins[proteins['decoy']].copy()
 
-  targets['p_value'] = pemp(targets['pp'], decoys['pp'])
-  targets['q_value'] = qvalue(targets['p_value'], pi0est(targets['p_value'], pi0_lambda, pi0_method, pi0_smooth_df, pi0_smooth_log_pi0)['pi0'], pfdr)
+  #targets['p_value'] = pemp(targets['pp'], decoys['pp'])
+  #targets['q_value'] = qvalue(targets['p_value'], pi0est(targets['p_value'], pi0_lambda, pi0_method, pi0_smooth_df, pi0_smooth_log_pi0)['pi0'], pfdr)
 
-  plot(plot_path, "global protein scores", targets['pp'], decoys['pp'])
+  #plot(plot_path, "global protein scores", targets['pp'], decoys['pp'])
   
   return targets[targets['q_value'] < protein_fdr_threshold]['protein_id'], np.min(targets[targets['q_value'] < protein_fdr_threshold]['pp'])
 

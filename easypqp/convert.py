@@ -231,6 +231,55 @@ class pepxml:
 
 		return(df)
 
+class idxml:
+    def __init__(self, idxml_file, base_name):
+        self.idxml_file = idxml_file
+        self.base_name = base_name
+        self.psms = self.parse_idxml()
+        #self.exclude_range = exclude_range
+        #self.match_unimod(unimod)
+
+    def get(self):
+        return(self.psms)
+
+    def parse_idxml(self):
+        peptides = []
+        proteins = []
+        scores = {}
+
+        parsed_peptides = []
+
+        po.IdXMLFile().load(self.idxml_file, proteins, peptides)
+
+        for p in peptides:
+            #search engine scores
+            scores["var_MS:1002252_Comet:XCorr"] = float(p.getHits()[0].getMetaValue('MS:1002252'))
+            scores["var_MS:1002253_Comet:DeltCn"] = float(p.getHits()[0].getMetaValue('MS:1002253'))
+
+            #probability
+            scores["q_value"] = float(p.getHits()[0].getMetaValue('MS:1001491'))
+            scores["pep"] = float(p.getHits()[0].getMetaValue('MS:1001491'))
+
+            parsed_peptides.append({**{'run_id': self.base_name,
+                                       'scan_id': int(str(p.getMetaValue("spectrum_reference")).split('scan=')[-1].strip("'")),
+                                       'hit_rank': int(p.getHits()[0].getRank()),
+                                       'massdiff': float(0),
+                                       'precursor_charge': int(p.getHits()[0].getCharge()),
+                                       'retention_time': float(p.getRT()),
+                                       'modified_peptide': p.getHits()[0].getSequence().toUniModString(),
+                                       'peptide_sequence': p.getHits()[0].getSequence().toUnmodifiedString(),
+                                       'modifications': '-',
+                                       'nterm_modification': '-',
+                                       'cterm_modification': '-',
+                                       'protein_id': ','.join([str(prot.getProteinAccession()) for prot in p.getHits()[0].getPeptideEvidences()]),
+                                       'gene_id': '-',
+                                       'num_tot_proteins': len([prot.getProteinAccession() for prot in p.getHits()[0].getPeptideEvidences()]),
+                                       'decoy': p.getHits()[0].getMetaValue('target_decoy')==b'decoy'}, **scores})
+
+        df = pd.DataFrame(parsed_peptides)
+
+        return (df)
+
 class unimod:
 	def __init__(self, unimod_file, max_delta):
 		self.unimod_file = unimod_file
@@ -489,10 +538,15 @@ def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_un
 	# Initialize UniMod
 	um = unimod(unimodfile, max_delta_unimod)
 
-	# Parse pepXML
-	click.echo("Info: Parsing pepXML.")
-	px = pepxml(pepxmlfile, um, base_name, exclude_range)
-	psms = px.get()
+	# Parse pepXML or idXML
+	if pepxmlfile.lower().endswith('pepxml'):
+		click.echo("Info: Parsing pepXML.")
+		px = pepxml(pepxmlfile, um, base_name, exclude_range)
+	elif pepxmlfile.lower().endswith('idxml'):
+		click.echo("Info: Parsing idXML.")
+		px = idxml(pepxmlfile, base_name)
+	else:
+		print('unknown format of pepxml identification file')
 
 	# Continue if any PSMS are present
 	if psms.shape[0] > 0:
