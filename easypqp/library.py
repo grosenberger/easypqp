@@ -110,7 +110,7 @@ def protein_fdr(psms, protein_fdr_threshold, pi0_lambda, plot_path, nofdr):
   
   return targets[targets['q_value'] < protein_fdr_threshold]['protein_id'], np.min(targets[targets['q_value'] < protein_fdr_threshold]['pp'])
 
-def process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, proteotypic):
+def process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, proteotypic, nofdr):
   # Append columns
   psms['base_name'] = psms['run_id'].apply(lambda x: os.path.splitext(os.path.basename(x))[0])
 
@@ -258,7 +258,7 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, rt_filter, im
   psms['pp'] = 1-psms['pep']
 
   # Process PSMs
-  pepid = process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, proteotypic)
+  pepid = process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, proteotypic, nofdr)
 
   # Get main path for figures
   main_path = os.path.dirname(os.path.abspath(peptide_plot_path))
