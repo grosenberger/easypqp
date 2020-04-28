@@ -63,41 +63,54 @@ def plot(path, title, targets, decoys):
   plt.savefig(path)
   plt.close()
 
-def peptide_fdr(psms, peptide_fdr_threshold, pi0_lambda, plot_path):
+def peptide_fdr(psms, peptide_fdr_threshold, pi0_lambda, plot_path, nofdr):
   pi0_method = 'bootstrap'
   pi0_smooth_df = 3
   pi0_smooth_log_pi0 = False
   pfdr = False
 
-  peptides = psms.groupby(['modified_peptide','decoy'])['pp'].max().reset_index()
-  targets = peptides[~peptides['decoy']].copy()
-  decoys = peptides[peptides['decoy']].copy()
 
-  targets['p_value'] = pemp(targets['pp'], decoys['pp'])
-  targets['q_value'] = qvalue(targets['p_value'], pi0est(targets['p_value'], pi0_lambda, pi0_method, pi0_smooth_df, pi0_smooth_log_pi0)['pi0'], pfdr)
+  if nofdr:
+    peptides = psms.groupby(['modified_peptide','decoy','q_value'])['pp'].max().reset_index()
+    targets = peptides[~peptides['decoy']].copy()
+    decoys = peptides[peptides['decoy']].copy()
 
-  plot(plot_path, "global peptide scores", targets['pp'], decoys['pp'])
+  else:
+    peptides = psms.groupby(['modified_peptide','decoy'])['pp'].max().reset_index()
+    targets = peptides[~peptides['decoy']].copy()
+    decoys = peptides[peptides['decoy']].copy()
+
+    targets['p_value'] = pemp(targets['pp'], decoys['pp'])
+    targets['q_value'] = qvalue(targets['p_value'], pi0est(targets['p_value'], pi0_lambda, pi0_method, pi0_smooth_df, pi0_smooth_log_pi0)['pi0'], pfdr)
+
+    plot(plot_path, "global peptide scores", targets['pp'], decoys['pp'])
   
   return targets[targets['q_value'] < peptide_fdr_threshold]['modified_peptide'], np.min(targets[targets['q_value'] < peptide_fdr_threshold]['pp'])
 
-def protein_fdr(psms, protein_fdr_threshold, pi0_lambda, plot_path):
+def protein_fdr(psms, protein_fdr_threshold, pi0_lambda, plot_path, nofdr):
   pi0_method = 'bootstrap'
   pi0_smooth_df = 3
   pi0_smooth_log_pi0 = False
   pfdr = False
 
-  proteins = psms.groupby(['protein_id','decoy'])['pp'].max().reset_index()
-  targets = proteins[~proteins['decoy']].copy()
-  decoys = proteins[proteins['decoy']].copy()
+  if nofdr:
+    proteins = psms.groupby(['protein_id','decoy','q_value'])['pp'].max().reset_index()
+    targets = proteins[~proteins['decoy']].copy()
+    decoys = proteins[proteins['decoy']].copy()
 
-  targets['p_value'] = pemp(targets['pp'], decoys['pp'])
-  targets['q_value'] = qvalue(targets['p_value'], pi0est(targets['p_value'], pi0_lambda, pi0_method, pi0_smooth_df, pi0_smooth_log_pi0)['pi0'], pfdr)
+  else:
+    proteins = psms.groupby(['protein_id','decoy'])['pp'].max().reset_index()  
+    targets = proteins[~proteins['decoy']].copy()
+    decoys = proteins[proteins['decoy']].copy()
 
-  plot(plot_path, "global protein scores", targets['pp'], decoys['pp'])
+    targets['p_value'] = pemp(targets['pp'], decoys['pp'])
+    targets['q_value'] = qvalue(targets['p_value'], pi0est(targets['p_value'], pi0_lambda, pi0_method, pi0_smooth_df, pi0_smooth_log_pi0)['pi0'], pfdr)
+
+    plot(plot_path, "global protein scores", targets['pp'], decoys['pp'])
   
   return targets[targets['q_value'] < protein_fdr_threshold]['protein_id'], np.min(targets[targets['q_value'] < protein_fdr_threshold]['pp'])
 
-def process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, proteotypic):
+def process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, proteotypic, nofdr):
   # Append columns
   psms['base_name'] = psms['run_id'].apply(lambda x: os.path.splitext(os.path.basename(x))[0])
 
@@ -135,9 +148,9 @@ def process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_thresh
       psms['q_value'] = compute_model_fdr(psms['pep'].values)
 
     # Confident peptides and protein in global context
-    peptides, peptide_pp_threshold = peptide_fdr(psms, peptide_fdr_threshold, pi0_lambda, peptide_plot_path)
+    peptides, peptide_pp_threshold = peptide_fdr(psms, peptide_fdr_threshold, pi0_lambda, peptide_plot_path, nofdr)
     click.echo("Info: %s modified peptides identified (q-value < %s; PP threshold = %s)" % (len(peptides), peptide_fdr_threshold, peptide_pp_threshold))
-    proteins, protein_pp_threshold = protein_fdr(psms, protein_fdr_threshold, pi0_lambda, protein_plot_path)
+    proteins, protein_pp_threshold = protein_fdr(psms, protein_fdr_threshold, pi0_lambda, protein_plot_path, nofdr)
     click.echo("Info: %s proteins identified (q-value < %s; PP threshold = %s)" % (len(proteins), protein_fdr_threshold, protein_pp_threshold))
 
     # Filter peptides and proteins
@@ -209,7 +222,7 @@ def remove_rank_suffix(x):
   import re
   return re.compile('(.+?)(?:_rank[0-9]+)?').fullmatch(x).group(1)
 
-def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, rt_filter, im_referencefile, im_filter, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_frac, rt_psm_fdr_threshold, im_lowess_frac, im_psm_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus):
+def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, rt_filter, im_referencefile, im_filter, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_frac, rt_psm_fdr_threshold, im_lowess_frac, im_psm_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus, nofdr):
   # Parse input arguments
   psm_files = []
   spectra = []
@@ -245,7 +258,7 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, rt_filter, im
   psms['pp'] = 1-psms['pep']
 
   # Process PSMs
-  pepid = process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, proteotypic)
+  pepid = process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, proteotypic, nofdr)
 
   # Get main path for figures
   main_path = os.path.dirname(os.path.abspath(peptide_plot_path))
