@@ -266,15 +266,15 @@ class idxml:
                                        'massdiff': float(0),
                                        'precursor_charge': int(p.getHits()[0].getCharge()),
                                        'retention_time': float(p.getRT()),
-                                       'modified_peptide': p.getHits()[0].getSequence().toUniModString(),
-                                       'peptide_sequence': p.getHits()[0].getSequence().toUnmodifiedString(),
+                                       'modified_peptide': p.getHits()[0].getSequence().toUniModString().decode("utf-8"),
+                                       'peptide_sequence': p.getHits()[0].getSequence().toUnmodifiedString().decode("utf-8"),
                                        'modifications': '-',
                                        'nterm_modification': '-',
                                        'cterm_modification': '-',
-                                       'protein_id': ','.join([str(prot.getProteinAccession()) for prot in p.getHits()[0].getPeptideEvidences()]),
+                                       'protein_id': ','.join([prot.getProteinAccession().decode("utf-8") for prot in p.getHits()[0].getPeptideEvidences()]),
                                        'gene_id': '-',
                                        'num_tot_proteins': len([prot.getProteinAccession() for prot in p.getHits()[0].getPeptideEvidences()]),
-                                       'decoy': p.getHits()[0].getMetaValue('target_decoy')==b'decoy'}, **scores})
+                                       'decoy': p.getHits()[0].getMetaValue('target_decoy').decode("utf-8")=='decoy'}, **scores})
 
         df = pd.DataFrame(parsed_peptides)
 
