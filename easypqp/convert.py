@@ -256,7 +256,7 @@ class idxml:
             scores["var_MS:1002252_Comet:XCorr"] = float(p.getHits()[0].getMetaValue('MS:1002252'))
             scores["var_MS:1002253_Comet:DeltCn"] = float(p.getHits()[0].getMetaValue('MS:1002253'))
 
-            #probability
+            #percolator probability
             scores["q_value"] = float(p.getHits()[0].getMetaValue('MS:1001491'))
             scores["pep"] = float(p.getHits()[0].getMetaValue('MS:1001491'))
 
@@ -549,6 +549,8 @@ def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_un
 		print('unknown format of pepxml identification file')
 
 	# Continue if any PSMS are present
+	psms = px.get()
+
 	if psms.shape[0] > 0:
 		run_id = basename_spectralfile(spectralfile)
 		rank = re.compile(r'_rank([0-9]+)\.').search(pathlib.Path(pepxmlfile).name)
