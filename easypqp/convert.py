@@ -539,14 +539,14 @@ def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_un
 	um = unimod(unimodfile, max_delta_unimod)
 
 	# Parse pepXML or idXML
-	if pepxmlfile.lower().endswith('pepxml'):
+	if pepxmlfile.casefold().endswith(('.pepxml', '.pep.xml')):
 		click.echo("Info: Parsing pepXML.")
 		px = pepxml(pepxmlfile, um, base_name, exclude_range)
 	elif pepxmlfile.lower().endswith('idxml'):
 		click.echo("Info: Parsing idXML.")
 		px = idxml(pepxmlfile, base_name)
 	else:
-		print('unknown format of pepxml identification file')
+		click.echo('unknown format of pepxml identification file')
 
 	# Continue if any PSMS are present
 	psms = px.get()
