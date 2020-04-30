@@ -396,7 +396,9 @@ def read_mzml_or_mzxml_impl(path, psms, theoretical, max_delta_ppm, filetype):
 		peaks['precursor_charge'] = psm['precursor_charge']
 
 		# Baseline normalization to highest annotated peak
-		peaks['intensity'] = peaks['intensity'] * (10000 / np.max(peaks['intensity']))
+		max_intensity = np.max(peaks['intensity'])
+		if max_intensity > 0:
+			peaks['intensity'] = peaks['intensity'] * (10000 / max_intensity)
 
 		peaks_list.append(peaks)
 
