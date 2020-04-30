@@ -37,7 +37,7 @@ class pepxml:
 				nterm_modification = peptide['nterm_modification'] - 1.0078
 			cterm_modification = ""
 			if peptide['cterm_modification'] is not "":
-				nterm_modification = peptide['cterm_modification']
+				cterm_modification = peptide['cterm_modification']
 
 			# parse closed modifications
 			modifications = {}
