@@ -592,4 +592,5 @@ def basename_spectralfile(spectralfile):
 	:return: basename without trailing `_calibrated`
 	'''
 	x = os.path.splitext(os.path.basename(spectralfile))[0]
-	return x[:-len('_calibrated')] if x.endswith('_calibrated') else x
+	# get basename without _(un)calibrated suffix, if any
+	return re.compile('(.+?)(?:_(?:un)?calibrated)?').fullmatch(x)[1]
