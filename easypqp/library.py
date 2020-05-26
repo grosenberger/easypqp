@@ -16,6 +16,7 @@ import pandas as pd
 # alignment
 from sklearn import preprocessing
 import sklearn.isotonic
+import sklearn.linear_model
 import statsmodels.api as sm
 from scipy.interpolate import interp1d
 
@@ -183,16 +184,20 @@ def lowess(run, reference_run, xcol, ycol, lowess_frac, psm_fdr_threshold, min_p
     click.echo("Info: Skipping run because not enough peptides could be found for alignment.")
     return pd.DataFrame()
 
-  # Fit lowess model
-  lwf = sm.nonparametric.lowess(dfm[ycol], dfm[xcol], frac=lowess_frac)
-  lwf_x = lwf[:, 0]
-  ir = sklearn.isotonic.IsotonicRegression() # make the regression strictly increasing
-  lwf_y = ir.fit_transform(lwf_x, lwf[:, 1])
-  mask = np.concatenate([[True], np.diff(lwf_y) != 0]) # remove non increasing points
-  lwi = interp1d(lwf_x[mask], lwf_y[mask], bounds_error=False, fill_value="extrapolate")
+  if dfm.shape[0] < 50:  # use linear regression for small reference size
+    linreg = sklearn.linear_model.LinearRegression().fit(dfm[xcol].to_numpy().reshape(-1, 1), dfm[ycol])
+    run[ycol] = linreg.predict(run[xcol].to_numpy().reshape(-1, 1))
+  else:
+    # Fit lowess model
+    lwf = sm.nonparametric.lowess(dfm[ycol], dfm[xcol], frac=lowess_frac)
+    lwf_x = lwf[:, 0]
+    ir = sklearn.isotonic.IsotonicRegression()  # make the regression strictly increasing
+    lwf_y = ir.fit_transform(lwf_x, lwf[:, 1])
+    mask = np.concatenate([[True], np.diff(lwf_y) != 0])  # remove non increasing points
+    lwi = interp1d(lwf_x[mask], lwf_y[mask], bounds_error=False, fill_value="extrapolate")
 
-  # Apply lowess model
-  run[ycol] = lwi(run[xcol])
+    # Apply lowess model
+    run[ycol] = lwi(run[xcol])
 
   # Plot regression
   plt.plot(dfm[xcol], dfm[ycol], 'o')
