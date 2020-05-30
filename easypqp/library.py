@@ -250,7 +250,7 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, rt_filter, im
     raise click.ClickException("There is a psm.tsv but no peptide.tsv.")
 
   if None not in (psmtsv, peptidetsv):
-    click.echo("Info: There are psm.tsv and peptide.tsv. Will ignore --psm_fdr_threshold, --peptide_fdr_threshold, --protein_fdr_threshold, --pi0_lambda, ----proteotypic, and --no-proteotypic.")
+    click.echo("Info: There are psm.tsv and peptide.tsv. Will ignore --psm_fdr_threshold, --peptide_fdr_threshold, --protein_fdr_threshold, --pi0_lambda, --proteotypic, and --no-proteotypic.")
 
   # Read all PSM files
   psms_list = []
