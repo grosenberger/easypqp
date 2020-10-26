@@ -252,9 +252,6 @@ class idxml:
         po.IdXMLFile().load(self.idxml_file, proteins, peptides)
 
         for p in peptides:
-            #search engine scores
-            scores["var_MS:1002252_Comet:XCorr"] = float(p.getHits()[0].getMetaValue('MS:1002252'))
-            scores["var_MS:1002253_Comet:DeltCn"] = float(p.getHits()[0].getMetaValue('MS:1002253'))
 
             #percolator probability
             scores["q_value"] = float(p.getHits()[0].getMetaValue('MS:1001491'))
