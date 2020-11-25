@@ -540,7 +540,7 @@ def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2
 							if (ion.getResidue(lossfragment_ordinal).hasNeutralLoss()):
 								losses = ion.getResidue(lossfragment_ordinal).getLossFormulas()
 								for loss in losses:
-									loss_type = loss.toString().decode("utf-8")
+									loss_type = loss.toString()
 
 									if (enable_specific_losses and loss_type not in unspecific_losses) or (enable_unspecific_losses and loss_type in unspecific_losses):
 										fragments[fragment_type + str(fragment_ordinal) + "-" + loss_type + "^" + str(fragment_charge)] = mass - (loss.getMonoWeight() / fragment_charge)
