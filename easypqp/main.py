@@ -30,12 +30,13 @@ def cli():
 @click.option('--exclude-range', 'exclude_range_str', default="-1.5,3.5", show_default=True, required=False, type=str, help='massdiff in this range will not be mapped to UniMod.')
 @click.option('--max_delta_unimod', default=0.02, show_default=True, type=float, help='Maximum delta mass (Dalton) for UniMod annotation.')
 @click.option('--max_delta_ppm', default=15, show_default=True, type=float, help='Maximum delta mass (PPM) for annotation.')
+@click.option('--enable_unannotated/--no-enable_unannotated', default=False, show_default=True, help='Enable mapping uf unannotated delta masses.')
 @click.option('--fragment_types', default=['b','y'], show_default=True, type=list, help='Allowed fragment ion types (a,b,c,x,y,z).')
 @click.option('--fragment_charges', default=[1,2,3,4], show_default=True, type=list, help='Allowed fragment ion charges.')
 @click.option('--enable_specific_losses/--no-enable_specific_losses', default=False, show_default=True, help='Enable specific fragment ion losses.')
 @click.option('--enable_unspecific_losses/--no-enable_unspecific_losses', default=False, show_default=True, help='Enable unspecific fragment ion losses.')
 @click.option('--subsample_fraction', default=1.0, show_default=True, type=float, help='Data fraction used for subsampling.')
-def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, peaksfile, exclude_range_str, max_delta_unimod, max_delta_ppm, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, subsample_fraction):
+def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, peaksfile, exclude_range_str, max_delta_unimod, max_delta_ppm, enable_unannotated, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, subsample_fraction):
     """
     Convert pepXML files for EasyPQP
     """
@@ -53,7 +54,7 @@ def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, peaksfile, exclude_r
     exclude_range = [float(temp[0]), float(temp[1])]
 
     click.echo("Info: Converting %s." % pepxmlfile)
-    psms, peaks = conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses)
+    psms, peaks = conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses)
 
     psms.to_pickle(psmsfile)
     click.echo("Info: PSMs successfully converted and stored in %s." % psmsfile)

@@ -16,11 +16,12 @@ from xml.etree.cElementTree import iterparse
 import pyopenms as po
 
 class pepxml:
-	def __init__(self, pepxml_file, unimod, base_name, exclude_range):
+	def __init__(self, pepxml_file, unimod, base_name, exclude_range, enable_unannotated):
 		self.pepxml_file = pepxml_file
 		self.base_name = base_name
 		self.psms = self.parse_pepxml()
 		self.exclude_range = exclude_range
+		self.enable_unannotated = enable_unannotated
 		self.match_unimod(unimod)
 
 	def get(self):
@@ -70,11 +71,16 @@ class pepxml:
 					record_id = record_id0
 				is_N_term = isinstance(record_id0, tuple) and position in ('Any N-term', 'Protein N-term')
 				if record_id == -1:
-					raise click.ClickException("Error: Could not annotate site %s (%s) from peptide %s with delta mass %s." % (site, peptide['peptide_sequence'][site-1], peptide['peptide_sequence'], modifications[site]))
-
-				modified_peptide = "(UniMod:" + str(record_id) + ")" + modified_peptide \
-					if is_N_term else \
-					modified_peptide[:site] + "(UniMod:" + str(record_id) + ")" + modified_peptide[site:]
+					if enable_unannotated:
+						modified_peptide = "[" + str(massdiff) + "]" + modified_peptide \
+						if is_N_term else \
+						modified_peptide[:site] + "[" + str(massdiff) + "]" + modified_peptide[site:]
+					else:
+						raise click.ClickException("Error: Could not annotate site %s (%s) from peptide %s with delta mass %s." % (site, peptide['peptide_sequence'][site-1], peptide['peptide_sequence'], modifications[site]))
+				else:
+					modified_peptide = "(UniMod:" + str(record_id) + ")" + modified_peptide \
+						if is_N_term else \
+						modified_peptide[:site] + "(UniMod:" + str(record_id) + ")" + modified_peptide[site:]
 
 			if nterm_modification is not "":
 				record_id_nterm = um.get_id("N-term", 'Any N-term', nterm_modification)
@@ -82,9 +88,12 @@ class pepxml:
 					record_id_nterm = um.get_id("N-term", 'Protein N-term', nterm_modification)
 
 				if record_id_nterm == -1:
-					raise click.ClickException("Error: Could not annotate N-terminus from peptide %s with delta mass %s." % (peptide['peptide_sequence'], nterm_modification))
-				
-				modified_peptide = ".(UniMod:" + str(record_id_nterm) + ")" + modified_peptide
+					if enable_unannotated:
+						modified_peptide = ".[" + str(massdiff) + "]" + modified_peptide
+					else:
+						raise click.ClickException("Error: Could not annotate N-terminus from peptide %s with delta mass %s." % (peptide['peptide_sequence'], nterm_modification))
+				else:
+					modified_peptide = ".(UniMod:" + str(record_id_nterm) + ")" + modified_peptide
 
 			if cterm_modification is not "":
 				record_id_cterm = um.get_id("C-term", 'Any C-term', cterm_modification)
@@ -92,9 +101,12 @@ class pepxml:
 					record_id_cterm = um.get_id("C-term", 'Protein C-term', cterm_modification)
 
 				if record_id_cterm == -1:
-					raise click.ClickException("Error: Could not annotate C-terminus from peptide %s with delta mass %s." % (peptide['peptide_sequence'], cterm_modification))
-				
-				modified_peptide = modified_peptide + ".(UniMod:" + str(record_id_cterm) + ")"
+					if enable_unannotated:
+						modified_peptide = modified_peptide + ".[" + str(record_id_cterm) + "]"
+					else:
+						raise click.ClickException("Error: Could not annotate C-terminus from peptide %s with delta mass %s." % (peptide['peptide_sequence'], cterm_modification))
+				else:
+					modified_peptide = modified_peptide + ".(UniMod:" + str(record_id_cterm) + ")"
 
 
 			return modified_peptide
@@ -547,7 +559,7 @@ def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2
 
 	return list(fragments.keys()), np.fromiter(fragments.values(), np.float, len(fragments))
 
-def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses):
+def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses):
 	# Parse basename
 	base_name = basename_spectralfile(spectralfile)
 	click.echo("Info: Parsing run %s." % base_name)
@@ -558,7 +570,7 @@ def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_un
 	# Parse pepXML or idXML
 	if pepxmlfile.casefold().endswith(('.pepxml', '.pep.xml')):
 		click.echo("Info: Parsing pepXML.")
-		px = pepxml(pepxmlfile, um, base_name, exclude_range)
+		px = pepxml(pepxmlfile, um, base_name, exclude_range, enable_unannotated)
 	elif pepxmlfile.lower().endswith('idxml'):
 		click.echo("Info: Parsing idXML.")
 		px = idxml(pepxmlfile, base_name)
