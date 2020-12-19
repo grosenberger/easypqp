@@ -4,6 +4,7 @@ import pathlib
 import numpy as np
 import pandas as pd
 import os
+import posixpath, ntpath
 from statistics import median_low
 import click
 import re
@@ -123,7 +124,7 @@ class pepxml:
 
 		for event, elem in context:
 			if elem.tag == "{http://regis-web.systemsbiology.net/pepXML}msms_run_summary":
-				base_name = os.path.basename(elem.attrib['base_name'])
+				base_name = posixpath.basename(ntpath.basename(elem.attrib['base_name']))
 
 				# only proceed if base_name matches
 				if base_name == self.base_name:
