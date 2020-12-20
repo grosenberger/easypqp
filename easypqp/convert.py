@@ -16,12 +16,13 @@ from xml.etree.cElementTree import iterparse
 import pyopenms as po
 
 class pepxml:
-	def __init__(self, pepxml_file, unimod, base_name, exclude_range, enable_unannotated):
+	def __init__(self, pepxml_file, unimod, base_name, exclude_range, enable_unannotated, enable_massdiff):
 		self.pepxml_file = pepxml_file
 		self.base_name = base_name
 		self.psms = self.parse_pepxml()
 		self.exclude_range = exclude_range
 		self.enable_unannotated = enable_unannotated
+		self.enable_massdiff = enable_massdiff
 		self.match_unimod(unimod)
 
 	def get(self):
@@ -49,7 +50,7 @@ class pepxml:
 					modifications[int(site)] = delta_mass
 
 			massdiff = float(peptide['massdiff'])
-			if massdiff < self.exclude_range[0] or massdiff > self.exclude_range[1]:
+			if self.enable_massdiff and (massdiff < self.exclude_range[0] or massdiff > self.exclude_range[1]):
 				# parse open modifications
 				oms_sequence = peptide['peptide_sequence']
 				for site in modifications.keys():
@@ -102,7 +103,7 @@ class pepxml:
 
 				if record_id_cterm == -1:
 					if self.enable_unannotated:
-						modified_peptide = modified_peptide + ".[" + str(record_id_cterm) + "]"
+						modified_peptide = modified_peptide + ".[" + str(massdiff) + "]"
 					else:
 						raise click.ClickException("Error: Could not annotate C-terminus from peptide %s with delta mass %s." % (peptide['peptide_sequence'], cterm_modification))
 				else:
@@ -559,7 +560,7 @@ def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2
 
 	return list(fragments.keys()), np.fromiter(fragments.values(), np.float, len(fragments))
 
-def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses):
+def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses):
 	# Parse basename
 	base_name = basename_spectralfile(spectralfile)
 	click.echo("Info: Parsing run %s." % base_name)
@@ -570,7 +571,7 @@ def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_un
 	# Parse pepXML or idXML
 	if pepxmlfile.casefold().endswith(('.pepxml', '.pep.xml')):
 		click.echo("Info: Parsing pepXML.")
-		px = pepxml(pepxmlfile, um, base_name, exclude_range, enable_unannotated)
+		px = pepxml(pepxmlfile, um, base_name, exclude_range, enable_unannotated, enable_massdiff)
 	elif pepxmlfile.lower().endswith('idxml'):
 		click.echo("Info: Parsing idXML.")
 		px = idxml(pepxmlfile, base_name)
