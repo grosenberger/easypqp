@@ -449,18 +449,17 @@ def read_mgf(tims_mgf_path, psms, theoretical, max_delta_ppm):
 	record_pattern = re.compile(b'''BEGIN IONS\r?
 (.*?)
 END IONS''', re.MULTILINE | re.DOTALL)
-	scan_num_pattern = re.compile(b'TITLE=Cmpd\s+([0-9]+),') \
-		if is_tims else \
-		re.compile(b'TITLE=.+?\.([0-9]+?)\.')
-	peaks_pattern = re.compile(b'^([\\d.]+)\s+([\\d.]+)', re.MULTILINE)
+	scan_num_pattern_Bruker = re.compile(rb'TITLE=Cmpd\s+([0-9]+),')
+	scan_num_pattern_general = re.compile(rb'TITLE=.+?\.([0-9]+?)\.')
+	peaks_pattern = re.compile(rb'^([\d.]+)\s+([\d.]+)', re.MULTILINE)
 
 	tims_data = {}
 	with open(tims_mgf_path, "rb") as f:
 		mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
 		for e in record_pattern.finditer(mm):
 			rec = e.group(1)
-			scan_num_findall = scan_num_pattern.findall(rec)
-			if len(scan_num_findall) == 1:
+			scan_num_findall = (scan_num_pattern_Bruker.findall(rec) + scan_num_pattern_general.findall(rec))
+			if len(scan_num_findall) in [1, 2]:
 				scan_num = int(scan_num_findall[0])
 			else:
 				raise RuntimeError("Cannot find Cmpd number from " + rec.decode()
