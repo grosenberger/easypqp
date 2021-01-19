@@ -319,7 +319,7 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, rt_filter, im
     enable_im = True
     # Read reference file if present
     im_reference_run = pd.read_csv(im_referencefile, index_col=False, sep='\t')
-    if not set(['modified_peptide','precursor_charge','im']).issubset(im_referencefile.columns):
+    if not set(['modified_peptide','precursor_charge','im']).issubset(im_reference_run.columns):
       raise click.ClickException("Reference IM file has wrong format. Requires columns 'modified_peptide', 'precursor_charge' and 'im'.")
     if im_reference_run.shape[0] < 10:
       raise click.ClickException("Reference IM file has too few data points. Requires at least 10.")
