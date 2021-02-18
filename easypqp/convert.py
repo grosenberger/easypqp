@@ -74,9 +74,9 @@ class pepxml:
 				is_N_term = isinstance(record_id0, tuple) and position in ('Any N-term', 'Protein N-term')
 				if record_id == -1:
 					if self.enable_unannotated:
-						modified_peptide = "[" + str(massdiff) + "]" + modified_peptide \
+						modified_peptide = "[" + str(modifications[site]) + "]" + modified_peptide \
 						if is_N_term else \
-						modified_peptide[:site] + "[" + str(massdiff) + "]" + modified_peptide[site:]
+						modified_peptide[:site] + "[" + str(modifications[site]) + "]" + modified_peptide[site:]
 					else:
 						raise click.ClickException("Error: Could not annotate site %s (%s) from peptide %s with delta mass %s." % (site, peptide['peptide_sequence'][site-1], peptide['peptide_sequence'], modifications[site]))
 				else:
@@ -91,7 +91,7 @@ class pepxml:
 
 				if record_id_nterm == -1:
 					if self.enable_unannotated:
-						modified_peptide = ".[" + str(massdiff) + "]" + modified_peptide
+						modified_peptide = ".[" + str(modifications[site]) + "]" + modified_peptide
 					else:
 						raise click.ClickException("Error: Could not annotate N-terminus from peptide %s with delta mass %s." % (peptide['peptide_sequence'], nterm_modification))
 				else:
@@ -104,7 +104,7 @@ class pepxml:
 
 				if record_id_cterm == -1:
 					if self.enable_unannotated:
-						modified_peptide = modified_peptide + ".[" + str(massdiff) + "]"
+						modified_peptide = modified_peptide + ".[" + str(modifications[site]) + "]"
 					else:
 						raise click.ClickException("Error: Could not annotate C-terminus from peptide %s with delta mass %s." % (peptide['peptide_sequence'], cterm_modification))
 				else:
