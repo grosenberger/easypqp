@@ -269,7 +269,7 @@ def remove_rank_suffix(x):
   import re
   return re.compile('(.+?)(?:_rank[0-9]+)?').fullmatch(x).group(1)
 
-def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, rt_filter, im_referencefile, im_filter, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_frac, rt_psm_fdr_threshold, im_lowess_frac, im_psm_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus, nofdr):
+def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, rt_reference_run_path, rt_filter, im_referencefile, im_filter, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_frac, rt_psm_fdr_threshold, im_lowess_frac, im_psm_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus, nofdr):
   # Parse input arguments
   psm_files = []
   spectra = []
@@ -346,10 +346,11 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, rt_filter, im
       im_reference_run['im'] = im_reference_run['ion_mobility']
 
   # Prepare reference iRT list
+  rt_reference_run_columns = ['modified_peptide', 'precursor_charge', 'irt']
   if rt_referencefile is not None:
     # Read reference file if present
     rt_reference_run = pd.read_csv(rt_referencefile, index_col=False, sep='\t')
-    if not set(['modified_peptide','precursor_charge','irt']).issubset(rt_reference_run.columns):
+    if not set(rt_reference_run_columns).issubset(rt_reference_run.columns):
       raise click.ClickException("Reference iRT file has wrong format. Requires columns 'modified_peptide', 'precursor_charge' and 'irt'.")
     if rt_reference_run.shape[0] < 10:
       raise click.ClickException("Reference iRT file has too few data points. Requires at least 10.")
@@ -370,6 +371,7 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, rt_filter, im
     # Normalize RT of reference run
     min_max_scaler = preprocessing.MinMaxScaler()
     rt_reference_run['irt'] = min_max_scaler.fit_transform(rt_reference_run[['retention_time']])*100
+    rt_reference_run[rt_reference_run_columns].to_csv(rt_reference_run_path, sep='\t', index=False)
 
   # Normalize RT of all runs against reference
   aligned_runs = pepidr.groupby('base_name').apply(lambda x: lowess(x, rt_reference_run, 'retention_time', 'irt', rt_lowess_frac, rt_psm_fdr_threshold, min_peptides, "easypqp_rt_alignment_" + x.name, main_path))
