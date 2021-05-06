@@ -8,6 +8,7 @@ except ImportError:
 
 import click
 import os
+import pathlib
 import posixpath, ntpath
 import re
 import operator
@@ -273,6 +274,9 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, rt_reference_
   # Parse input arguments
   psm_files = []
   spectra = []
+
+  if len(files) == 1 and files[0].endswith('.txt'):
+    files = pathlib.Path(files[0]).read_text().splitlines()
 
   for file in files:
     if 'psmpkl' in file:
