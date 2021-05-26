@@ -149,6 +149,7 @@ class pepxml:
 							ion_mobility = spectrum_query.attrib['ion_mobility']
 
 						for search_result in spectrum_query.findall(".//pepxml_ns:search_result", namespaces):
+							prev_pep = None
 							for search_hit in search_result.findall(".//pepxml_ns:search_hit", namespaces):
 								hit_rank = search_hit.attrib['hit_rank']
 								massdiff = search_hit.attrib['massdiff']
@@ -234,11 +235,12 @@ class pepxml:
 											scores["pep"] = 1.0 - float(peptideprophet_result.attrib['probability'])
 											prev_pep = scores["pep"]
 
-								if "pep" not in scores:
+								if prev_pep is not None and "pep" not in scores:
 									# If 2 search hits have the same rank only the first one has the analysis_result explicitly written out.
 									scores["pep"] = prev_pep
-                                                                        
-								peptides.append({**{'run_id': base_name, 'scan_id': int(start_scan), 'hit_rank': int(hit_rank), 'massdiff': float(massdiff), 'precursor_charge': int(assumed_charge), 'retention_time': float(retention_time_sec), 'ion_mobility': float(ion_mobility), 'peptide_sequence': peptide, 'modifications': modifications, 'nterm_modification': nterm_modification, 'cterm_modification': cterm_modification, 'protein_id': protein, 'gene_id': gene, 'num_tot_proteins': num_tot_proteins, 'decoy': is_decoy}, **scores})
+
+								if prev_pep is not None:
+									peptides.append({**{'run_id': base_name, 'scan_id': int(start_scan), 'hit_rank': int(hit_rank), 'massdiff': float(massdiff), 'precursor_charge': int(assumed_charge), 'retention_time': float(retention_time_sec), 'ion_mobility': float(ion_mobility), 'peptide_sequence': peptide, 'modifications': modifications, 'nterm_modification': nterm_modification, 'cterm_modification': cterm_modification, 'protein_id': protein, 'gene_id': gene, 'num_tot_proteins': num_tot_proteins, 'decoy': is_decoy}, **scores})
 				elem.clear()
 
 		df = pd.DataFrame(peptides)
