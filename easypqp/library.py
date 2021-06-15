@@ -270,7 +270,7 @@ def remove_rank_suffix(x):
   import re
   return re.compile('(.+?)(?:_rank[0-9]+)?').fullmatch(x).group(1)
 
-def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, rt_reference_run_path, rt_filter, im_referencefile, im_filter, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_frac, rt_psm_fdr_threshold, im_lowess_frac, im_psm_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus, nofdr):
+def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, rt_reference_run_path, rt_filter, im_referencefile, im_reference_run_path, im_filter, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_frac, rt_psm_fdr_threshold, im_lowess_frac, im_psm_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus, nofdr):
   # Parse input arguments
   psm_files = []
   spectra = []
@@ -320,11 +320,12 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, rt_reference_
   # Prepare reference IM list
   enable_im = False
 
+  im_reference_run_columns = ['modified_peptide', 'precursor_charge', 'im']
   if im_referencefile is not None:
     enable_im = True
     # Read reference file if present
     im_reference_run = pd.read_csv(im_referencefile, index_col=False, sep='\t')
-    if not set(['modified_peptide','precursor_charge','im']).issubset(im_reference_run.columns):
+    if not set(im_reference_run_columns).issubset(im_reference_run.columns):
       raise click.ClickException("Reference IM file has wrong format. Requires columns 'modified_peptide', 'precursor_charge' and 'im'.")
     if im_reference_run.shape[0] < 10:
       raise click.ClickException("Reference IM file has too few data points. Requires at least 10.")
@@ -348,6 +349,7 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, rt_reference_
 
       # Set IM of reference run
       im_reference_run['im'] = im_reference_run['ion_mobility']
+      im_reference_run[im_reference_run_columns].to_csv(im_reference_run_path, sep='\t', index=False)
 
   # Prepare reference iRT list
   rt_reference_run_columns = ['modified_peptide', 'precursor_charge', 'irt']
