@@ -527,6 +527,7 @@ def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2
 		for fragment_charge in fragment_charges:
 			if fragment_charge <= precursor_charge:
 				for fragment_ordinal in range(1,len(sequence)):
+					mass = ion = None
 					if fragment_type == 'a':
 						ion = peptide.getPrefix(fragment_ordinal)
 						mass = ion.getMonoWeight(po.Residue.ResidueType.AIon, fragment_charge) / fragment_charge;
@@ -545,7 +546,8 @@ def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2
 					elif fragment_type == 'z':
 						ion = peptide.getSuffix(fragment_ordinal)
 						mass = ion.getMonoWeight(po.Residue.ResidueType.ZIon, fragment_charge) / fragment_charge;
-
+					else:
+						raise RuntimeError(f'fragment type "{fragment_type}" is not in (a,b,c,x,y,z)')
 					# Standard fragment ions
 					fragments[fragment_type + str(fragment_ordinal) + "^" + str(fragment_charge)] = mass
 
