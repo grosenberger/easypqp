@@ -25,9 +25,11 @@ def cli():
 # https://stackoverflow.com/a/47730333
 class PythonLiteralOption(click.Option):
     def type_cast_value(self, ctx, value):
+        if not isinstance(value, str):  # required for Click>=8.0.0
+            return value
         try:
             return ast.literal_eval(value)
-        except:
+        except Exception:
             raise click.BadParameter(value)
 
 
@@ -44,7 +46,7 @@ class PythonLiteralOption(click.Option):
 @click.option('--enable_unannotated/--no-enable_unannotated', default=False, show_default=True, help='Enable mapping uf unannotated delta masses.')
 @click.option('--enable_massdiff/--no-enable_massdiff', default=False, show_default=True, help='Enable mapping uf mass differences reported by legacy search engines.')
 @click.option('--fragment_types', default="['b','y']", show_default=True, cls=PythonLiteralOption, help='Allowed fragment ion types (a,b,c,x,y,z).')
-@click.option('--fragment_charges', default="[1,2,3,4]", show_default=True, cls=PythonLiteralOption, help='Allowed fragment ion charges.')
+@click.option('--fragment_charges', default='[1,2,3,4]', show_default=True, cls=PythonLiteralOption, help='Allowed fragment ion charges.')
 @click.option('--enable_specific_losses/--no-enable_specific_losses', default=False, show_default=True, help='Enable specific fragment ion losses.')
 @click.option('--enable_unspecific_losses/--no-enable_unspecific_losses', default=False, show_default=True, help='Enable unspecific fragment ion losses.')
 @click.option('--subsample_fraction', default=1.0, show_default=True, type=float, help='Data fraction used for subsampling.')
