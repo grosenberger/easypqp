@@ -37,10 +37,10 @@ class pepxml:
 
 			# parse terminal modifications
 			nterm_modification = ""
-			if peptide['nterm_modification'] is not "":
+			if peptide['nterm_modification'] != '':
 				nterm_modification = peptide['nterm_modification'] - 1.0078
 			cterm_modification = ""
-			if peptide['cterm_modification'] is not "":
+			if peptide['cterm_modification'] != '':
 				cterm_modification = peptide['cterm_modification'] - 18.0153
 
 			# parse closed modifications
@@ -85,7 +85,7 @@ class pepxml:
 						if is_N_term else \
 						modified_peptide[:site] + "(UniMod:" + str(record_id) + ")" + modified_peptide[site:]
 
-			if nterm_modification is not "":
+			if nterm_modification != '':
 				record_id_nterm = um.get_id("N-term", 'Any N-term', nterm_modification)
 				if record_id_nterm == -1:
 					record_id_nterm = um.get_id("N-term", 'Protein N-term', nterm_modification)
@@ -98,7 +98,7 @@ class pepxml:
 				else:
 					modified_peptide = ".(UniMod:" + str(record_id_nterm) + ")" + modified_peptide
 
-			if cterm_modification is not "":
+			if cterm_modification != '':
 				record_id_cterm = um.get_id("C-term", 'Any C-term', cterm_modification)
 				if record_id_cterm == -1:
 					record_id_cterm = um.get_id("C-term", 'Protein C-term', cterm_modification)
