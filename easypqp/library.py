@@ -380,11 +380,11 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, rt_reference_
     rt_reference_run[rt_reference_run_columns].to_csv(rt_reference_run_path, sep='\t', index=False)
 
   # Normalize RT of all runs against reference
-  aligned_runs = pepidr.groupby('base_name').apply(lambda x: lowess(x, rt_reference_run, 'retention_time', 'irt', rt_lowess_frac, rt_psm_fdr_threshold, min_peptides, "easypqp_rt_alignment_" + x.name, main_path))
+  aligned_runs = pepidr.groupby('base_name', as_index=False).apply(lambda x: lowess(x, rt_reference_run, 'retention_time', 'irt', rt_lowess_frac, rt_psm_fdr_threshold, min_peptides, "easypqp_rt_alignment_" + x.name, main_path))
 
   # Normalize IM of all runs against reference
   if enable_im:
-    aligned_runs = aligned_runs.groupby('base_name').apply(lambda x: lowess(x, im_reference_run, 'ion_mobility', 'im', im_lowess_frac, im_psm_fdr_threshold, min_peptides, "easypqp_im_alignment_" + x.name, main_path))
+    aligned_runs = aligned_runs.groupby('base_name', as_index=False).apply(lambda x: lowess(x, im_reference_run, 'ion_mobility', 'im', im_lowess_frac, im_psm_fdr_threshold, min_peptides, "easypqp_im_alignment_" + x.name, main_path))
     
   pepida = aligned_runs
 
