@@ -603,6 +603,7 @@ def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_un
 
 		# Generate spectrum dataframe
 		click.echo("Info: Processing spectra from file %s." % spectralfile)
+		psms = psms[psms['pep'] < 0.5]
 		if spectralfile.lower().endswith(".mzxml"):
 			peaks = read_mzml_or_mzxml_impl(spectralfile, psms[['scan_id','modified_peptide','precursor_charge']], theoretical, max_delta_ppm, 'mzxml')
 		elif spectralfile.casefold().endswith(".mzml"):
