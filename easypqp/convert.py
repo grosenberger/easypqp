@@ -405,37 +405,18 @@ def read_mzml_or_mzxml_impl(path, psms, theoretical, max_delta_ppm, filetype):
 	fh.load(path, input_map)
 
 	peaks_list = []
-	for ix, psm in psms.iterrows():
-		scan_id = psm['scan_id']
-		ionseries = theoretical[psm['modified_peptide']][psm['precursor_charge']]
-
-		spectrum = input_map.getSpectrum(scan_id - 1)
-
-		fragments = []
-		product_mzs = []
-		intensities = []
-		for peak in spectrum:
-			fragment, product_mz = annotate_mass(peak.getMZ(), ionseries, max_delta_ppm)
-			if fragment is not None:
-				fragments.append(fragment)
-				product_mzs.append(product_mz)
-				intensities.append(peak.getIntensity())
-
-		peaks = pd.DataFrame({'fragment': fragments, 'product_mz': product_mzs, 'intensity': intensities})
-		peaks['scan_id'] = scan_id
-		peaks['precursor_mz'] = po.AASequence.fromString(po.String(psm['modified_peptide'])).getMonoWeight(po.Residue.ResidueType.Full, psm['precursor_charge']) / psm['precursor_charge'];
-		peaks['modified_peptide'] = psm['modified_peptide']
-		peaks['precursor_charge'] = psm['precursor_charge']
-
-		# Baseline normalization to highest annotated peak
-		max_intensity = np.max(peaks['intensity'])
-		if max_intensity > 0:
-			peaks['intensity'] = peaks['intensity'] * (10000 / max_intensity)
-
-		peaks_list.append(peaks)
+	for psm in psms.itertuples(index=None):
+		peaks_list.append(psm_df(input_map, theoretical, max_delta_ppm, psm))
+		continue
 
 	if len(peaks_list) > 0:
-		transitions = pd.concat(peaks_list)
+		transitions = pd.DataFrame({'fragment': np.concatenate([e[1] for e in peaks_list]),
+									'product_mz': np.concatenate([e[2] for e in peaks_list]),
+									'intensity': np.concatenate([e[3] for e in peaks_list]),
+									'scan_id': np.concatenate([np.repeat(e[4], e[0]) for e in peaks_list]),
+									'precursor_mz': np.concatenate([np.repeat(e[5], e[0]) for e in peaks_list]),
+									'modified_peptide': np.concatenate([np.repeat(e[6], e[0]) for e in peaks_list]),
+									'precursor_charge': np.concatenate([np.repeat(e[7], e[0]) for e in peaks_list])})
 		# Multiple peaks might be identically annotated, only use most intense
 		transitions = transitions.groupby(['scan_id','modified_peptide','precursor_charge','precursor_mz','fragment','product_mz'])['intensity'].max().reset_index()
 	else:
@@ -516,6 +497,41 @@ def annotate_mass(mass, ionseries, max_delta_ppm):
 	return None, None
 
 
+def psm_df(input_map, theoretical, max_delta_ppm, psm):
+	scan_id = psm.scan_id
+	ionseries = theoretical[psm.modified_peptide][psm.precursor_charge]
+
+	spectrum = input_map.getSpectrum(scan_id - 1)
+
+	fragments, product_mzs, intensities = annotate_mass_spectrum(ionseries, max_delta_ppm, spectrum)
+	# Baseline normalization to highest annotated peak
+	max_intensity = np.amax(intensities, initial=0.0)
+	if max_intensity > 0:
+		intensities /= max_intensity
+		intensities *= 10000
+	psm_precursor_charge = psm.precursor_charge
+	return [len(fragments), fragments, product_mzs, intensities,
+			scan_id,
+			po.AASequence.fromString(
+				po.String(psm.modified_peptide)).getMonoWeight(po.Residue.ResidueType.Full,
+																  psm_precursor_charge) / psm_precursor_charge,
+			psm.modified_peptide, psm_precursor_charge]
+
+
+def annotate_mass_spectrum(ionseries, max_delta_ppm, spectrum):
+	top_delta = 30
+	ions, ion_masses = ionseries
+
+	mzs0, intensities0 = spectrum.get_peaks()
+	ppms = np.abs((mzs0[:, np.newaxis] - ion_masses) / ion_masses * 1e6)
+	ppms_argmin = ppms.argmin(1)
+	ppms_min = np.take_along_axis(ppms, ppms_argmin[:, np.newaxis], axis=1)[:, 0]
+	idx_mask = ppms_min < min(max_delta_ppm, top_delta)
+	idx = ppms_argmin[idx_mask]
+	return ions[idx], ion_masses[idx], intensities0[idx_mask]
+
+
+
 def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2,3,4], fragment_types=['b','y'], enable_specific_losses = False, enable_unspecific_losses = False):
 	peptide = po.AASequence.fromString(po.String(peptide_sequence))
 	sequence = peptide.toUnmodifiedString()
@@ -563,7 +579,7 @@ def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2
 									if (enable_specific_losses and loss_type not in unspecific_losses) or (enable_unspecific_losses and loss_type in unspecific_losses):
 										fragments[fragment_type + str(fragment_ordinal) + "-" + loss_type + "^" + str(fragment_charge)] = mass - (loss.getMonoWeight() / fragment_charge)
 
-	return list(fragments.keys()), np.fromiter(fragments.values(), np.float, len(fragments))
+	return np.array(list(fragments.keys())), np.fromiter(fragments.values(), np.float, len(fragments))
 
 def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses):
 	# Parse basename
@@ -595,11 +611,11 @@ def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_un
 		# Generate theoretical spectra
 		click.echo("Info: Generate theoretical spectra.")
 		theoretical = {}
-		for ix, peptide in psms[['modified_peptide','precursor_charge']].drop_duplicates().iterrows():
-			if peptide['modified_peptide'] not in theoretical.keys():
-				theoretical[peptide['modified_peptide']] = {}
+		for peptide in psms[['modified_peptide','precursor_charge']].drop_duplicates().itertuples(index=False):
+			if peptide.modified_peptide not in theoretical.keys():
+				theoretical[peptide.modified_peptide] = {}
 
-			theoretical[peptide['modified_peptide']][peptide['precursor_charge']] = generate_ionseries(peptide['modified_peptide'], peptide['precursor_charge'], fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses)
+			theoretical[peptide.modified_peptide][peptide.precursor_charge] = generate_ionseries(peptide.modified_peptide, peptide.precursor_charge, fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses)
 
 		# Generate spectrum dataframe
 		click.echo("Info: Processing spectra from file %s." % spectralfile)
