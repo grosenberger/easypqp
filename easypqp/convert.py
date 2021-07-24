@@ -565,7 +565,7 @@ def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2
 
 	return list(fragments.keys()), np.fromiter(fragments.values(), np.float, len(fragments))
 
-def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses):
+def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, max_psm_pep):
 	# Parse basename
 	base_name = basename_spectralfile(spectralfile)
 	click.echo("Info: Parsing run %s." % base_name)
@@ -603,7 +603,7 @@ def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_un
 
 		# Generate spectrum dataframe
 		click.echo("Info: Processing spectra from file %s." % spectralfile)
-		psms = psms[psms['pep'] < 0.5]
+		psms = psms[psms['pep'] <= max_psm_pep]
 		if spectralfile.lower().endswith(".mzxml"):
 			peaks = read_mzml_or_mzxml_impl(spectralfile, psms[['scan_id','modified_peptide','precursor_charge']], theoretical, max_delta_ppm, 'mzxml')
 		elif spectralfile.casefold().endswith(".mzml"):
