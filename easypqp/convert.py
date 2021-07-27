@@ -354,10 +354,8 @@ class unimod:
 		for key, value in kvs:
 			delta_mod = abs(value - float(delta_mass))
 			if delta_mod < self.max_delta:
-				if key in candidates.keys():
-					if delta_mod < candidates[key]:
-						candidates[key] = delta_mod
-				else:
+				candidates_key = candidates.setdefault(key, delta_mod)
+				if delta_mod < candidates_key:
 					candidates[key] = delta_mod
 
 		if len(candidates) > 0:
@@ -405,18 +403,18 @@ def read_mzml_or_mzxml_impl(path, psms, theoretical, max_delta_ppm, filetype):
 	fh.load(path, input_map)
 
 	peaks_list = []
-	for psm in psms.itertuples(index=None):
-		peaks_list.append(psm_df(input_map, theoretical, max_delta_ppm, psm))
-		continue
+	for scan_id, modified_peptide, precursor_charge in psms.itertuples(index=None):
+		peaks_list.append(psm_df(input_map, theoretical, max_delta_ppm, scan_id, modified_peptide, precursor_charge))
 
 	if len(peaks_list) > 0:
+		reps = np.array([e[0] for e in peaks_list])
 		transitions = pd.DataFrame({'fragment': np.concatenate([e[1] for e in peaks_list]),
 									'product_mz': np.concatenate([e[2] for e in peaks_list]),
 									'intensity': np.concatenate([e[3] for e in peaks_list]),
-									'scan_id': np.concatenate([np.repeat(e[4], e[0]) for e in peaks_list]),
-									'precursor_mz': np.concatenate([np.repeat(e[5], e[0]) for e in peaks_list]),
-									'modified_peptide': np.concatenate([np.repeat(e[6], e[0]) for e in peaks_list]),
-									'precursor_charge': np.concatenate([np.repeat(e[7], e[0]) for e in peaks_list])})
+									'scan_id': np.repeat([e[4] for e in peaks_list], reps),
+									'precursor_mz': np.repeat([e[5] for e in peaks_list], reps),
+									'modified_peptide': np.repeat([e[6] for e in peaks_list], reps),
+									'precursor_charge': np.repeat([e[7] for e in peaks_list], reps)})
 		# Multiple peaks might be identically annotated, only use most intense
 		transitions = transitions.groupby(['scan_id','modified_peptide','precursor_charge','precursor_mz','fragment','product_mz'])['intensity'].max().reset_index()
 	else:
@@ -497,9 +495,8 @@ def annotate_mass(mass, ionseries, max_delta_ppm):
 	return None, None
 
 
-def psm_df(input_map, theoretical, max_delta_ppm, psm):
-	scan_id = psm.scan_id
-	ionseries = theoretical[psm.modified_peptide][psm.precursor_charge]
+def psm_df(input_map, theoretical, max_delta_ppm, scan_id, modified_peptide, precursor_charge):
+	ionseries = theoretical[modified_peptide][precursor_charge]
 
 	spectrum = input_map.getSpectrum(scan_id - 1)
 
@@ -509,13 +506,11 @@ def psm_df(input_map, theoretical, max_delta_ppm, psm):
 	if max_intensity > 0:
 		intensities /= max_intensity
 		intensities *= 10000
-	psm_precursor_charge = psm.precursor_charge
 	return [len(fragments), fragments, product_mzs, intensities,
 			scan_id,
-			po.AASequence.fromString(
-				po.String(psm.modified_peptide)).getMonoWeight(po.Residue.ResidueType.Full,
-																  psm_precursor_charge) / psm_precursor_charge,
-			psm.modified_peptide, psm_precursor_charge]
+			po.AASequence.fromString(po.String(modified_peptide))
+				.getMonoWeight(po.Residue.ResidueType.Full, precursor_charge) / precursor_charge,
+			modified_peptide, precursor_charge]
 
 
 def annotate_mass_spectrum(ionseries, max_delta_ppm, spectrum):
@@ -611,11 +606,8 @@ def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_un
 		# Generate theoretical spectra
 		click.echo("Info: Generate theoretical spectra.")
 		theoretical = {}
-		for peptide in psms[['modified_peptide','precursor_charge']].drop_duplicates().itertuples(index=False):
-			if peptide.modified_peptide not in theoretical.keys():
-				theoretical[peptide.modified_peptide] = {}
-
-			theoretical[peptide.modified_peptide][peptide.precursor_charge] = generate_ionseries(peptide.modified_peptide, peptide.precursor_charge, fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses)
+		for modified_peptide, precursor_charge in psms[['modified_peptide','precursor_charge']].drop_duplicates().itertuples(index=False):
+			theoretical.setdefault(modified_peptide, {})[precursor_charge] = generate_ionseries(modified_peptide, precursor_charge, fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses)
 
 		# Generate spectrum dataframe
 		click.echo("Info: Processing spectra from file %s." % spectralfile)
