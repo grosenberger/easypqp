@@ -519,10 +519,8 @@ def annotate_mass_spectrum(ionseries, max_delta_ppm, spectrum):
 
 	mzs0, intensities0 = spectrum.get_peaks()
 	ppms = np.abs((mzs0[:, np.newaxis] - ion_masses) / ion_masses * 1e6)
-	ppms_argmin = ppms.argmin(1)
-	ppms_min = np.take_along_axis(ppms, ppms_argmin[:, np.newaxis], axis=1)[:, 0]
-	idx_mask = ppms_min < min(max_delta_ppm, top_delta)
-	idx = ppms_argmin[idx_mask]
+	idx_mask = (ppms < min(max_delta_ppm, top_delta)).any(1)
+	idx = ppms[idx_mask].argmin(1)
 	return ions[idx], ion_masses[idx], intensities0[idx_mask]
 
 
