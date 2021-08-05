@@ -1,4 +1,6 @@
 # plotting
+import warnings
+
 try:
     import matplotlib
     matplotlib.use('Agg')
@@ -171,10 +173,12 @@ def process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_thresh
   return psms
 
 def lowess_iso(x, y, lowess_frac):
-  lwf = sm.nonparametric.lowess(y, x.ravel(), frac=lowess_frac)
-  while pd.isna(lwf[:, 1]).any():
-    lowess_frac *= 2
+  with warnings.catch_warnings():
+    warnings.filterwarnings('ignore', message='invalid value encountered in ', category=RuntimeWarning)
     lwf = sm.nonparametric.lowess(y, x.ravel(), frac=lowess_frac)
+    while pd.isna(lwf[:, 1]).any():
+      lowess_frac *= 2
+      lwf = sm.nonparametric.lowess(y, x.ravel(), frac=lowess_frac)
   lwf_x = lwf[:, 0]
   ir = sklearn.isotonic.IsotonicRegression()  # make the regression strictly increasing
   lwf_y = ir.fit_transform(lwf_x, lwf[:, 1])
