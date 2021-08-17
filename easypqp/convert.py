@@ -451,33 +451,17 @@ END IONS''', re.MULTILINE | re.DOTALL)
 
 	peaks_list = []
 	for scan_id, modified_peptide, precursor_charge in psms.itertuples(index=False):
-		ionseries = theoretical[modified_peptide][precursor_charge]
-
-		mz_intensity_array = tims_data[scan_id]
-
-		fragments = []
-		product_mzs = []
-		intensities = []
-		for mz, intensity in mz_intensity_array:
-			fragment, product_mz = annotate_mass(mz, ionseries, max_delta_ppm)
-			if fragment is not None:
-				fragments.append(fragment)
-				product_mzs.append(product_mz)
-				intensities.append(intensity)
-
-		peaks = pd.DataFrame({'fragment': fragments, 'product_mz': product_mzs, 'intensity': intensities})
-		peaks['scan_id'] = scan_id
-		peaks['precursor_mz'] = po.AASequence.fromString(po.String(modified_peptide)).getMonoWeight(po.Residue.ResidueType.Full, precursor_charge) / precursor_charge;
-		peaks['modified_peptide'] = modified_peptide
-		peaks['precursor_charge'] = precursor_charge
-
-		# Baseline normalization to highest annotated peak
-		peaks['intensity'] = peaks['intensity'] * (10000 / np.max(peaks['intensity']))
-
-		peaks_list.append(peaks)
+		peaks_list.append(psm_df_mgf(tims_data, theoretical, max_delta_ppm, scan_id, modified_peptide, precursor_charge))
 
 	if len(peaks_list) > 0:
-		transitions = pd.concat(peaks_list)
+		reps = np.array([e[0] for e in peaks_list])
+		transitions = pd.DataFrame({'fragment': np.concatenate([e[1] for e in peaks_list]),
+									'product_mz': np.concatenate([e[2] for e in peaks_list]),
+									'intensity': np.concatenate([e[3] for e in peaks_list]),
+									'scan_id': np.repeat([e[4] for e in peaks_list], reps),
+									'precursor_mz': np.repeat([e[5] for e in peaks_list], reps),
+									'modified_peptide': np.repeat([e[6] for e in peaks_list], reps),
+									'precursor_charge': np.repeat([e[7] for e in peaks_list], reps)})
 		# Multiple peaks might be identically annotated, only use most intense
 		transitions = transitions.groupby(['scan_id','modified_peptide','precursor_charge','precursor_mz','fragment','product_mz'])['intensity'].max().reset_index()
 	else:
@@ -501,6 +485,31 @@ def psm_df(input_map, theoretical, max_delta_ppm, scan_id, modified_peptide, pre
 	spectrum = input_map.getSpectrum(scan_id - 1)
 
 	fragments, product_mzs, intensities = annotate_mass_spectrum(ionseries, max_delta_ppm, spectrum)
+	# Baseline normalization to highest annotated peak
+	max_intensity = np.amax(intensities, initial=0.0)
+	if max_intensity > 0:
+		intensities /= max_intensity
+		intensities *= 10000
+	return [len(fragments), fragments, product_mzs, intensities,
+			scan_id,
+			po.AASequence.fromString(po.String(modified_peptide))
+				.getMonoWeight(po.Residue.ResidueType.Full, precursor_charge) / precursor_charge,
+			modified_peptide, precursor_charge]
+
+def psm_df_mgf(input_map, theoretical, max_delta_ppm, scan_id, modified_peptide, precursor_charge):
+	ionseries = theoretical[modified_peptide][precursor_charge]
+
+	spectrum = input_map[scan_id]
+
+	top_delta = 30
+	ions, ion_masses = ionseries
+
+	mzs0, intensities0 = spectrum[:, 0], spectrum[:, 1]
+	ppms = np.abs((mzs0[:, np.newaxis] - ion_masses) / ion_masses * 1e6)
+	idx_mask = (ppms < min(max_delta_ppm, top_delta)).any(1)
+	idx = ppms[idx_mask].argmin(1)
+	fragments, product_mzs, intensities = ions[idx], ion_masses[idx], intensities0[idx_mask]
+
 	# Baseline normalization to highest annotated peak
 	max_intensity = np.amax(intensities, initial=0.0)
 	if max_intensity > 0:
