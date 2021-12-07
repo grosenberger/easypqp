@@ -211,11 +211,10 @@ class LowessIsoEstimator:
   def __repr__(self):
     return str(self.get_params())
 
-
 def lowess_iso_predictor(filename, x, y, xpred):
   gsc = sklearn.model_selection.GridSearchCV(LowessIsoEstimator(None), {'lowess_frac': [0.01, 0.02, 0.04, 0.08]},
                                              cv=sklearn.model_selection.KFold(4, shuffle=True, random_state=0),
-                                             n_jobs=-1)
+                                             n_jobs=min(os.cpu_count(), 61))
 
   gsc.fit(x.reshape(-1, 1), y)
   click.echo(f'Info: {filename}; Lowess fraction used: {gsc.best_params_["lowess_frac"]}.')
