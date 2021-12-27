@@ -254,7 +254,7 @@ def lowess(run, reference_run, xcol, ycol, lowess_frac, psm_fdr_threshold, min_p
   plt.ylabel(ycol)
   plt.savefig(os.path.join(main_path, filename + ".pdf"))
   plt.close()
-
+  run1.to_pickle(os.path.join(main_path, filename + ".alignment_pkl"))
   return run
 
 
