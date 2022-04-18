@@ -77,7 +77,7 @@ class pepxml:
 					if self.enable_unannotated:
 						modified_peptide = "[" + str(round(modifications[site], 6)) + "]" + modified_peptide \
 						if is_N_term else \
-						modified_peptide[:site] + "[" + str(round(modifications[site], 6)) + "]" + modified_peptide[site:]
+						modified_peptide[:site] + "[" + str(round(modifications[site] + monomeric_masses[modified_peptide[site - 1]], 6)) + "]" + modified_peptide[site:]
 					else:
 						raise click.ClickException("Error: Could not annotate site %s (%s) from peptide %s with delta mass %s." % (site, peptide['peptide_sequence'][site-1], peptide['peptide_sequence'], modifications[site]))
 				else:
