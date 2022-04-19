@@ -183,8 +183,11 @@ def lowess_iso(x, y, lowess_frac):
   ir = sklearn.isotonic.IsotonicRegression()  # make the regression strictly increasing
   lwf_y = ir.fit_transform(lwf_x, lwf[:, 1])
   mask = np.concatenate([[True], np.diff(lwf_y) != 0])  # remove non increasing points
-  return interp1d(lwf_x[mask], lwf_y[mask], bounds_error=False, fill_value="extrapolate")
-
+  try:
+    return interp1d(lwf_x[mask], lwf_y[mask], bounds_error=False, fill_value="extrapolate")
+  except ValueError as e:
+    click.echo(e)
+    return interp1d(lwf_x, lwf_y, bounds_error=False, fill_value="extrapolate")
 
 class LowessIsoEstimator:
   def __init__(self, lowess_frac):
