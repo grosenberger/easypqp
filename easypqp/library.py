@@ -183,8 +183,11 @@ def lowess_iso(x, y, lowess_frac):
   ir = sklearn.isotonic.IsotonicRegression()  # make the regression strictly increasing
   lwf_y = ir.fit_transform(lwf_x, lwf[:, 1])
   mask = np.concatenate([[True], np.diff(lwf_y) != 0])  # remove non increasing points
-  return interp1d(lwf_x[mask], lwf_y[mask], bounds_error=False, fill_value="extrapolate")
-
+  try:
+    return interp1d(lwf_x[mask], lwf_y[mask], bounds_error=False, fill_value="extrapolate")
+  except ValueError as e:
+    click.echo(e)
+    return interp1d(lwf_x, lwf_y, bounds_error=False, fill_value="extrapolate")
 
 class LowessIsoEstimator:
   def __init__(self, lowess_frac):
@@ -273,6 +276,31 @@ def remove_rank_suffix(x):
   import re
   return re.compile('(.+?)(?:_rank[0-9]+)?').fullmatch(x).group(1)
 
+
+def unify_modified_peptide_masses(mod_pep, transform=None):
+  if transform is None:
+    import collections
+    float_list = {ee for e in mod_pep.str.findall('\\[(.+?)\\]') for ee in e}
+    d = collections.defaultdict(list)
+    current_group = None
+    for i, (v, k) in enumerate(sorted((float(e), e) for e in float_list)):
+      if current_group is None:
+        current_group = d[i]
+      else:
+        if abs(current_group[-1][0] / v - 1) > 0.001:
+          current_group = d[i]
+      current_group.append((v, k))
+    transform = {s: l[0][1] for _, l in d.items() for f, s in l}
+
+  def transform_func(mo):
+    ret = mo.group(0)
+    for k, v in transform.items():
+      ret = ret.replace(k, v)
+    return ret
+
+  return mod_pep.str.replace('(?<=\\[).+?(?=\\])', transform_func, regex=True), transform
+
+
 def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, rt_reference_run_path, rt_filter, im_referencefile, im_reference_run_path, im_filter, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_frac, rt_psm_fdr_threshold, im_lowess_frac, im_psm_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus, nofdr):
   # Parse input arguments
   psm_files = []
@@ -310,7 +338,7 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, rt_reference_
       psms_list.append(psm_tab)
   psms = pd.concat(psms_list).reset_index(drop=True)
   psms['pp'] = 1-psms['pep']
-
+  psms['modified_peptide'], transform_mass = unify_modified_peptide_masses(psms['modified_peptide'])
   # Process PSMs
   pepid = process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, proteotypic, nofdr)
 
@@ -415,7 +443,7 @@ def generate(files, outfile, psmtsv, peptidetsv, rt_referencefile, rt_reference_
     if meta_run.shape[0] > 0:
       meta_global = pepidb[pepidb['base_name'] == peak_file['base_name']]
       peaks = pd.read_pickle(peak_file['path'])
-      
+      peaks['modified_peptide'], _ = unify_modified_peptide_masses(peaks['modified_peptide'], transform_mass)
       # Generate run-specific PQP files for OpenSWATH alignment
       if consensus or ("_Q1" in peak_file['base_name']):
         run_pqp = pd.merge(meta_run, peaks, on=['modified_peptide','precursor_charge','scan_id'])[['precursor_mz','product_mz','fragment','intensity','irt','im','protein_id','gene_id','peptide_sequence','modified_peptide','precursor_charge']]
