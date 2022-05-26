@@ -279,7 +279,7 @@ def remove_rank_suffix(x):
 
 def unify_modified_peptide_masses(mod_pep, transform=None):
   if not hasattr(mod_pep, 'str'):
-    return mod_pep
+    return mod_pep, transform
   if transform is None:
     import collections
     float_list = {ee for e in mod_pep.str.findall('\\[(.+?)\\]') for ee in e}
