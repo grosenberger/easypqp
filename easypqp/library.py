@@ -350,44 +350,11 @@ def generate(files, outfile, psmtsv, peptidetsv, perform_rt_calibration, rt_refe
   # Generate set of best replicate identifications per run
   pepidr = pepid.loc[pepid.groupby(['base_name','modified_peptide','precursor_charge'])['pp'].idxmax()].sort_index()
 
-  # Prepare reference IM list
-  enable_im = False
-
-  im_reference_run_columns = ['modified_peptide', 'precursor_charge', 'im']
-  if im_referencefile is not None and perform_im_calibration:
-    enable_im = True
-    # Read reference file if present
-    im_reference_run = pd.read_csv(im_referencefile, index_col=False, sep='\t')
-    if not set(im_reference_run_columns).issubset(im_reference_run.columns):
-      raise click.ClickException("Reference IM file has wrong format. Requires columns 'modified_peptide', 'precursor_charge' and 'im'.")
-    if im_reference_run.shape[0] < 10:
-      raise click.ClickException("Reference IM file has too few data points. Requires at least 10.")
-  elif 'ion_mobility' in pepidr.columns:
-    if pepidr['ion_mobility'].isnull().all():
-      enable_im = False
-    else:
-      enable_im = True
-      if perform_im_calibration:
-        # Select reference run
-        pepidr_stats = pepidr.groupby('base_name')[['modified_peptide']].count().reset_index()
-        click.echo(pepidr_stats)
-  
-        if im_filter is not None:
-          click.echo("Info: Filter candidate IM reference runs by tag '%s'." % im_filter)
-          pepidr_stats = pepidr_stats[pepidr_stats['base_name'].str.contains(im_filter)]
-          click.echo(pepidr_stats)
-  
-          im_reference_run_base_name = pepidr_stats.loc[pepidr_stats['modified_peptide'].idxmax()]['base_name']
-  
-          im_reference_run = pepidr[pepidr['base_name'] == im_reference_run_base_name].copy()
-  
-          # Set IM of reference run
-          im_reference_run['im'] = im_reference_run['ion_mobility']
-          im_reference_run[im_reference_run_columns].to_csv(im_reference_run_path, sep='\t', index=False)
-  
+  aligned_runs = pepidr # this variable will store the aligned runs
   # Prepare reference iRT list (if enabled)
   if perform_rt_calibration:
     rt_reference_run_columns = ['modified_peptide', 'precursor_charge', 'irt']
+
     if rt_referencefile is not None:
       # Read reference file if present
       rt_reference_run = pd.read_csv(rt_referencefile, index_col=False, sep='\t')
@@ -415,17 +382,58 @@ def generate(files, outfile, psmtsv, peptidetsv, perform_rt_calibration, rt_refe
       rt_reference_run[rt_reference_run_columns].to_csv(rt_reference_run_path, sep='\t', index=False)
 
     # Normalize RT of all runs against reference
-    aligned_runs = pepidr.groupby('base_name', as_index=False).apply(lambda x: lowess(x, rt_reference_run, 'retention_time', 'irt', rt_lowess_frac, rt_psm_fdr_threshold, min_peptides, "easypqp_rt_alignment_" + x.name, main_path))
-  else: # in this case no rt_calibration is performed
+    aligned_runs = aligned_runs.groupby('base_name', as_index=False).apply(lambda x: lowess(x, rt_reference_run, 'retention_time', 'irt', rt_lowess_frac, rt_psm_fdr_threshold, min_peptides, "easypqp_rt_alignment_" + x.name, main_path))
+
+  else: # in this case no rt_calibration is performed, we just scale the retention time
     aligned_runs = pepidr
     min_max_scaler = preprocessing.MinMaxScaler()
     aligned_runs['irt'] = min_max_scaler.fit_transform(aligned_runs[['retention_time']])*100
 
-  # Normalize IM of all runs against reference
-  if enable_im and perform_im_calibration:
+
+  # Determine if IM is present in the search data
+  if pepidr['ion_mobility'].isnull().all():
+      enable_im = False
+  else:
+      enable_im = True
+
+
+  if perform_im_calibration and enable_im:
+    # Prepare reference IM list
+    im_reference_run_columns = ['modified_peptide', 'precursor_charge', 'im']
+
+    if im_referencefile is not None:
+      # Read reference file if present
+      im_reference_run = pd.read_csv(im_referencefile, index_col=False, sep='\t')
+      if not set(im_reference_run_columns).issubset(im_reference_run.columns):
+        raise click.ClickException("Reference IM file has wrong format. Requires columns 'modified_peptide', 'precursor_charge' and 'im'.")
+      if im_reference_run.shape[0] < 10:
+        raise click.ClickException("Reference IM file has too few data points. Requires at least 10.")
+
+    else:
+      # Select reference run
+      pepidr_stats = pepidr.groupby('base_name')[['modified_peptide']].count().reset_index()
+      click.echo(pepidr_stats)
+
+      if im_filter is not None:
+        click.echo("Info: Filter candidate IM reference runs by tag '%s'." % im_filter)
+        pepidr_stats = pepidr_stats[pepidr_stats['base_name'].str.contains(im_filter)]
+        click.echo(pepidr_stats)
+
+      im_reference_run_base_name = pepidr_stats.loc[pepidr_stats['modified_peptide'].idxmax()]['base_name']
+
+      im_reference_run = pepidr[pepidr['base_name'] == im_reference_run_base_name].copy()
+
+      # Set IM of reference run
+      im_reference_run['im'] = im_reference_run['ion_mobility']
+      im_reference_run[im_reference_run_columns].to_csv(im_reference_run_path, sep='\t', index=False)
+
+    # perform IM calibration
     aligned_runs = aligned_runs.groupby('base_name', as_index=False).apply(lambda x: lowess(x, im_reference_run, 'ion_mobility', 'im', im_lowess_frac, im_psm_fdr_threshold, min_peptides, "easypqp_im_alignment_" + x.name, main_path))
+  
   elif enable_im: # if no calibration just transfer information as is
     aligned_runs['im'] = aligned_runs['ion_mobility']
+  else:
+    pass
 
   pepida = aligned_runs
 
