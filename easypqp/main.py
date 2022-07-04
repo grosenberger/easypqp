@@ -1,4 +1,5 @@
 import ast
+from email.policy import default
 import os
 import pkg_resources
 import click
@@ -7,6 +8,9 @@ import pandas as pd
 from shutil import copyfile
 from .convert import conversion, basename_spectralfile
 from .library import generate
+from .unimoddb import unimod_filter
+from easypqp import pkg_unimod_db
+
 try:
     from pyprophet.data_handling import transform_pi0_lambda
 except ModuleNotFoundError:
@@ -167,3 +171,13 @@ def reduce(infile, outfile, bins, peptides):
     click.echo("Info: Library successfully processed and stored in %s." % outfile)
 
 
+# EasyPQP UniMod Database Filtering
+@cli.command()
+@click.option('--in', 'infile', required=False, default=pkg_unimod_db, show_default=True, type=click.Path(exists=True), help='Input UniMod XML file.')
+@click.option('--out', 'outfile', required=False, default="unimod_ipf.xml", show_default=True, type=click.Path(exists=False), help='Output Filtered UniMod XML file.')
+@click.option('--ids', 'accession_ids', default='[1,2,4,5,7,21,26,27,28,34,35,36,40,121,122,259,267,299,354]', show_default=True, cls=PythonLiteralOption, help='UniMod record ids to filter for, i.e. [1,4,21].')
+def filter_unimod(infile, outfile, accession_ids):
+    """
+    Reduce UniMod XML Database file
+    """
+    unimod_filter(infile, outfile, accession_ids)
