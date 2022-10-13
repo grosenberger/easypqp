@@ -126,7 +126,7 @@ class pepxml:
 
 		for event, elem in context:
 			if elem.tag == "{http://regis-web.systemsbiology.net/pepXML}msms_run_summary":
-				base_name = posixpath.basename(ntpath.basename(elem.attrib['base_name']))
+				base_name = basename_spectralfile(posixpath.basename(ntpath.basename(elem.attrib['base_name'])))
 
 				# only proceed if base_name matches
 				if base_name == self.base_name:
@@ -402,6 +402,11 @@ def read_mzml_or_mzxml_impl(path, psms, theoretical, max_delta_ppm, filetype):
 	input_map = po.MSExperiment()
 	fh.load(path, input_map)
 
+	def get_scan(e: str):
+		scan_str, = re.compile('scan=([0-9]+)').findall(e)
+		return int(scan_str)
+
+	input_map = {get_scan(e.getNativeID()): e for e in input_map.getSpectra()}
 	peaks_list = []
 	for scan_id, modified_peptide, precursor_charge in psms.itertuples(index=None):
 		peaks_list.append(psm_df(input_map, theoretical, max_delta_ppm, scan_id, modified_peptide, precursor_charge))
@@ -482,7 +487,8 @@ def annotate_mass(mass, ionseries, max_delta_ppm):
 def psm_df(input_map, theoretical, max_delta_ppm, scan_id, modified_peptide, precursor_charge):
 	ionseries = theoretical[modified_peptide][precursor_charge]
 
-	spectrum = input_map.getSpectrum(scan_id - 1)
+	# spectrum = input_map.getSpectrum(scan_id - 1)
+	spectrum = input_map[scan_id]
 
 	fragments, product_mzs, intensities = annotate_mass_spectrum(ionseries, max_delta_ppm, spectrum)
 	# Baseline normalization to highest annotated peak
