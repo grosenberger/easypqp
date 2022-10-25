@@ -172,14 +172,23 @@ def reduce(infile, outfile, bins, peptides):
 
     click.echo("Info: Library successfully processed and stored in %s." % outfile)
 
+# Parameter transformation functions
+def transform_comma_string_to_list(ctx, param, value):
+    if value is not None:
+        str_list = value.split(",")
+        return str_list
+    else:
+        return None 
 
 # EasyPQP UniMod Database Filtering
 @cli.command()
 @click.option('--in', 'infile', required=False, default=pkg_unimod_db, show_default=True, type=click.Path(exists=True), help='Input UniMod XML file.')
 @click.option('--out', 'outfile', required=False, default="unimod_ipf.xml", show_default=True, type=click.Path(exists=False), help='Output Filtered UniMod XML file.')
-@click.option('--ids', 'accession_ids', default='[1,2,4,5,7,21,26,27,28,34,35,36,40,121,122,259,267,299,354]', show_default=True, cls=PythonLiteralOption, help='UniMod record ids to filter for, i.e. [1,4,21].')
-def filter_unimod(infile, outfile, accession_ids):
+@click.option('--ids', 'accession_ids', default='1,2,4,5,7,21,26,27,28,34,35,36,40,121,122,259,267,299,354', show_default=True, type=str, help='UniMod record ids to filter for, i.e. 1,2,4,21.', callback=transform_comma_string_to_list)
+@click.option('--sites', 'site_specificity', default=None, show_default=True, type=str, help="""Optional further restriction for specificity, i.e. [n,],M,nK[,QN,STY,*,*,*,EDcRK,WM,RK,Y,K,[TKnS,K,R,EK,Y]. Ensure, you match the sites you want to restrict per unimod.\b\n\nFor example, if --ids=1,21,35, then you should have the following for --sites=n,STY,M. This will restrict acetylation for any N-Term, phosphorylation for serine, threonine, and tyrosine, and oxidation for methionine.
+\b\n\nValid Sites:\n\n* - wildcard, will not restrict for any specificty for corresponding UniMod entry.\n\n[ - Protein N-Term\n\n] - Protein C-Term\n\nn - Any N-Term\n\nc - Any C-Term\n\nAmino Acid Letter - A valid amino acid one letter code.\n\n""", callback=transform_comma_string_to_list)
+def filter_unimod(infile, outfile, accession_ids, site_specificity):
     """
     Reduce UniMod XML Database file
     """
-    unimod_filter(infile, outfile, accession_ids)
+    unimod_filter(infile, outfile, accession_ids, site_specificity)
