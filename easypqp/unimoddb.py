@@ -85,7 +85,7 @@ def unimod_filter(unimod_file, out_file, accession_ids, site_specificity):
         if site_specificity is not None:
             site, position = site_specificity_transform(site_specificity[i])
             # Update progess bar description
-            pbar_desc = pbar_desc + f"..{add_unimod_entry.attrib.get('title')}({','.join(site)})"
+            pbar_desc = f"INFO: Restricting..{add_unimod_entry.attrib.get('title')}({','.join(site)})"
             pbar.set_description(pbar_desc)
             if site != "*":
                 for unimod_site in add_unimod_entry.findall(f"./umod:specificity", ns):
@@ -97,7 +97,7 @@ def unimod_filter(unimod_file, out_file, accession_ids, site_specificity):
                         add_unimod_entry.remove(unimod_site)
         else:
             # Update progess bar description
-            pbar_desc = pbar_desc + f"..{add_unimod_entry.attrib.get('title')}"
+            pbar_desc = f"INFO: Restricting..{add_unimod_entry.attrib.get('title')}"
             pbar.set_description(pbar_desc)
         # click.echo(f"INFO: Appending to filtered unimod XML - title={add_unimod_entry.attrib.get('title')} with record_id={add_unimod_entry.attrib.get('record_id')}")
         mod_out.append( add_unimod_entry )
@@ -122,7 +122,7 @@ def unimod_filter(unimod_file, out_file, accession_ids, site_specificity):
 
     # Insert Top Comment
     # TODO: This may not be the best way to add the top level comment in standard unimod.xml database files. Might be able to use lxml instead, requiring an additional dependency
-    with open(out_file, 'r+') as file_handle:
+    with open(out_file, 'r+', encoding="utf-8") as file_handle:
         lines = file_handle.readlines()     
         lines.insert(1, "<!--Copyright (C) 2002-2006 Unimod; this information may be copied, distributed and/or-->\n<!--modified under certain conditions, but it comes WITHOUT ANY WARRANTY; see the-->\n<!--accompanying Design Science License for more details-->\n")  # you can use any index if you know the line index
         file_handle.seek(0)                 
