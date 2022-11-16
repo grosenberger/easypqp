@@ -395,6 +395,37 @@ class unimod:
 
 		return aamod, nterm_modification, cterm_modification
 
+
+good_patterns = [re.compile('controllerType=0 controllerNumber=1 scan=([0-9]+)'),
+				re.compile('frame=([0-9]+)'),
+				re.compile('function=[0-9]+ process=[0-9]+ scan=([0-9]+)'),
+				re.compile('jobRun=[0-9]+ spotLabel=[^ ]+ spectrum=([0-9]+)'),
+				re.compile('([0-9]+)'),
+				re.compile('scan=([0-9]+)'),
+				re.compile('spectrum=([0-9]+)'),
+				re.compile('scanId=([0-9]+)'),
+				re.compile('index=([0-9]+)')]
+
+bad_patterns = [re.compile('controllerType=[1-9] controllerNumber=1 scan=[0-9]+'),
+				re.compile('controllerType=[0-9] controllerNumber=1 scan=[0-9]+ demux=[0-9]+')]
+
+
+def get_scan(e: str, fallback_num: int):
+	if e is None or e == "":
+		return fallback_num
+
+	for bad_pattern in bad_patterns:
+		if bad_pattern.fullmatch(e) is not None:
+			return fallback_num
+
+	for good_pattern in good_patterns:
+		x = good_pattern.fullmatch(e)
+		if x is not None:
+			return int(x.group(1))
+
+	return fallback_num
+
+
 def read_mzml_or_mzxml_impl(path, psms, theoretical, max_delta_ppm, filetype):
 	assert filetype in ('mzml', 'mzxml')
 	fh = po.MzMLFile() if filetype=='mzml' else po.MzXMLFile()
@@ -402,11 +433,7 @@ def read_mzml_or_mzxml_impl(path, psms, theoretical, max_delta_ppm, filetype):
 	input_map = po.MSExperiment()
 	fh.load(path, input_map)
 
-	def get_scan(e: str):
-		scan_str, = re.compile('scan=([0-9]+)').findall(e)
-		return int(scan_str)
-
-	input_map = {get_scan(e.getNativeID()): e for e in input_map.getSpectra()}
+	input_map = {get_scan(e.getNativeID(), idx + 1): e for idx, e in enumerate(input_map.getSpectra())}
 	peaks_list = []
 	for scan_id, modified_peptide, precursor_charge in psms.itertuples(index=None):
 		peaks_list.append(psm_df(input_map, theoretical, max_delta_ppm, scan_id, modified_peptide, precursor_charge))
@@ -487,7 +514,6 @@ def annotate_mass(mass, ionseries, max_delta_ppm):
 def psm_df(input_map, theoretical, max_delta_ppm, scan_id, modified_peptide, precursor_charge):
 	ionseries = theoretical[modified_peptide][precursor_charge]
 
-	# spectrum = input_map.getSpectrum(scan_id - 1)
 	spectrum = input_map[scan_id]
 
 	fragments, product_mzs, intensities = annotate_mass_spectrum(ionseries, max_delta_ppm, spectrum)
