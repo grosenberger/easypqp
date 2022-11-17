@@ -613,7 +613,7 @@ def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2
 									if (enable_specific_losses and loss_type not in unspecific_losses) or (enable_unspecific_losses and loss_type in unspecific_losses):
 										fragments[fragment_type + str(fragment_ordinal) + "-" + loss_type + "^" + str(fragment_charge)] = mass - (loss.getMonoWeight() / fragment_charge)
 
-	return np.array(list(fragments.keys())), np.fromiter(fragments.values(), np.float, len(fragments))
+	return np.array(list(fragments.keys())), np.fromiter(fragments.values(), float, len(fragments))
 
 def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, max_psm_pep):
 	# Parse basename
