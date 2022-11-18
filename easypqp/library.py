@@ -382,7 +382,7 @@ def generate(files, outfile, psmtsv, peptidetsv, perform_rt_calibration, rt_refe
       rt_reference_run[rt_reference_run_columns].to_csv(rt_reference_run_path, sep='\t', index=False)
 
     # Normalize RT of all runs against reference
-    aligned_runs = aligned_runs.groupby('base_name', as_index=False).apply(lambda x: lowess(x, rt_reference_run, 'retention_time', 'irt', rt_lowess_frac, rt_psm_fdr_threshold, min_peptides, "easypqp_rt_alignment_" + x.name, main_path))
+    aligned_runs = aligned_runs.groupby('base_name', as_index=False, group_keys=False).apply(lambda x: lowess(x, rt_reference_run, 'retention_time', 'irt', rt_lowess_frac, rt_psm_fdr_threshold, min_peptides, "easypqp_rt_alignment_" + x.name, main_path))
 
   else: # in this case no rt_calibration is performed, we just scale the retention time
     aligned_runs = pepidr
