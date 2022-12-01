@@ -574,9 +574,9 @@ def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2
 	unspecific_losses = dict()
 	unspecific_losses["H2O"] = 18.0106
 	unspecific_losses["NH3"] = 17.0265
-	unspecific_losses["CO"] = 27.9949
-	unspecific_losses["H3PO4"] = 97.9769
-	unspecific_losses["H4COS"] = 63.9983
+	# unspecific_losses["CO"] = 27.9949
+	# unspecific_losses["H3PO4"] = 97.9769
+	# unspecific_losses["H4COS"] = 63.9983
 
 	fragments = {}
 
