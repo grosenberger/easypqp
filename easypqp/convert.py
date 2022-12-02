@@ -570,7 +570,13 @@ def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2
 	peptide = po.AASequence.fromString(po.String(peptide_sequence))
 	sequence = peptide.toUnmodifiedString()
 
-	unspecific_losses = ["H2O1","H3N1","C1H2N2","C1H2N1O1"]
+	# this dict is compatible with DIA-NN
+	unspecific_losses = dict()
+	unspecific_losses["H2O"] = 18.0106
+	unspecific_losses["NH3"] = 17.0265
+	# unspecific_losses["CO"] = 27.9949
+	# unspecific_losses["H3PO4"] = 97.9769
+	# unspecific_losses["H4COS"] = 63.9983
 
 	fragments = {}
 
@@ -602,18 +608,22 @@ def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2
 					# Standard fragment ions
 					fragments[fragment_type + str(fragment_ordinal) + "^" + str(fragment_charge)] = mass
 
-					# Losses
-					if enable_specific_losses or enable_unspecific_losses:
-						for lossfragment_ordinal in range(1,ion.size()):
-							if (ion.getResidue(lossfragment_ordinal).hasNeutralLoss()):
+					# unspecific losses that are compatible with DIA-NN
+					if enable_unspecific_losses:
+						for loss in unspecific_losses:
+							fragments[fragment_type + str(fragment_ordinal) + "-" + loss + "^" + str(fragment_charge)] = mass - (unspecific_losses[loss] / fragment_charge)
+
+					# specific losses that are hardcoded in OpenMS
+					if enable_specific_losses:
+						for lossfragment_ordinal in range(1, ion.size()):
+							if ion.getResidue(lossfragment_ordinal).hasNeutralLoss():
 								losses = ion.getResidue(lossfragment_ordinal).getLossFormulas()
 								for loss in losses:
 									loss_type = loss.toString()
-
-									if (enable_specific_losses and loss_type not in unspecific_losses) or (enable_unspecific_losses and loss_type in unspecific_losses):
+									if loss_type not in unspecific_losses:
 										fragments[fragment_type + str(fragment_ordinal) + "-" + loss_type + "^" + str(fragment_charge)] = mass - (loss.getMonoWeight() / fragment_charge)
 
-	return np.array(list(fragments.keys())), np.fromiter(fragments.values(), np.float, len(fragments))
+	return np.array(list(fragments.keys())), np.fromiter(fragments.values(), float, len(fragments))
 
 def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, max_psm_pep):
 	# Parse basename
