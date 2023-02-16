@@ -205,16 +205,16 @@ def targeted_file_converter(infile, in_type, outfile, out_type, legacy_traml_id)
     """
     Convert different spectral libraries / transition files for targeted proteomics and metabolomics analysis.
 
-    Can convert multiple formats to and from TraML (standardized transition format). The following formats are supported:
-    <ul>
-        <li> @ref OpenMS::TraMLFile "TraML" </li>
-        <li> @ref OpenMS::TransitionTSVFile "OpenSWATH TSV transition lists" </li>
-        <li> @ref OpenMS::TransitionPQPFile "OpenSWATH PQP SQLite files" </li>
-        <li> SpectraST MRM transition lists </li>
-        <li> Skyline transition lists </li>
-        <li> Spectronaut transition lists </li>
-        <li> Parquet transition lists </li>
-    </ul>
+    Can convert multiple formats to and from TraML (standardized transition format). The following formats are supported:\b\n\n
+
+        - @ref OpenMS::TraMLFile "TraML" \b\n
+        - @ref OpenMS::TransitionTSVFile "OpenSWATH TSV transition lists" \b\n
+        - @ref OpenMS::TransitionPQPFile "OpenSWATH PQP SQLite files" \b\n
+        - SpectraST MRM transition lists \b\n
+        - Skyline transition lists \b\n
+        - Spectronaut transition lists \b\n
+        - Parquet transition lists \b\n
+
     """
     converter = TargetedFileConverter(infile, outfile, in_type, out_type, legacy_traml_id)
     converter.convert()
