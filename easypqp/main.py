@@ -198,7 +198,7 @@ def filter_unimod(infile, outfile, accession_ids, site_specificity):
 @cli.command()
 @click.option('--in', 'infile', required=True, type=click.Path(exists=True), help='Transition list to convert.')
 @click.option('--in_type', default=None, show_default=True, type=str, help='Input file type. Default: None, will be determined from input file.')
-@click.option('--out', 'outfile', required=False, default="unimod_ipf.xml", show_default=True, type=click.Path(exists=False), help='Output file to be converted to.')
+@click.option('--out', 'outfile', required=False, default="library.pqp", show_default=True, type=click.Path(exists=False), help='Output file to be converted to.')
 @click.option('--out_type', default=None, show_default=True, type=str, help='Output file type. Default: None, will be determined from output file.')
 @click.option('--legacy_traml_id/--no-legacy_traml_id', show_default=True, default=True, help='PQP to TraML: Should legacy TraML IDs be used?')
 def targeted_file_converter(infile, in_type, outfile, out_type, legacy_traml_id):
