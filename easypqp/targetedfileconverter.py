@@ -96,15 +96,14 @@ class TargetedFileConverter(TargetedExperiment):
     Converts different spectral libraries / transition files for targeted proteomics and metabolomics analysis.
   
     Can convert multiple formats to and from TraML (standardized transition format). The following formats are supported:
-    <ul>
-        <li> @ref OpenMS::TraMLFile "TraML" </li>
-        <li> @ref OpenMS::TransitionTSVFile "OpenSWATH TSV transition lists" </li>
-        <li> @ref OpenMS::TransitionPQPFile "OpenSWATH PQP SQLite files" </li>
-        <li> SpectraST MRM transition lists </li>
-        <li> Skyline transition lists </li>
-        <li> Spectronaut transition lists </li>
-        <li> Parquet transition lists </li>
-    </ul>
+    
+        - @ref OpenMS::TraMLFile "TraML" 
+        - @ref OpenMS::TransitionTSVFile "OpenSWATH TSV transition lists" 
+        - @ref OpenMS::TransitionPQPFile "OpenSWATH PQP SQLite files" 
+        - SpectraST MRM transition lists 
+        - Skyline transition lists 
+        - Spectronaut transition lists 
+        - Parquet transition lists 
     '''
 
     def __init__(self, infile: str, outfile: str="library.pqp", in_type: Union[str, None]=None, out_type: Union[str, None]=None, legacy_traml_id: bool=True) -> None:
