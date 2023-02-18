@@ -27,7 +27,7 @@ class TargetedExperiment:
     def _get_file_type_id(self, file_type: str) -> int:
         """Method to get file type id as annotated in OpenMS filetype database."""
         return self.file_types.nameToType(file_type)-1
-
+    
     def load_library(self, infile: str, in_type: Union[str, None]=None) -> None:
         """
         Method to load data from input transition list into an OpenMS TargetedExperiment Object
@@ -57,6 +57,8 @@ class TargetedExperiment:
             click.echo("Info: Reading TraML transition list data...")
             traml_reader = po.TraMLFile()
             traml_reader.load(c_in_file.value, self.tr_exp)
+        
+        click.echo(f"Info: Loaded {len(self.tr_exp.getCompounds())} Compounds, {len(self.tr_exp.getProteins()) } Proteins, {len(self.tr_exp.getPeptides())} Peptides, and {len(self.tr_exp.getTransitions())} Transitions")
     
     def write_library(self, outfile: str, out_type: Union[str, None]=None) -> None:
         """
