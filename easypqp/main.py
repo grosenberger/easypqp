@@ -10,6 +10,7 @@ from .convert import conversion, basename_spectralfile
 from .library import generate
 from .unimoddb import unimod_filter
 from easypqp import pkg_unimod_db
+from .targetedfileconverter import TargetedFileConverter
 
 try:
     from pyprophet.data_handling import transform_pi0_lambda
@@ -192,3 +193,28 @@ def filter_unimod(infile, outfile, accession_ids, site_specificity):
     Reduce UniMod XML Database file
     """
     unimod_filter(infile, outfile, accession_ids, site_specificity)
+
+# EasyPQP TargetedFileConverter
+@cli.command()
+@click.option('--in', 'infile', required=True, type=click.Path(exists=True), help='Transition list to convert.')
+@click.option('--in_type', default=None, show_default=True, type=str, help='Input file type. Default: None, will be determined from input file. Valid formats: ["tsv", "mrm" ,"pqp", "TraML", "parquet"]')
+@click.option('--out', 'outfile', required=False, default="library.pqp", show_default=True, type=click.Path(exists=False), help='Output file to be converted to.')
+@click.option('--out_type', default=None, show_default=True, type=str, help='Output file type. Default: None, will be determined from output file. Valid formats: ["tsv", "pqp", "TraML"]')
+@click.option('--legacy_traml_id/--no-legacy_traml_id', show_default=True, default=True, help='PQP to TraML: Should legacy TraML IDs be used?')
+def targeted_file_converter(infile, in_type, outfile, out_type, legacy_traml_id):
+    """
+    Convert different spectral libraries / transition files for targeted proteomics and metabolomics analysis.
+
+    Can convert multiple formats to and from TraML (standardized transition format). The following formats are supported:\b\n\n
+
+        - @ref OpenMS::TraMLFile "TraML" \b\n
+        - @ref OpenMS::TransitionTSVFile "OpenSWATH TSV transition lists" \b\n
+        - @ref OpenMS::TransitionPQPFile "OpenSWATH PQP SQLite files" \b\n
+        - SpectraST MRM transition lists \b\n
+        - Skyline transition lists \b\n
+        - Spectronaut transition lists \b\n
+        - Parquet transition lists \b\n
+
+    """
+    converter = TargetedFileConverter(infile, outfile, in_type, out_type, legacy_traml_id)
+    converter.convert()
