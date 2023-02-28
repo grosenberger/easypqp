@@ -28,8 +28,8 @@ def check_argument_values(arg_name: str, arg_value: any, expected_type: Tuple[Un
 class OpenSwathAssayGenerator(TargetedExperiment):
     def __init__(self, 
                  infile: str, 
-                 outfile: str="library.pqp", 
                  in_type: Union[str, None]=None, 
+                 outfile: str="library.pqp", 
                  out_type: Union[str, None]=None,
                  min_transitions: int=6,
                  max_transitions: int=6,
@@ -63,33 +63,12 @@ class OpenSwathAssayGenerator(TargetedExperiment):
             out_type = self._get_file_type(outfile)
         check_argument_values("in_type", in_type, ([str, None], ['tsv', 'mrm', 'pqp', 'TraML']))
         check_argument_values("out_type", out_type, ([str, None], ['tsv', 'pqp', 'TraML']))
-        check_argument_values("method", method, (str, ['shuffle', 'pseudo-reverse', 'reverse', 'shift']))
-        check_argument_values("decoy_tag", decoy_tag, (str, None))
-        check_argument_values("min_decoy_fraction", min_decoy_fraction, (float, (0, 1)))
-        check_argument_values("aim_decoy_fraction", aim_decoy_fraction, (float, (0, 1)))
-        check_argument_values("shuffle_max_attempts", shuffle_max_attempts, (int, None))
-        check_argument_values("shuffle_sequence_identity_threshold", shuffle_sequence_identity_threshold, (float, (0, 1)))
-        check_argument_values("shift_precursor_mz_shift", shift_precursor_mz_shift, (float, None))
-        check_argument_values("shift_product_mz_shift", shift_product_mz_shift, (float, None))
         check_argument_values("product_mz_threshold", product_mz_threshold, (float, None))
         check_argument_values("allowed_fragment_types", allowed_fragment_types, (str, None)) # TODO: Add value check, to ensure valid fragment types
         check_argument_values("allowed_fragment_charges", allowed_fragment_charges, (str, None)) # TODO: Add value check to ensure ints are in string of charges
         check_argument_values("enable_detection_specific_losses", enable_detection_specific_losses, (bool, None))
         check_argument_values("enable_detection_unspecific_losses", enable_detection_unspecific_losses, (bool, None))
-        check_argument_values("switchKR", switchKR, (bool, None))
-        check_argument_values("separate", separate, (bool, None))
-
-        # TODO: Move this up before argument validation for specific arg?
-        # Transform string
-        allowed_fragment_types = allowed_fragment_types.split(",")
-        allowed_fragment_charges = allowed_fragment_charges.split(",")
-
-        # Assign values to self
-        for name, value in locals().items():
-            if name != 'self':
-                # print(f"Info: Setting {name} = {value}")
-                setattr(self, name, value)
 
 
-    def generate_decoys():
+    def generate_openswathassays():
         return None
