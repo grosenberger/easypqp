@@ -25,50 +25,100 @@ def check_argument_values(arg_name: str, arg_value: any, expected_type: Tuple[Un
         elif isinstance(expected_range, list) and arg_value not in expected_range:
             raise ValueError(f"{arg_name} should be one of {expected_range}, cannot except '{arg_value}'.")
 
+def check_fragment_type(input_str: str):
+    possible_fragment_types = ['b','y','a','x','c','z']
+    if input_str not in possible_fragment_types:
+        raise ValueError(f"{input_str} is not one of the possible fragment types {possible_fragment_types}")
+
+def string_to_list(input_str: str, output_type: type):
+    ### TODO
+    return None
+
+
+def read_swath_file():
+    ### TODO
+    return None
+
+
 class OpenSwathAssayGenerator(TargetedExperiment):
-    def __init__(self, 
-                 infile: str, 
-                 in_type: Union[str, None]=None, 
-                 outfile: str="library.pqp", 
-                 out_type: Union[str, None]=None,
-                 min_transitions: int=6,
-                 max_transitions: int=6,
-                 allowed_fragment_type: str="b,y",
-                 allowed_fragment_charges: str='1,2,3,4',
-                 enable_detection_specific_losses: bool=False,
-                 enable_detection_unspecific_losses: bool=False,
-                 precursor_mz_threshold: float=0.025,
-                 precursor_lower_mz_limit: float=400.0,
-                 precursor_upper_mz_limit: float=1200.0,
-                 product_mz_threshold: float=0.025,
-                 product_lower_mz_limit: float=350.0,
-                 product_upper_mz_limit: float=2000.0,
-                 swath_windows_file: str="",
-                 unimod_file: str="",
-                 enable_ipf: bool=False,
-                 max_num_alternative_localizations: int=10000,
-                 disable_identification_ms2_precursors: bool=False,
-                 disable_identification_specific_losses: bool=False,
-                 enable_identification_unspecific_losses: bool=False,
-                 enable_swath_specifity: bool=False) -> None:
+    def __init__(self, infile, in_type, outfile, out_type, min_transitions, max_transitions, allowed_fragment_type, allowed_fragment_charges, enable_detection_specific_losses, enable_detection_unspecific_losses, precursor_mz_threshold, precursor_lower_mz_limit,
+                 precursor_upper_mz_limit, product_mz_threshold, product_lower_mz_limit, product_upper_mz_limit, swath_windows_file, unimod_file, enable_ipf, max_num_alternative_localizations, disable_identification_ms2_precursors, disable_identification_specific_losses, enable_identification_unspecific_losses, enable_swath_specifity) -> None:
         super().__init__(True)
 
-        # Valdiate arguments
-        check_argument_values("infile", infile, (str, None))
-        check_argument_values("outfile", outfile, (str, None))
-        # Handle types
-        if in_type is None:
-            in_type = self._get_file_type(infile)
-        if out_type is None:
-            out_type = self._get_file_type(outfile)
-        check_argument_values("in_type", in_type, ([str, None], ['tsv', 'mrm', 'pqp', 'TraML']))
-        check_argument_values("out_type", out_type, ([str, None], ['tsv', 'pqp', 'TraML']))
-        check_argument_values("product_mz_threshold", product_mz_threshold, (float, None))
-        check_argument_values("allowed_fragment_types", allowed_fragment_types, (str, None)) # TODO: Add value check, to ensure valid fragment types
-        check_argument_values("allowed_fragment_charges", allowed_fragment_charges, (str, None)) # TODO: Add value check to ensure ints are in string of charges
-        check_argument_values("enable_detection_specific_losses", enable_detection_specific_losses, (bool, None))
-        check_argument_values("enable_detection_unspecific_losses", enable_detection_unspecific_losses, (bool, None))
+        self.infile = infile 
+        self.in_type = in_type
+
+        self.outfile = outfile
+        self.out_type = out_type ### if (in_type != None) else self._get_file_type(outfile)
+
+        self.min_transitions = min_transitions
+        self.max_transitions = max_transitions
+
+        allowed_fragment_type_string = allowed_fragment_type.split(",")
+        allowed_fragment_types_bytes = []
+        for s in allowed_fragment_type_string:
+            allowed_fragment_types_bytes.append(bytes(s, encoding='utf-8')) #utf-8
+        self.allowed_fragment_type = allowed_fragment_types_bytes
+        print(self.allowed_fragment_type)
+
+        allowed_fragment_charges_string = allowed_fragment_charges.split(",")
+        allowed_fragment_types_int = []
+        for s in allowed_fragment_charges_string:
+            allowed_fragment_types_int.append(int(s))
+        self.allowed_fragment_charges = allowed_fragment_types_int
+        print(self.allowed_fragment_charges)
+
+        self.enable_detection_specific_losses = enable_detection_specific_losses
+        self.enable_detection_unspecific_losses = enable_detection_unspecific_losses
+        self.precursor_mz_threshold = precursor_mz_threshold
+        self.precursor_lower_mz_limit = precursor_lower_mz_limit
+        self.precursor_upper_mz_limit = precursor_upper_mz_limit
+        self.product_mz_threshold = product_mz_threshold
+        self.product_lower_mz_limit = product_lower_mz_limit
+        self.product_upper_mz_limit = product_upper_mz_limit
+
+        ### TODO: read input swath file
+        self.swath_windows_file = swath_windows_file
+        ### TODO: read unimod file 
+        self.unimod_file = unimod_file
+        ### TODO: implement enable ipf
+        self.enable_ipf = enable_ipf
+        self.max_num_alternative_localizations = max_num_alternative_localizations
+        self.disable_identification_ms2_precursors = disable_identification_ms2_precursors
+        self.disable_identification_specific_losses = disable_identification_specific_losses
+        self.enable_identification_unspecific_losses = enable_identification_unspecific_losses
+        self.enable_swath_specifity = enable_swath_specifity
 
 
-    def generate_openswathassays():
-        return None
+
+        ### check argument
+        # # Valdiate arguments
+        # check_argument_values("infile", infile, (str, None))
+        # check_argument_values("outfile", outfile, (str, None))
+        # # Handle types
+        # if in_type is None:
+        #     in_type = self._get_file_type(infile)
+        # if out_type is None:
+        #     out_type = self._get_file_type(outfile)
+        # check_argument_values("in_type", in_type, ([str, None], ['tsv', 'mrm', 'pqp', 'TraML']))
+        # check_argument_values("out_type", out_type, ([str, None], ['tsv', 'pqp', 'TraML']))
+        # check_argument_values("product_mz_threshold", product_mz_threshold, (float, None))
+        # check_argument_values("allowed_fragment_types", allowed_fragment_types, (str, None)) # TODO: Add value check, to ensure valid fragment types
+        # check_argument_values("allowed_fragment_charges", allowed_fragment_charges, (str, None)) # TODO: Add value check to ensure ints are in string of charges
+        # check_argument_values("enable_detection_specific_losses", enable_detection_specific_losses, (bool, None))
+        # check_argument_values("enable_detection_unspecific_losses", enable_detection_unspecific_losses, (bool, None))
+
+    def read_input_file(self) -> None:
+        self.load_library(self.infile, self.in_type)
+
+    def annotate_transitions(self) -> None:
+        click.echo("Info: Annotating transitions")
+        assays = po.MRMAssay()
+        assays.reannotateTransitions(self.tr_exp, self.precursor_mz_threshold, self.product_mz_threshold, self.allowed_fragment_type, self.allowed_fragment_charges, self.enable_detection_specific_losses, self.enable_detection_unspecific_losses, -4) ### todo convert fragment type to bytes
+
+        click.echo("Info: Annotating detecting transitions")
+        assays.restrictTransitions(self.tr_exp, self.product_lower_mz_limit, self.product_upper_mz_limit, list(list())) #TODO read swath file and save 
+        assays.detectingTransitions(self.tr_exp, self.min_transitions, self.max_transitions)
+
+    def write_output_file(self) -> None:
+        self.write_library(self.outfile, self.out_type)

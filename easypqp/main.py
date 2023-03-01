@@ -248,7 +248,32 @@ def targeted_file_converter(infile, in_type, outfile, out_type, legacy_traml_id)
 @click.option('--enable_swath_specifity', required=False, type=bool, help="IPF: set this flag if identification transitions without precursor specificity (i.e. across whole precursor isolation window instead of precursor MZ) should be generated.", default=False)
 def openswath_assay_generator(infile, in_type, outfile, out_type, min_transitions, max_transitions, allowed_fragment_types, allowed_fragment_charges, enable_detection_specific_losses, enable_detection_unspecific_losses, precursor_mz_threshold, precursor_lower_mz_limit, precursor_upper_mz_limit, product_mz_threshold, product_lower_mz_limit, product_upper_mz_limit, swath_win, unimod, enable_ipf, max_num_alternative_localizations, disable_identification_ms2_precursors, disable_identification_specific_losses, enable_identification_unspecific_losses, enable_swath_specifity):
     """
-    Generates filtered and optimized assays.
+    Generates filtered and optimized assays for OpenSwathWorflow
 
     """
-    print("hello")
+    print(infile)
+    print(in_type)
+    print(out_type)
+    print(min_transitions)
+    print(max_transitions)
+    print(allowed_fragment_types)
+    print(allowed_fragment_charges)
+    print(enable_detection_specific_losses)
+    print(enable_detection_unspecific_losses)
+    print(precursor_mz_threshold)
+    print(precursor_lower_mz_limit)
+    print(precursor_lower_mz_limit)
+    print(product_mz_threshold)
+    print(product_lower_mz_limit)
+    print(product_upper_mz_limit)
+    print(swath_win)
+    print(unimod)
+    print(enable_ipf)
+    print(max_num_alternative_localizations)
+    print(disable_identification_ms2_precursors)
+    print(disable_identification_specific_losses)
+    print(enable_identification_unspecific_losses)
+    print(enable_swath_specifity)
+    
+
+    
