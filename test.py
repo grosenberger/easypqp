@@ -5,7 +5,7 @@ import easypqp.openswathassaygenerator as OSAG
 
 def main():
 
-    infile = "/Users/owentsai/easypqp/easypqp/test_library.tsv"
+    infile = "/Users/owentsai/easypqp/test_library.tsv"
     in_type = None
 
     outfile = "/Users/owentsai/easypqp/easypqp/test_output.tsv"
@@ -28,7 +28,7 @@ def main():
     product_upper_mz_limit = 2000.0
 
     swath_windows_file = None
-    unimod_file = None
+    unimod_file = "/Users/owentsai/easypqp/easypqp/data/unimod.xml"
     enable_ipf = False
     max_num_alternative_localizations = 10000
     disable_identification_ms2_precursors = False
@@ -42,31 +42,10 @@ def main():
 
     
     test_OSAG.read_input_file()
-    test_OSAG.annotate_transitions()
+    # test_OSAG.annotate_transitions()
+    # test_OSAG.write_output_file()
     
-    # allowed_fragment_types="b,y"
-    # allowed_fragment_types_string= allowed_fragment_types.split(",") ### check this
-    # print(allowed_fragment_types_string)
-    # allowed_fragment_types_bytes=[]
-    # for s in allowed_fragment_types_string:
-    #     print(s)
-    #     print(bytes(s, encoding='ascii'))
-    #     allowed_fragment_types_bytes.append(bytes(s, encoding='utf-8')) #utf-8
-
-    # print(allowed_fragment_types_bytes)
-    # allowed_fragment_charges=[1,2,3,4]
-    # enable_detection_specific_losses=False
-    # enable_detection_unspecific_losses=False
-
-    # targeted_experiment = easypqp.targetedfileconverter.TargetedExperiment()
-    # targeted_experiment.load_library("/Users/owentsai/easypqp/easypqp/test_library.tsv")
-    # for protein in targeted_experiment.tr_exp.getProteins():
-    #     print(protein.id)
-
-    # assays = po.MRMAssay()
-    # assays.reannotateTransitions(targeted_experiment.tr_exp, precursor_mz_threshold, product_mz_threshold, allowed_fragment_types_bytes, allowed_fragment_charges, enable_detection_specific_losses, enable_detection_unspecific_losses, -4)
-
-    # print(assays)
+    
 if __name__ == '__main__':
     main()
 
