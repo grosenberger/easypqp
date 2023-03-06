@@ -31,11 +31,11 @@ def check_fragment_type(input_str: str):
         raise ValueError(f"{input_str} is not one of the possible fragment types {possible_fragment_types}")
 
 def string_to_list(input_str: str, output_type: type):
-    
     str_list = input_str.split(",")
     ret_list = []
     for s in str_list:
         if (output_type == bytes):
+            check_fragment_type(s)
             convert = bytes(s,encoding='utf-8' )
         else:
             convert = int(s)
@@ -60,11 +60,11 @@ def read_swath_file(file: str):
     return ret_val
 
 def read_unimod_file(unimod_file):
-
-    mods_database = po.ModificationsDB(unimod_file)
+    ### TODO
+    return None
+    # mods_database = po.ModificationsDB(unimod_file)
     
-    click.echo("Unimod XML: %s modification types and residue specificities imported from file: %s" % (mods_database.getNumberOfModifications(), unimod_file))
-    return "Hello"
+    # click.echo("Unimod XML: %s modification types and residue specificities imported from file: %s" % (mods_database.getNumberOfModifications(), unimod_file))
 
 class OpenSwathAssayGenerator(TargetedExperiment):
     def __init__(self, infile, in_type, outfile, out_type, min_transitions, max_transitions, allowed_fragment_type, allowed_fragment_charges, enable_detection_specific_losses, enable_detection_unspecific_losses, precursor_mz_threshold, precursor_lower_mz_limit,
@@ -80,7 +80,8 @@ class OpenSwathAssayGenerator(TargetedExperiment):
         self.min_transitions = min_transitions
         self.max_transitions = max_transitions
 
-        self.allowed_fragment_type = string_to_list(allowed_fragment_type, bytes) ### TODO: check valid fragment type
+        self.allowed_fragment_type = string_to_list(allowed_fragment_type, bytes) 
+
         self.allowed_fragment_charges = string_to_list(allowed_fragment_charges, int)  ### TODO: check valid fragment charges
 
         self.enable_detection_specific_losses = enable_detection_specific_losses
@@ -92,7 +93,9 @@ class OpenSwathAssayGenerator(TargetedExperiment):
         self.product_lower_mz_limit = product_lower_mz_limit
         self.product_upper_mz_limit = product_upper_mz_limit
 
-        self.swath_windows_file = None if swath_windows_file == None else read_swath_file(swath_windows_file)
+        self.swathes = list(list()) if swath_windows_file == None else read_swath_file(swath_windows_file)
+       
+       
         ### TODO: read unimod file 
         self.unimod_file = None if unimod_file == None else read_unimod_file(unimod_file)
         print(self.unimod_file )
@@ -125,6 +128,11 @@ class OpenSwathAssayGenerator(TargetedExperiment):
 
     def read_input_file(self) -> None:
         self.load_library(self.infile, self.in_type)
+        ### convert to tsv (panda df)
+
+        ### get all transtion for specific precursors
+
+
 
     def annotate_transitions(self) -> None:
         click.echo("Info: Annotating transitions")
@@ -132,7 +140,7 @@ class OpenSwathAssayGenerator(TargetedExperiment):
         assays.reannotateTransitions(self.tr_exp, self.precursor_mz_threshold, self.product_mz_threshold, self.allowed_fragment_type, self.allowed_fragment_charges, self.enable_detection_specific_losses, self.enable_detection_unspecific_losses, -4) ### todo convert fragment type to bytes
 
         click.echo("Info: Annotating detecting transitions")
-        assays.restrictTransitions(self.tr_exp, self.product_lower_mz_limit, self.product_upper_mz_limit, list(list())) #TODO read swath file and save 
+        assays.restrictTransitions(self.tr_exp, self.product_lower_mz_limit, self.product_upper_mz_limit, self.swathes) 
         assays.detectingTransitions(self.tr_exp, self.min_transitions, self.max_transitions)
 
     def write_output_file(self) -> None:

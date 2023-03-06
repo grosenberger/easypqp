@@ -42,8 +42,8 @@ def main():
 
     
     test_OSAG.read_input_file()
-    # test_OSAG.annotate_transitions()
-    # test_OSAG.write_output_file()
+    test_OSAG.annotate_transitions()
+    test_OSAG.write_output_file()
     
     
 if __name__ == '__main__':

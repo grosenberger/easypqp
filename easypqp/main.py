@@ -11,6 +11,7 @@ from .library import generate
 from .unimoddb import unimod_filter
 from easypqp import pkg_unimod_db
 from .targetedfileconverter import TargetedFileConverter
+from .openswathassaygenerator import OpenSwathAssayGenerator
 
 try:
     from pyprophet.data_handling import transform_pi0_lambda
@@ -238,7 +239,7 @@ def targeted_file_converter(infile, in_type, outfile, out_type, legacy_traml_id)
 @click.option('--product_mz_threshold', default=0.025, show_default=True, required=False, type=float, help='MZ threshold in Thomson for fragment ion annotation')
 @click.option('--product_lower_mz_limit', default=350.0, show_default=True, required=False, type=float, help='Lower MZ limit for fragment ions')
 @click.option('--product_upper_mz_limit', default=2000.0, show_default=True, required=False, type=float, help='Upper MZ limit for fragment ions')
-@click.option('--swath_windows_file', 'swath_win', required=False, type=click.Path(exists=False), help="Tab separated file containing the SWATH windows for exclusion of fragment ions falling into the precursor isolation window: lower_offset upper_offset \newline400 425 \newline ... Note that the first line is a header and will be skipped. (valid formats: 'txt')")
+@click.option('--swath_windows_file', 'swath_win', default=None, required=False, type=click.Path(exists=False), help="Tab separated file containing the SWATH windows for exclusion of fragment ions falling into the precursor isolation window: lower_offset upper_offset \newline400 425 \newline ... Note that the first line is a header and will be skipped. (valid formats: 'txt')")
 @click.option('--unimod_file', 'unimod', required=False, type=click.Path(exists=False), help="(Modified) Unimod XML file (http://www.unimod.org/xml/unimod.xml) describing residue modifiability (valid formats: 'xml')")
 @click.option('--enable_ipf', required=False, type=bool, help="IPF: set this flag if identification transitions should be generated for IPF. Note: Requires setting 'unimod_file", default=False)
 @click.option('--max_num_alternative_localizations', default=10000, required=False, show_default=True, type=int, help='IPF: maximum number of site-localization permutations')
@@ -251,29 +252,14 @@ def openswath_assay_generator(infile, in_type, outfile, out_type, min_transition
     Generates filtered and optimized assays for OpenSwathWorflow
 
     """
-    print(infile)
-    print(in_type)
-    print(out_type)
-    print(min_transitions)
-    print(max_transitions)
-    print(allowed_fragment_types)
-    print(allowed_fragment_charges)
-    print(enable_detection_specific_losses)
-    print(enable_detection_unspecific_losses)
-    print(precursor_mz_threshold)
-    print(precursor_lower_mz_limit)
-    print(precursor_lower_mz_limit)
-    print(product_mz_threshold)
-    print(product_lower_mz_limit)
-    print(product_upper_mz_limit)
-    print(swath_win)
-    print(unimod)
-    print(enable_ipf)
-    print(max_num_alternative_localizations)
-    print(disable_identification_ms2_precursors)
-    print(disable_identification_specific_losses)
-    print(enable_identification_unspecific_losses)
-    print(enable_swath_specifity)
+    assay_generator = OpenSwathAssayGenerator(infile, in_type, outfile, out_type, min_transitions, max_transitions, allowed_fragment_types, allowed_fragment_charges, enable_detection_specific_losses,
+    enable_detection_unspecific_losses, precursor_mz_threshold, precursor_lower_mz_limit, precursor_upper_mz_limit, product_mz_threshold, product_lower_mz_limit, product_upper_mz_limit, swath_win, unimod, enable_ipf, max_num_alternative_localizations,
+    disable_identification_ms2_precursors, disable_identification_specific_losses, enable_identification_unspecific_losses, enable_swath_specifity)
+
+    
+    assay_generator.read_input_file()
+    assay_generator.annotate_transitions()
+    assay_generator.write_output_file()
     
 
     
