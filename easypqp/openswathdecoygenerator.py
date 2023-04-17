@@ -1,8 +1,4 @@
-
-import os
-import pandas as pd
 import pyopenms as po
-import ctypes
 import click
 from typing import Union, Tuple
 
@@ -78,7 +74,9 @@ class OpenSwathDecoyGenerator(TargetedExperiment):
         # TODO: Move this up before argument validation for specific arg?
         # Transform string
         allowed_fragment_types = allowed_fragment_types.split(",")
+        allowed_fragment_types = [s.encode('utf-8') for s in allowed_fragment_types]
         allowed_fragment_charges = allowed_fragment_charges.split(",")
+        allowed_fragment_charges = [int(charge) for charge in allowed_fragment_charges]
 
         # Assign values to self
         for name, value in locals().items():
@@ -86,6 +84,30 @@ class OpenSwathDecoyGenerator(TargetedExperiment):
                 # print(f"Info: Setting {name} = {value}")
                 setattr(self, name, value)
 
+        # Load target experiment
+        self.load_library(self.infile, self.in_type)
 
-    def generate_decoys():
-        return None
+    def generate_decoys(self) -> None:
+        # Initiate decoy experiment
+        self.tr_decoy = po.TargetedExperiment()
+
+        # Generate decoys
+        decoys = po.MRMDecoy()
+        decoys.generateDecoys(self.tr_exp, self.tr_decoy, self.method, self.aim_decoy_fraction, self.switchKR, self.decoy_tag, self.shuffle_max_attempts, self.shuffle_sequence_identity_threshold, self.shift_precursor_mz_shift, self.shift_product_mz_shift, self.product_mz_threshold, self.allowed_fragment_types, self.allowed_fragment_charges, self.enable_detection_specific_losses, self.enable_detection_unspecific_losses, -4)
+
+        click.echo(f"Info: Number of target peptides: {len(self.tr_exp.getPeptides())}")
+        click.echo(f"Info: Number of decoy peptides: {len(self.tr_decoy.getPeptides())}")
+        click.echo(f"Info: Number of target proteins: {len(self.tr_exp.getProteins())}")
+        click.echo(f"Info: Number of decoy proteins: {len(self.tr_decoy.getProteins())}")
+        
+        if len(self.tr_decoy.getPeptides()) / len(self.tr_exp.getPeptides()) < self.min_decoy_fraction or len(self.tr_decoy.getProteins()) / len(self.tr_exp.getProteins()) < self.min_decoy_fraction:
+            raise click.ClickException(f"The number of decoys for peptides or proteins is below the threshold of {(self.min_decoy_fraction * 100)}% of the number of targets.")
+        
+        if self.separate:
+            click.echo("Info: Writing only decoys to file: {self.outfile}")
+            self.tr_exp = self.tr_decoy
+        else:
+            click.echo("Info: Writing targets and decoys to file: {self.outfile}")
+            self.tr_exp += self.tr_decoy
+
+        self.write_library(self.outfile, self.out_type)
