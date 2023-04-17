@@ -104,10 +104,10 @@ class OpenSwathDecoyGenerator(TargetedExperiment):
             raise click.ClickException(f"The number of decoys for peptides or proteins is below the threshold of {(self.min_decoy_fraction * 100)}% of the number of targets.")
         
         if self.separate:
-            click.echo("Info: Writing only decoys to file: {self.outfile}")
+            click.echo(f"Info: Writing only decoys to file: {self.outfile}")
             self.tr_exp = self.tr_decoy
         else:
-            click.echo("Info: Writing targets and decoys to file: {self.outfile}")
+            click.echo(f"Info: Writing targets and decoys to file: {self.outfile}")
             self.tr_exp += self.tr_decoy
 
         self.write_library(self.outfile, self.out_type)
