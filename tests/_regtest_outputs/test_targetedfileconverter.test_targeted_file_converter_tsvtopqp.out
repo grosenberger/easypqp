@@ -1,0 +1,32 @@
+   ID PROTEIN_ACCESSION  DECOY
+4   0            Q04637      0
+3   1            Q2M2I8      0
+2   2            Q86WB0      0
+1   3            Q8WWI1      0
+0   4            Q92890      0
+   ID       UNMODIFIED_SEQUENCE                         MODIFIED_SEQUENCE  DECOY
+4   0      AGQTQPNPGILPIQPALTPR           AGQTQPNPGILPIQPALT(UniMod:21)PR      0
+3   1  ATLSSTSGLDLMSESGEGEISPQR       ATLSSTSGLDLMSESGEGEIS(UniMod:21)PQR      0
+2   2               EAALPPVSPLK                    EAALPPVS(UniMod:21)PLK      0
+1   3           GVEPSPSPIKPGDIK                GVEPSPS(UniMod:21)PIKPGDIK      0
+0   4        SMGTGDTPGLEVPSSPLR  SM(UniMod:35)GTGDTPGLEVPS(UniMod:21)SPLR      0
+   ID                                  TRAML_ID GROUP_LABEL  PRECURSOR_MZ  CHARGE LIBRARY_INTENSITY  LIBRARY_RT  LIBRARY_DRIFT_TIME  DECOY
+3   0           AGQTQPNPGILPIQPALT(Phospho)PR_2                 1075.0619       2              None     70.6096                -1.0      0
+4   1       ATLSSTSGLDLMSESGEGEIS(Phospho)PQR_2                 1266.5622       2              None     67.4251                -1.0      0
+0   2                    EAALPPVS(Phospho)PLK_2                  601.3151       2              None     48.0082                -1.0      0
+1   3                GVEPSPS(Phospho)PIKPGDIK_2                  800.9028       2              None     32.9698                -1.0      0
+2   4  SM(Oxidation)GTGDTPGLEVPS(Phospho)SPLR_2                  948.9241       2              None     52.9017                -1.0      0
+    ID TRAML_ID  PRODUCT_MZ  CHARGE TYPE ANNOTATION  ORDINAL  DETECTING  IDENTIFYING  QUANTIFYING  LIBRARY_INTENSITY  DECOY
+0    0     2345    260.1969       1    y       y2^1        2          1            0            1            81.9345      0
+1    1     2346    409.2146       2    y       y7^2        7          1            0            1          2965.7283      0
+2    2     2347    465.7566       2    y       y8^2        8          1            0            1           132.8395      0
+3    3     2348    623.3164       1    y       y5^1        5          1            0            1           101.3607      0
+4    4     2349    720.3692       1    y       y6^1        6          1            0            1          1580.4800      0
+..  ..      ...         ...     ...  ...        ...      ...        ...          ...          ...                ...    ...
+73  73    42472   1264.6090       1    b      b13^1       13          1            0            1           890.7413      0
+74  74    42473   1268.5155       1    y      y11^1       11          1            0            1          1830.4344      0
+75  75    42474   1355.5475       1    y      y12^1       12          1            0            1          2691.2388      0
+76  76    42475   1393.6515       1    b      b14^1       14          1            0            1           870.2799      0
+77  77    42476   1486.5880       1    y      y13^1       13          1            0            1           851.3514      0
+
+[78 rows x 12 columns]
