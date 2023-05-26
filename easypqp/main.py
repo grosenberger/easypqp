@@ -12,6 +12,7 @@ from .unimoddb import unimod_filter
 from easypqp import pkg_unimod_db
 from .targetedfileconverter import TargetedFileConverter
 from .openswathassaygenerator import OpenSwathAssayGenerator
+from .openswathdecoygenerator import OpenSwathDecoyGenerator
 
 try:
     from pyprophet.data_handling import transform_pi0_lambda
@@ -220,7 +221,6 @@ def targeted_file_converter(infile, in_type, outfile, out_type, legacy_traml_id)
     converter = TargetedFileConverter(infile, outfile, in_type, out_type, legacy_traml_id)
     converter.convert()
 
-
 # EasyPQP OpenSwathAssayGenerator
 @cli.command()
 @click.option('--in', 'infile', required=True, type=click.Path(exists=True), help="Input file (valid formats: 'tsv', 'mrm', 'pqp', 'TraML')")
@@ -262,4 +262,37 @@ def openswath_assay_generator(infile, in_type, outfile, out_type, min_transition
     assay_generator.write_output_file()
     
 
-    
+# EasyPQP OpenSwathDecoyGenerator
+@cli.command()
+@click.option('--in', 'infile', required=True, type=click.Path(exists=True), help='Input file to generate decoys for.')
+@click.option('--in_type', default=None, show_default=True, type=str, help='Input file type. Default: None, will be determined from input file. Valid formats: ["tsv", "mrm" ,"pqp", "TraML"]')
+@click.option('--out', 'outfile', required=False, default="library.pqp", show_default=True, type=click.Path(exists=False), help='Output file to be converted to.')
+@click.option('--out_type', default=None, show_default=True, type=str, help='Output file type. Default: None, will be determined from output file. Valid formats: ["tsv", "pqp", "TraML"]')
+@click.option('--method', default="shuffle", show_default=True, type=str, help='Decoy generation method. Valid methods: "shuffle", "pseudo-reverse", "reverse", "shift')
+@click.option('--decoy_tag', default="DECOY_", show_default=True, type=str, help='Decoy tag.')
+@click.option('--min_decoy_fraction', default=0.8, type=float, help='Minimum fraction of decoy / target peptides and proteins')
+@click.option('--aim_decoy_fraction', default=1.0, type=float, help='Number of decoys the algorithm should generate (if unequal to 1, the algorithm will randomly select N peptides for decoy generation)')
+@click.option('--shuffle_max_attempts', default=30, type=int, help='shuffle: maximum attempts to lower the amino acid sequence identity between target and decoy for the shuffle algorithm')
+@click.option('--shuffle_sequence_identity_threshold', default=0.5, type=float, help='shuffle: target-decoy amino acid sequence identity threshold for the shuffle algorithm')
+@click.option('--shift_precursor_mz_shift', default=0.0, type=float, help='shift: precursor ion MZ shift in Thomson for shift decoy method')
+@click.option('--shift_product_mz_shift', default=20.0, type=float, help='shift: fragment ion MZ shift in Thomson for shift decoy method')
+@click.option('--product_mz_threshold', default=0.025, type=float, help='MZ threshold in Thomson for fragment ion annotation')
+@click.option('--allowed_fragment_types', default='b,y', type=str, help='allowed fragment types')
+@click.option('--allowed_fragment_charges', default='1,2,3,4', type=str, help='allowed fragment charge states')
+@click.option('--switchKR/--no_switchKR', 'switchkr', default=True, help='Whether to switch terminal K and R (to achieve different precursor mass)')
+@click.option('--enable_detection_specific_losses/--disable_detection_specific_losses', default=False, help='set this flag if specific neutral losses for detection fragment ions should be allowed')
+@click.option('--enable_detection_unspecific_losses/--disable_detection_unspecific_losses', default=False, help='set this flag if unspecific neutral losses (H2O1, H3N1, C1H2N2, C1H2N1O1) for detection fragment ions should be allowed')
+@click.option('--separate/--no_separate', default=False, help='set this flag if decoys should not be appended to targets.')
+def openswath_decoy_generator(infile, in_type, outfile, out_type, method, decoy_tag, min_decoy_fraction, aim_decoy_fraction, shuffle_max_attempts, shuffle_sequence_identity_threshold, shift_precursor_mz_shift, shift_product_mz_shift, product_mz_threshold, allowed_fragment_types, allowed_fragment_charges, switchkr, enable_detection_specific_losses, enable_detection_unspecific_losses, separate):
+    """
+    Generate decoys for spectral libraries / transition files for targeted proteomics and metabolomics analysis.
+
+    Can generate decoys for multiple formats. The following formats are supported:\b\n\n
+
+        - @ref OpenMS::TraMLFile "TraML" \b\n
+        - @ref OpenMS::TransitionTSVFile "OpenSWATH TSV transition lists" \b\n
+        - @ref OpenMS::TransitionPQPFile "OpenSWATH PQP SQLite files" \b\n
+
+    """
+    generator = OpenSwathDecoyGenerator(infile, outfile, in_type, out_type, method, decoy_tag, min_decoy_fraction, aim_decoy_fraction, shuffle_max_attempts, shuffle_sequence_identity_threshold, shift_precursor_mz_shift, shift_product_mz_shift, product_mz_threshold, allowed_fragment_types, allowed_fragment_charges, switchkr, enable_detection_specific_losses, enable_detection_unspecific_losses, separate)
+    generator.generate_decoys()
