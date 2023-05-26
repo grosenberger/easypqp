@@ -1,0 +1,49 @@
+   ID PROTEIN_ACCESSION  DECOY
+4   0            Q04637      0
+3   1            Q2M2I8      0
+2   2            Q86WB0      0
+1   3            Q8WWI1      0
+0   4            Q92890      0
+   ID       UNMODIFIED_SEQUENCE                         MODIFIED_SEQUENCE  DECOY
+4   0      AGQTQPNPGILPIQPALTPR           AGQTQPNPGILPIQPALT(UniMod:21)PR      0
+3   1  ATLSSTSGLDLMSESGEGEISPQR       ATLSSTSGLDLMSESGEGEIS(UniMod:21)PQR      0
+2   2               EAALPPVSPLK                    EAALPPVS(UniMod:21)PLK      0
+1   3           GVEPSPSPIKPGDIK                GVEPSPS(UniMod:21)PIKPGDIK      0
+0   4        SMGTGDTPGLEVPSSPLR  SM(UniMod:35)GTGDTPGLEVPS(UniMod:21)SPLR      0
+   ID                                  TRAML_ID GROUP_LABEL  PRECURSOR_MZ  CHARGE LIBRARY_INTENSITY  LIBRARY_RT  LIBRARY_DRIFT_TIME  DECOY
+3   0           AGQTQPNPGILPIQPALT(Phospho)PR_2                 1075.0619       2              None     70.6096                -1.0      0
+4   1       ATLSSTSGLDLMSESGEGEIS(Phospho)PQR_2                 1266.5622       2              None     67.4251                -1.0      0
+0   2                    EAALPPVS(Phospho)PLK_2                  601.3151       2              None     48.0082                -1.0      0
+1   3                GVEPSPS(Phospho)PIKPGDIK_2                  800.9028       2              None     32.9698                -1.0      0
+2   4  SM(Oxidation)GTGDTPGLEVPS(Phospho)SPLR_2                  948.9241       2              None     52.9017                -1.0      0
+    ID TRAML_ID  PRODUCT_MZ  CHARGE TYPE ANNOTATION  ORDINAL  DETECTING  IDENTIFYING  QUANTIFYING  LIBRARY_INTENSITY  DECOY
+0    0    31640    486.2307       1    b       b5^1        5          1            0            1         10000.0000      0
+1    1    31641    697.3264       1    b       b7^1        7          1            0            1          7081.5693      0
+2    2    31643    734.3597       1    y       y6^1        6          1            0            1          8579.1080      0
+3    3    31644    832.4502       2    y      y15^2       15          1            0            1          2923.7356      0
+4    4    31646    964.4847       1    b      b10^1       10          1            0            1          3234.0083      0
+5    5    31647   1072.5551       1    y       y9^1        9          1            0            1          3853.8560      0
+6    6    42446    400.2303       1    y       y3^1        3          1            0            1          7762.3594      0
+7    7    42450    567.2287       1    y       y4^1        4          1            0            1          8796.0370      0
+8    8    42457    818.4254       1    b       b9^1        9          1            0            1          5399.1875      0
+9    9    42458    866.3768       1    y       y7^1        7          1            0            1          6659.5240      0
+10  10    42459    933.4524       1    b      b10^1       10          1            0            1          6236.0680      0
+11  11    42468   1139.4729       1    y      y10^1       10          1            0            1          3636.2630      0
+12  12     2346    409.2146       2    y       y7^2        7          1            0            1          2965.7283      0
+13  13     2347    465.7566       2    y       y8^2        8          1            0            1           132.8395      0
+14  14     2349    720.3692       1    y       y6^1        6          1            0            1          1580.4800      0
+15  15     2350    817.4219       1    y       y7^1        7          1            0            1         10000.0000      0
+16  16     2352    930.5060       1    y       y8^1        8          1            0            1           417.7673      0
+17  17     2353   1001.5431       1    y       y9^1        9          1            0            1           278.9014      0
+18  18    12006    375.2238       1    y       y3^1        3          1            0            1          1621.3933      0
+19  19    12009    529.2980       1    y       y5^1        5          1            0            1         10000.0000      0
+20  20    12010    566.2941       2    y      y10^2       10          1            0            1          3326.0842      0
+21  21    12012    657.3930       1    y       y6^1        6          1            0            1          1924.5614      0
+22  22    12013    658.3365       2    y      y12^2       12          1            0            1          4464.7860      0
+23  23    12015    867.5298       1    y       y8^1        8          1            0            1          5222.4050      0
+24  24    21489    385.2558       1    y       y3^1        3          1            0            1          5179.5244      0
+25  25    21490    393.1438       1    b       b4^1        4          1            0            1          2606.7244      0
+26  26    21491    565.1923       1    b       b6^1        6          1            0            1          3256.2622      0
+27  27    21493    666.2399       1    b       b7^1        7          1            0            1          3735.2622      0
+28  28    21494    736.3389       1    y       y6^1        6          1            0            1         10000.0000      0
+29  29    21496    835.4073       1    y       y7^1        7          1            0            1          3901.4023      0
