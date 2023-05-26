@@ -1,0 +1,94 @@
+   ID PROTEIN_ACCESSION  DECOY
+9   0      DECOY_Q04637      1
+8   1      DECOY_Q2M2I8      1
+6   2      DECOY_Q86WB0      1
+7   3      DECOY_Q8WWI1      1
+4   4      DECOY_Q92890      1
+3   5            Q04637      0
+2   6            Q2M2I8      0
+1   7            Q86WB0      0
+0   8            Q8WWI1      0
+5   9            Q92890      0
+   ID       UNMODIFIED_SEQUENCE                         MODIFIED_SEQUENCE  DECOY
+9   0      AGQTQPNPGILPIQPALTPR           AGQTQPNPGILPIQPALT(UniMod:21)PR      0
+8   1  ATLSSTSGLDLMSESGEGEISPQR       ATLSSTSGLDLMSESGEGEIS(UniMod:21)PQR      0
+6   2               EAALPPVSPLK                    EAALPPVS(UniMod:21)PLK      0
+5   3           GVEPSPSPIKPGDIK                GVEPSPS(UniMod:21)PIKPGDIK      0
+4   4           IDGPKIPSPSPEVGK                IDGPKIPS(UniMod:21)PSPEVGK      1
+2   5               LPSVPPLAAEK                    LPS(UniMod:21)VPPLAAEK      1
+1   6        LPSSPVELGPTDGTGMSR  LPSS(UniMod:21)PVELGPTDGTGM(UniMod:35)SR      1
+7   7      PTLAPQIPLIGPNPQTQGAR           PT(UniMod:21)LAPQIPLIGPNPQTQGAR      1
+0   8  QPSIEGEGSESMLDLGSTSSLTAR       QPS(UniMod:21)IEGEGSESMLDLGSTSSLTAR      1
+3   9        SMGTGDTPGLEVPSSPLR  SM(UniMod:35)GTGDTPGLEVPS(UniMod:21)SPLR      0
+   ID                                        TRAML_ID GROUP_LABEL  PRECURSOR_MZ  CHARGE LIBRARY_INTENSITY  LIBRARY_RT  LIBRARY_DRIFT_TIME  DECOY
+3   0                 AGQTQPNPGILPIQPALT(Phospho)PR_2                 1075.0619       2              None     70.6096                -1.0      0
+4   1             ATLSSTSGLDLMSESGEGEIS(Phospho)PQR_2                 1266.5622       2              None     67.4251                -1.0      0
+8   2           DECOY_AGQTQPNPGILPIQPALT(Phospho)PR_2                 1075.0619       2              None     70.6096                -1.0      1
+9   3       DECOY_ATLSSTSGLDLMSESGEGEIS(Phospho)PQR_2                 1266.5622       2              None     67.4251                -1.0      1
+5   4                    DECOY_EAALPPVS(Phospho)PLK_2                  601.3151       2              None     48.0082                -1.0      1
+6   5                DECOY_GVEPSPS(Phospho)PIKPGDIK_2                  800.9028       2              None     32.9698                -1.0      1
+7   6  DECOY_SM(Oxidation)GTGDTPGLEVPS(Phospho)SPLR_2                  948.9241       2              None     52.9017                -1.0      1
+0   7                          EAALPPVS(Phospho)PLK_2                  601.3151       2              None     48.0082                -1.0      0
+1   8                      GVEPSPS(Phospho)PIKPGDIK_2                  800.9028       2              None     32.9698                -1.0      0
+2   9        SM(Oxidation)GTGDTPGLEVPS(Phospho)SPLR_2                  948.9241       2              None     52.9017                -1.0      0
+    ID     TRAML_ID  PRODUCT_MZ  CHARGE TYPE ANNOTATION  ORDINAL  DETECTING  IDENTIFYING  QUANTIFYING  LIBRARY_INTENSITY  DECOY
+0    0         2346    409.2146       2    y       y7^2        7          1            0            1          2965.7283      0
+1    1         2347    465.7566       2    y       y8^2        8          1            0            1           132.8395      0
+2    2         2349    720.3692       1    y       y6^1        6          1            0            1          1580.4800      0
+3    3         2350    817.4219       1    y       y7^1        7          1            0            1         10000.0000      0
+4    4         2352    930.5060       1    y       y8^1        8          1            0            1           417.7673      0
+5    5         2353   1001.5431       1    y       y9^1        9          1            0            1           278.9014      0
+6    6        12006    375.2238       1    y       y3^1        3          1            0            1          1621.3933      0
+7    7        12009    529.2980       1    y       y5^1        5          1            0            1         10000.0000      0
+8    8        12010    566.2941       2    y      y10^2       10          1            0            1          3326.0842      0
+9    9        12012    657.3930       1    y       y6^1        6          1            0            1          1924.5614      0
+10  10        12013    658.3365       2    y      y12^2       12          1            0            1          4464.7860      0
+11  11        12015    867.5298       1    y       y8^1        8          1            0            1          5222.4050      0
+12  12        21489    385.2558       1    y       y3^1        3          1            0            1          5179.5244      0
+13  13        21490    393.1438       1    b       b4^1        4          1            0            1          2606.7244      0
+14  14        21491    565.1923       1    b       b6^1        6          1            0            1          3256.2622      0
+15  15        21493    666.2399       1    b       b7^1        7          1            0            1          3735.2622      0
+16  16        21494    736.3389       1    y       y6^1        6          1            0            1         10000.0000      0
+17  17        21496    835.4073       1    y       y7^1        7          1            0            1          3901.4023      0
+18  18        31640    486.2307       1    b       b5^1        5          1            0            1         10000.0000      0
+19  19        31641    697.3264       1    b       b7^1        7          1            0            1          7081.5693      0
+20  20        31643    734.3597       1    y       y6^1        6          1            0            1          8579.1080      0
+21  21        31644    832.4502       2    y      y15^2       15          1            0            1          2923.7356      0
+22  22        31646    964.4847       1    b      b10^1       10          1            0            1          3234.0083      0
+23  23        31647   1072.5551       1    y       y9^1        9          1            0            1          3853.8560      0
+24  24        42446    400.2303       1    y       y3^1        3          1            0            1          7762.3594      0
+25  25        42450    567.2287       1    y       y4^1        4          1            0            1          8796.0370      0
+26  26        42457    818.4254       1    b       b9^1        9          1            0            1          5399.1875      0
+27  27        42458    866.3768       1    y       y7^1        7          1            0            1          6659.5240      0
+28  28        42459    933.4524       1    b      b10^1       10          1            0            1          6236.0680      0
+29  29        42468   1139.4729       1    y      y10^1       10          1            0            1          3636.2630      0
+30  30  DECOY_31640    560.2480       1    b       b5^1        5          1            0            1         10000.0000      1
+31  31  DECOY_31641    801.3906       1    b       b7^1        7          1            0            1          7081.5693      1
+32  32  DECOY_31643    660.3424       1    y       y6^1        6          1            0            1          8579.1080      1
+33  33  DECOY_31644    795.4415       2    y      y15^2       15          1            0            1          2923.7356      1
+34  34  DECOY_31646   1124.6115       1    b      b10^1       10          1            0            1          3234.0083      1
+35  35  DECOY_31647    968.4908       1    y       y9^1        9          1            0            1          3853.8560      1
+36  36  DECOY_42446    347.2037       1    y       y3^1        3          1            0            1          7762.3594      1
+37  37  DECOY_42450    460.2878       1    y       y4^1        4          1            0            1          8796.0370      1
+38  38  DECOY_42457    965.3612       1    b       b9^1        9          1            0            1          5399.1875      1
+39  39  DECOY_42458    735.3995       1    y       y7^1        7          1            0            1          6659.5240      1
+40  40  DECOY_42459   1094.4038       1    b      b10^1       10          1            0            1          6236.0680      1
+41  41  DECOY_42468    992.5371       1    y      y10^1       10          1            0            1          3636.2630      1
+42  42   DECOY_2346    363.2132       2    y       y7^2        7          1            0            1          2965.7283      1
+43  43   DECOY_2347    412.7475       2    y       y8^2        8          1            0            1           132.8395      1
+44  44   DECOY_2349    628.3665       1    y       y6^1        6          1            0            1          1580.4800      1
+45  45   DECOY_2350    725.4192       1    y       y7^1        7          1            0            1         10000.0000      1
+46  46   DECOY_2352    824.4876       1    y       y8^1        8          1            0            1           417.7673      1
+47  47   DECOY_2353    991.4860       1    y       y9^1        9          1            0            1           278.9014      1
+48  48  DECOY_12006    303.2027       1    y       y3^1        3          1            0            1          1621.3933      1
+49  49  DECOY_12009    529.2980       1    y       y5^1        5          1            0            1         10000.0000      1
+50  50  DECOY_12010    545.7627       2    y      y10^2       10          1            0            1          3326.0842      1
+51  51  DECOY_12012    616.3301       1    y       y6^1        6          1            0            1          1924.5614      1
+52  52  DECOY_12013    658.3365       2    y      y12^2       12          1            0            1          4464.7860      1
+53  53  DECOY_12015    880.3812       1    y       y8^1        8          1            0            1          5222.4050      1
+54  54  DECOY_21489    409.1864       1    y       y3^1        3          1            0            1          5179.5244      1
+55  55  DECOY_21490    465.1745       1    b       b4^1        4          1            0            1          2606.7244      1
+56  56  DECOY_21491    661.2957       1    b       b6^1        6          1            0            1          3256.2622      1
+57  57  DECOY_21493    790.3383       1    b       b7^1        7          1            0            1          3735.2622      1
+58  58  DECOY_21494    624.2770       1    y       y6^1        6          1            0            1         10000.0000      1
+59  59  DECOY_21496    739.3039       1    y       y7^1        7          1            0            1          3901.4023      1
