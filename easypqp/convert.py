@@ -1,6 +1,6 @@
 import itertools
 import pathlib
-
+import time
 import numpy as np
 import pandas as pd
 import os
@@ -427,16 +427,26 @@ def get_scan(e: str, fallback_num: int):
 
 
 def read_mzml_or_mzxml_impl(path, psms, theoretical, max_delta_ppm, filetype):
+	start_time = time.time()
+
 	assert filetype in ('mzml', 'mzxml')
 	fh = po.MzMLFile() if filetype=='mzml' else po.MzXMLFile()
 	fh.setLogType(po.LogType.CMD)
 	input_map = po.MSExperiment()
 	fh.load(path, input_map)
 
+	click.echo("Info: Loaded %d spectra in %.2f minutes" % (input_map.size(), (time.time() - start_time) / 60.0))
+	click.echo("Info: Collecting PSMs...")
+	start_time = time.time()
+
 	input_map = {get_scan(e.getNativeID(), idx + 1): e for idx, e in enumerate(input_map.getSpectra())}
 	peaks_list = []
 	for scan_id, modified_peptide, precursor_charge in psms.itertuples(index=None):
 		peaks_list.append(psm_df(input_map, theoretical, max_delta_ppm, scan_id, modified_peptide, precursor_charge))
+
+	click.echo("Info: Got %d PSMs in %.2f minutes" % (len(peaks_list), (time.time() - start_time) / 60.0))
+	click.echo("Info: Generating Transitions...")
+	start_time = time.time()
 
 	if len(peaks_list) > 0:
 		reps = np.array([e[0] for e in peaks_list])
@@ -451,6 +461,9 @@ def read_mzml_or_mzxml_impl(path, psms, theoretical, max_delta_ppm, filetype):
 		transitions = transitions.groupby(['scan_id','modified_peptide','precursor_charge','precursor_mz','fragment','product_mz'])['intensity'].max().reset_index()
 	else:
 		transitions = pd.DataFrame({'scan_id': [], 'modified_peptide': [], 'precursor_charge': [], 'precursor_mz': [], 'fragment': [], 'product_mz': [], 'intensity': []})
+
+	click.echo("Info: Generated %d transitions in %.2f minutes" % (len(transitions), (time.time() - start_time) / 60.0))
+
 	return(transitions)
 
 

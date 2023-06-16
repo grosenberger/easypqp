@@ -1,6 +1,6 @@
 import ast
 from email.policy import default
-import os
+import time
 import pkg_resources
 import click
 import sqlite3
@@ -63,6 +63,8 @@ def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, peaksfile, exclude_r
     Convert pepXML files for EasyPQP
     """
 
+    start_time = time.time()
+
     if unimodfile is None:
         unimodfile = pkg_resources.resource_filename('easypqp', 'data/unimod.xml')
 
@@ -83,6 +85,8 @@ def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, peaksfile, exclude_r
 
     peaks.to_pickle(peaksfile)
     click.echo("Info: Peaks successfully converted and stored in %s." % peaksfile)
+
+    click.echo("Info: Total elapsed time %.2f minutes." % ((time.time() - start_time) / 60.0))
 
 # EasyPQP Library
 @cli.command()
@@ -117,8 +121,11 @@ def library(infiles, outfile, psmtsv, peptidetsv, perform_rt_calibration, rt_ref
     Generate EasyPQP library
     """
 
+    start_time = time.time()
+
     generate(infiles, outfile, psmtsv, peptidetsv, perform_rt_calibration, rt_referencefile, rt_reference_run_path, rt_filter, perform_im_calibration, im_referencefile, im_reference_run_path, im_filter, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_fraction, rt_psm_fdr_threshold, im_lowess_fraction, im_psm_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus, nofdr)
     click.echo("Info: Library successfully generated.")
+    click.echo("Info: Total elapsed time: %.2f seconds." % (time.time() - start_time))
 
 # EasyPQP Reduce
 @cli.command()
