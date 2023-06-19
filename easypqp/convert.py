@@ -439,7 +439,7 @@ def read_mzml_or_mzxml_impl(path, psms, theoretical, max_delta_ppm, filetype):
 	click.echo("Info: Collecting PSMs...")
 	start_time = time.time()
 
-	input_map = {get_scan(e.getNativeID(), idx + 1): e for idx, e in enumerate(input_map.getSpectra())}
+	input_map = {get_scan(e.getNativeID(), idx + 1): e for idx, e in enumerate(input_map)}
 	peaks_list = []
 	for scan_id, modified_peptide, precursor_charge in psms.itertuples(index=None):
 		peaks_list.append(psm_df(input_map, theoretical, max_delta_ppm, scan_id, modified_peptide, precursor_charge))
