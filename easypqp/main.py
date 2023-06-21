@@ -85,8 +85,8 @@ def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, peaksfile, exclude_r
     temp = exclude_range_str.split(',')
     exclude_range = [float(temp[0]), float(temp[1])]
 
-    timestamped_echo("Info: Converting %s." % pepxmlfile)
-    psms, peaks = conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, max_psm_pep)
+    timestamped_echo("Info: Converting %s." % pepxmlfile_list)
+    psms, peaks = conversion(pepxmlfile_list, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, max_psm_pep)
 
     psms.to_pickle(psmsfile)
     timestamped_echo("Info: PSMs successfully converted and stored in %s." % psmsfile)
