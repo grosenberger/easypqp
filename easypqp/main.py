@@ -1,5 +1,5 @@
 import ast
-from email.policy import default
+import re
 import time
 import pkg_resources
 import click
@@ -42,7 +42,7 @@ class PythonLiteralOption(click.Option):
 
 # EasyPQP Convert
 @cli.command()
-@click.option('--pepxml', 'pepxmlfile', required=True, type=click.Path(exists=True), help='The input MSFragger TSV file.')
+@click.option('--pepxml', 'pepxmlfile', required=True, type=click.Path(exists=False), help='The input interact-*.pep.xml file or a list of interact-*.pep.xml files.')
 @click.option('--spectra', 'spectralfile', required=True, type=click.Path(exists=True), help='The input mzXML or MGF (timsTOF only) file.')
 @click.option('--unimod', 'unimodfile', required=False, type=click.Path(exists=True), help='The input UniMod XML file.')
 @click.option('--psms', 'psmsfile', required=False, type=click.Path(exists=False), help='Output PSMs file.')
@@ -63,6 +63,15 @@ def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, peaksfile, exclude_r
     """
 
     start_time = time.time()
+
+    pepxmlfile_list = []
+    if pepxmlfile.endswith(".pep.xml"):
+        pepxmlfile_list.append(pepxmlfile)
+    elif pepxmlfile.startswith("[") and pepxmlfile.endswith("]"):
+        pepxmlfile_list = ast.literal_eval(pepxmlfile)
+    else:
+        click.echo("Error: Invalid pepXML file name.")
+        return 1
 
     if unimodfile is None:
         unimodfile = pkg_resources.resource_filename('easypqp', 'data/unimod.xml')
