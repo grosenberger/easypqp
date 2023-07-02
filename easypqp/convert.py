@@ -441,9 +441,17 @@ def read_mzml_or_mzxml_impl(input_map, psms, theoretical, max_delta_ppm, filetyp
 	start_time = time.time()
 
 	input_map = {get_scan(getNativeID, idx + 1): e for idx, (getNativeID, e) in enumerate(input_map)}
-	peaks_list = []
-	for scan_id, modified_peptide, precursor_charge in psms.itertuples(index=None):
-		peaks_list.append(psm_df(input_map, theoretical, max_delta_ppm, scan_id, modified_peptide, precursor_charge))
+	import concurrent.futures
+	nthreads = min(os.cpu_count(), 5)
+	def f(psms):
+		peaks_list = []
+		for scan_id, modified_peptide, precursor_charge in psms.itertuples(index=None):
+			peaks_list.append(
+				psm_df(input_map, theoretical, max_delta_ppm, scan_id, modified_peptide, precursor_charge))
+		return peaks_list
+	with concurrent.futures.ThreadPoolExecutor(nthreads) as exe:
+		l = exe.map(f, np.array_split(psms, nthreads))
+	peaks_list = sum(l, [])
 
 	timestamped_echo("Info: Got %d PSMs" % len(peaks_list))
 	timestamped_echo("Info: Generating Transitions...")
@@ -529,7 +537,7 @@ def psm_df(input_map, theoretical, max_delta_ppm, scan_id, modified_peptide, pre
 
 	spectrum = input_map[scan_id]
 
-	fragments, product_mzs, intensities = annotate_mass_spectrum(ionseries, max_delta_ppm, spectrum)
+	fragments, product_mzs, intensities = annotate_mass_spectrum_numba(ionseries, max_delta_ppm, spectrum)
 	# Baseline normalization to highest annotated peak
 	max_intensity = np.amax(intensities, initial=0.0)
 	if max_intensity > 0:
@@ -577,6 +585,27 @@ def annotate_mass_spectrum(ionseries, max_delta_ppm, spectrum):
 	idx = ppms[idx_mask].argmin(1)
 	return ions[idx], ion_masses[idx], intensities0[idx_mask]
 
+import numba
+@numba.jit(nopython=True, nogil=True, fastmath=True)
+def annotate_mass_spectrum_numba(ionseries, max_delta_ppm, spectrum):
+	top_delta = 30
+	ions, ion_masses = ionseries
+	mzs0, intensities0 = spectrum
+	idx_ions = np.empty_like(intensities0, dtype=np.uint32)
+	idx_peaks = np.zeros_like(intensities0, dtype=np.bool_)
+	for si, mz in enumerate(mzs0):
+		min_ion_idx = -1
+		min_ppm = top_delta
+		for ii, ion_mass in enumerate(ion_masses):
+			ppm = np.abs(mz - ion_mass) / ion_mass * 1e6
+			if ppm < min(max_delta_ppm, top_delta):
+				if ppm < min_ppm:
+					min_ppm = ppm
+					min_ion_idx = ii
+		if min_ion_idx != -1:
+			idx_ions[si] = min_ion_idx
+			idx_peaks[si] = True
+	return ions[idx_ions[idx_peaks]], ion_masses[idx_ions[idx_peaks]], intensities0[idx_peaks]
 
 
 def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2,3,4], fragment_types=['b','y'], enable_specific_losses = False, enable_unspecific_losses = False):
