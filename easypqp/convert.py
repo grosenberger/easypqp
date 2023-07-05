@@ -694,14 +694,29 @@ def parse_pepxmls(pepxmlfile_list, um, base_name, exclude_range, enable_unannota
 			theoretical.setdefault(modified_peptide, {})[precursor_charge] = generate_ionseries(modified_peptide, precursor_charge, fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses)
 	return psms, theoretical
 
+class MSCallback:
+	def __init__(self):
+		self.id_peaks_map = []
+
+	def setExperimentalSettings(self, s):
+		pass
+
+	def setExpectedSize(self, a, b):
+		pass
+
+	def consumeChromatogram(self, c):
+		pass
+	def consumeSpectrum(self, s):
+		self.id_peaks_map.append((s.getNativeID(), s.get_peaks()))
 
 def get_map_mzml_or_mzxml(path: str, filetype):
 	assert filetype in ('mzml', 'mzxml')
 	fh = po.MzMLFile() if filetype=='mzml' else po.MzXMLFile()
-	fh.setLogType(po.LogType.CMD)
-	input_map = po.MSExperiment()
-	fh.load(path, input_map)
-	return [(e.getNativeID(), e.get_peaks()) for e in input_map]
+	consumer = MSCallback()
+	start = time.perf_counter()
+	fh.transform(path, consumer)
+	click.echo(f'Info: Read {path} in {time.perf_counter() - start}s')
+	return consumer.id_peaks_map
 
 def conversion(pepxmlfile_list, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, max_psm_pep):
 	# Parse basename
