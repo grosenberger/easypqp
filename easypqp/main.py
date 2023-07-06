@@ -6,7 +6,7 @@ import click
 import sqlite3
 import pandas as pd
 from shutil import copyfile
-from .convert import conversion, basename_spectralfile
+from .convert import conversion, basename_spectralfile, conversion_psm
 from .library import generate
 from .unimoddb import unimod_filter
 from easypqp import pkg_unimod_db
@@ -88,6 +88,71 @@ def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, peaksfile, exclude_r
 
     timestamped_echo("Info: Converting %s." % pepxmlfile_list)
     psms, peaks = conversion(pepxmlfile_list, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, max_psm_pep, precision_digits)
+
+    psms.to_pickle(psmsfile)
+    timestamped_echo("Info: PSMs successfully converted and stored in %s." % psmsfile)
+
+    peaks.to_pickle(peaksfile)
+    timestamped_echo("Info: Peaks successfully converted and stored in %s." % peaksfile)
+
+    timestamped_echo("Info: Total elapsed time %.2f minutes." % ((time.time() - start_time) / 60.0))
+
+# EasyPQP Convert - from psm.tsv rather than pepXML
+@cli.command()
+@click.option('--psm', 'psmfile', required=True, type=click.Path(exists=False), help='The input psm.tsv file or a list of psm.tsv files.')
+@click.option('--spectra', 'spectralfile', required=True, type=click.Path(exists=True), help='The input mzXML or MGF (timsTOF only) file.')
+@click.option('--unimod', 'unimodfile', required=False, type=click.Path(exists=True), help='The input UniMod XML file.')
+@click.option('--psms', 'psmsfile', required=False, type=click.Path(exists=False), help='Output PSMs file.')
+@click.option('--peaks', 'peaksfile', required=False, type=click.Path(exists=False), help='Output peaks file.')
+@click.option('--exclude-range', 'exclude_range_str', default="-1.5,3.5", show_default=True, required=False, type=str, help='massdiff in this range will not be mapped to UniMod.')
+@click.option('--max_delta_unimod', default=0.02, show_default=True, type=float, help='Maximum delta mass (Dalton) for UniMod annotation.')
+@click.option('--max_delta_ppm', default=15, show_default=True, type=float, help='Maximum delta mass (PPM) for annotation.')
+@click.option('--enable_unannotated/--no-enable_unannotated', default=False, show_default=True, help='Enable mapping uf unannotated delta masses.')
+@click.option('--ignore_unannotated/--no-ignore_unannotated', default=False, show_default=True, help='Remove PSMs with unannotated delta masses but proceed with all other PSMs.')
+@click.option('--enable_massdiff/--no-enable_massdiff', default=False, show_default=True, help='Enable mapping uf mass differences reported by legacy search engines.')
+@click.option('--fragment_types', default="['b','y']", show_default=True, cls=PythonLiteralOption, help='Allowed fragment ion types (a,b,c,x,y,z).')
+@click.option('--fragment_charges', default='[1,2,3,4]', show_default=True, cls=PythonLiteralOption, help='Allowed fragment ion charges.')
+@click.option('--enable_specific_losses/--no-enable_specific_losses', default=False, show_default=True, help='Enable specific fragment ion losses.')
+@click.option('--enable_unspecific_losses/--no-enable_unspecific_losses', default=False, show_default=True, help='Enable unspecific fragment ion losses.')
+@click.option('--max_psm_pep', default=1, show_default=True, type=float, help='Maximum posterior error probability (PEP) for a PSM')
+@click.option('--decoy_prefix', default='rev_', show_default=True, type=str, required=True, help='Database decoy prefix (required)')
+@click.option('--precision_digits', default=6, show_default=True, type=int, help='Precision (number of digits) for the product m/z reported by the theoretical library generation step. This should match the precision of the downstream consumer of the spectral library. Lowering this number will collapse (more) identical fragment ions of the same precursor to a single value.')
+@click.option('--labile_mods', 'labile_mods', default='', show_default=True, required=False, type=str, help='Adjust fragment masses of labile modifications. Supported options: oglyc, nglyc, nglyc+ (includes HexNAc remainder ions)')
+def convertpsm(psmfile, spectralfile, unimodfile, psmsfile, peaksfile, exclude_range_str, max_delta_unimod, max_delta_ppm, enable_unannotated, ignore_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, max_psm_pep, decoy_prefix, precision_digits, labile_mods):
+    """
+    Convert psm.tsv files for EasyPQP
+    """
+
+    start_time = time.time()
+
+    psmfile_list = []
+    if psmfile.endswith("psm.tsv"):
+        psmfile_list.append(psmfile)
+    elif psmfile.startswith("[") and psmfile.endswith("]"):
+        psmfile_list = ast.literal_eval(psmfile)
+    else:
+        timestamped_echo("Error: Invalid psm file name.")
+        return 1
+
+    if unimodfile is None:
+        unimodfile = str(pkg_resources.files('easypqp').joinpath('data/unimod.xml'))
+
+    run_id = basename_spectralfile(spectralfile)
+    if psmsfile is None:
+        psmsfile = run_id + ".psmpkl"
+    if peaksfile is None:
+        peaksfile = run_id + ".peakpkl"
+
+    if labile_mods is not '':
+        if labile_mods not in ['oglyc', 'nglyc', 'nglyc+']:
+            timestamped_echo("Error: Invalid setting for --labile mods: {}. Allowed options are oglyc, nglyc, or nglyc+".format(labile_mods))
+            return 1
+
+    temp = exclude_range_str.split(',')
+    exclude_range = [float(temp[0]), float(temp[1])]
+
+    timestamped_echo("Info: Converting %s." % psmfile_list)
+    psms, peaks = conversion_psm(psmfile_list, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, ignore_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, max_psm_pep, decoy_prefix, precision_digits, labile_mods)
 
     psms.to_pickle(psmsfile)
     timestamped_echo("Info: PSMs successfully converted and stored in %s." % psmsfile)

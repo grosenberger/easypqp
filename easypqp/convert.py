@@ -17,6 +17,275 @@ from xml.etree.cElementTree import iterparse
 # mzXML parsing
 import pyopenms as po
 
+
+class psmtsv:
+	relevant_psm_columns = ["Spectrum",
+							"Spectrum File",
+							"Peptide",
+							"Charge",
+							"Retention",
+							"Delta Mass",
+							"Assigned Modifications",
+							"Hyperscore",
+							"Nextscore",
+							"Expectation",
+							"PeptideProphet Probability",
+							"Ion Mobility",
+							"Protein",
+							"Protein ID",
+							"Gene",
+							"Mapped Proteins",
+							"Mapped Genes",
+							]
+	rank_pattern = re.compile(r"_rank([\d]+)\.pep\.xml")
+
+	def __init__(self, psmtsv_file, unimod, base_name, exclude_range, enable_unannotated, ignore_unannotated, enable_massdiff, decoy_prefix, labile_mods):
+		self.psmtsv_file = psmtsv_file
+		self.base_name = base_name
+		self.decoy_prefix = decoy_prefix
+		self.labile_mods = labile_mods
+		self.psms = self.parse_psmtsv()
+		self.exclude_range = exclude_range
+		self.enable_unannotated = enable_unannotated
+		self.ignore_unannotated = ignore_unannotated
+		self.enable_massdiff = enable_massdiff
+		self.match_unimod(unimod)
+
+	def get(self):
+		return(self.psms)
+
+	def parse_psmtsv(self):
+		# read relevant PSM table columns
+		psms = pd.read_csv(self.psmtsv_file, index_col=False, sep='\t', usecols=lambda col: col in set(psmtsv.relevant_psm_columns))
+
+		psms = psms.apply(self.parse_psm_info, axis=1)
+		psms = psms.rename(columns={'Charge': 'precursor_charge',
+									'Retention': 'retention_time',
+									'Delta Mass': 'massdiff',
+									'Peptide': 'peptide_sequence',
+									'Ion Mobility': 'ion_mobility',
+									'Hyperscore': 'var_hyperscore',
+									'Nextscore': 'var_nextscore',
+									'Expectation': 'var_expect',
+									'PeptideProphet Probability': 'pep'
+									})
+		if 'ion_mobility' not in psms:
+			psms['ion_mobility'] = np.nan
+		if 'hit_rank' not in psms:
+			psms['hit_rank'] = 1
+		psms = psms.drop(columns=['Spectrum', 'Spectrum File', 'Assigned Modifications', 'Protein', 'Gene', 'Mapped Proteins', 'Mapped Genes', 'Protein ID'])
+		return psms
+
+	def match_unimod(self, unimod):
+		"""
+		Match modifications to Unimod as in pepxml. Supports labile modifications
+		"""
+		def match_modifications(peptide, um, modified_peptide_attribute):
+			monomeric_masses = {"A": 71.03711, "R": 156.10111, "N": 114.04293, "D": 115.02694, "C": 103.00919,
+								"E": 129.04259, "Q": 128.05858, "G": 57.02146, "H": 137.05891, "I": 113.08406,
+								"L": 113.08406, "K": 128.09496, "M": 131.04049, "F": 147.06841, "P": 97.05276,
+								"S": 87.03203, "T": 101.04768, "W": 186.07931, "Y": 163.06333, "V": 99.06841,
+								'U': 150.95363, 'O': 237.14773}
+			modified_peptide = peptide['peptide_sequence']
+
+			# parse terminal modifications
+			nterm_modification = ""
+			if peptide['nterm_modification'] != '':
+				nterm_modification = peptide['nterm_modification']
+			cterm_modification = ""
+			if peptide['cterm_modification'] != '':
+				cterm_modification = peptide['cterm_modification']
+
+			# parse closed modifications
+			modifications = {}
+			if "M|" in peptide[modified_peptide_attribute]:
+				for modification in peptide[modified_peptide_attribute].split('|')[1:]:
+					site, mass = modification.split('$')
+					delta_mass = float(mass)		# psm.tsv mod masses are just the mod, does not include residue mass
+					modifications[int(site)] = delta_mass
+
+			massdiff = float(peptide['massdiff'])
+			if self.enable_massdiff and (massdiff < self.exclude_range[0] or massdiff > self.exclude_range[1]):
+				# parse open modifications
+				oms_sequence = peptide['peptide_sequence']
+				for site in modifications.keys():
+					oms_sequence = oms_sequence[:site-1] + "_" + oms_sequence[site:]
+
+				oms_modifications, nterm_modification, cterm_modification = um.get_oms_id(oms_sequence, peptide['massdiff'], nterm_modification, cterm_modification)
+				modifications = {**modifications, **oms_modifications}
+
+			peptide_sequence = peptide['peptide_sequence']
+			peptide_length = len(peptide_sequence)
+			for site in sorted(modifications, reverse=True):
+				positions = ('Anywhere', 'Any N-term', 'Protein N-term') if site == 1 else \
+					('Anywhere', 'Any C-term', 'Protein C-term') if site == peptide_length else \
+						'Anywhere'
+				record_id0 = um.get_id(peptide_sequence[site - 1], positions, modifications[site])
+				if isinstance(record_id0, tuple):
+					record_id, position = record_id0
+				else:
+					record_id = record_id0
+				is_N_term = isinstance(record_id0, tuple) and position in ('Any N-term', 'Protein N-term')
+				if record_id == -1:
+					if self.ignore_unannotated:
+						return ''		# set empty modified peptide to ignore with later filtering
+					elif self.enable_unannotated:
+						modified_peptide = "[" + str(round(modifications[site], 6)) + "]" + modified_peptide \
+						if is_N_term else \
+						modified_peptide[:site] + "[" + str(round(modifications[site], 6)) + "]" + modified_peptide[site:]
+					else:
+						raise click.ClickException("Error: Could not annotate site %s (%s) from peptide %s with delta mass %s." % (site, peptide['peptide_sequence'][site-1], peptide['peptide_sequence'], modifications[site]))
+				else:
+					modified_peptide = "(UniMod:" + str(record_id) + ")" + modified_peptide \
+						if is_N_term else \
+						modified_peptide[:site] + "(UniMod:" + str(record_id) + ")" + modified_peptide[site:]
+
+			if nterm_modification != '':
+				record_id_nterm = um.get_id("N-term", 'Any N-term', nterm_modification)
+				if record_id_nterm == -1:
+					record_id_nterm = um.get_id("N-term", 'Protein N-term', nterm_modification)
+
+				if record_id_nterm == -1:
+					if self.ignore_unannotated:
+						return ''		# set empty modified peptide to ignore with later filtering
+					elif self.enable_unannotated:
+						modified_peptide = f'.[{round(nterm_modification, 6)}]{modified_peptide}'
+					else:
+						raise click.ClickException("Error: Could not annotate N-terminus from peptide %s with delta mass %s." % (peptide['peptide_sequence'], nterm_modification))
+				else:
+					modified_peptide = ".(UniMod:" + str(record_id_nterm) + ")" + modified_peptide
+
+			if cterm_modification != '':
+				record_id_cterm = um.get_id("C-term", 'Any C-term', cterm_modification)
+				if record_id_cterm == -1:
+					record_id_cterm = um.get_id("C-term", 'Protein C-term', cterm_modification)
+
+				if record_id_cterm == -1:
+					if self.ignore_unannotated:
+						return ''		# set empty modified peptide to ignore with later filtering
+					elif self.enable_unannotated:
+						modified_peptide = f'{modified_peptide}.[{round(cterm_modification, 6)}]'
+					else:
+						raise click.ClickException("Error: Could not annotate C-terminus from peptide %s with delta mass %s." % (peptide['peptide_sequence'], cterm_modification))
+				else:
+					modified_peptide = modified_peptide + ".(UniMod:" + str(record_id_cterm) + ")"
+
+			return modified_peptide
+
+		if self.psms.shape[0] > 0:
+			self.psms['modified_peptide'] = self.psms[['peptide_sequence','modifications','nterm_modification','cterm_modification','massdiff']].apply(lambda x: match_modifications(x, unimod, 'modifications'), axis=1)
+			self.psms['labile_modified_peptide'] = self.psms[['peptide_sequence','nonlabile_modifications','nterm_modification','cterm_modification','massdiff']].apply(lambda x: match_modifications(x, unimod, 'nonlabile_modifications'), axis=1)
+			if self.ignore_unannotated:
+				pre_size = len(self.psms)
+				self.psms = self.psms[self.psms['modified_peptide'] != '']
+				timestamped_echo("Info: Ignored %s PSMs with modifications not matched to Unimod" % (pre_size - len(self.psms)))
+
+	def parse_psm_info(self, psm_series):
+		"""
+		Perform parsing operations on a PSM entry
+		"""
+		psm_series = self.parse_spectrum(psm_series)
+		psm_series = self.parse_rank(psm_series)
+		psm_series = self.parse_assigned_modifications(psm_series)
+		psm_series = self.parse_protein_and_gene(psm_series, self.decoy_prefix)
+		return psm_series
+
+	def parse_spectrum(self, psm_series):
+		splits = psm_series['Spectrum'].split('.')
+		psm_series['run_id'] = splits[0]
+		psm_series['scan_id'] = int(splits[1])
+		return psm_series
+
+	def parse_rank(self, psm_series):
+		rank_match = re.match(psmtsv.rank_pattern, psm_series['Spectrum File'])
+		if rank_match:
+			psm_series['hit_rank'] = int(rank_match.group())
+		return psm_series
+
+	def parse_assigned_modifications(self, psm_series):
+		"""
+		Parse the Assigned Modifications column of a psm.tsv table to easyPQP mods.
+		Usage: psm_df = psm_df.apply(method, axis=1), where psm_df is the input PSMs dataframe
+		Adds the required modification columns to the dataframe
+		"""
+		modifications = "M"
+		nonlabile_modifications = "M"
+		nterm_modification = ""
+		cterm_modification = ""
+		if pd.notnull(psm_series['Assigned Modifications']):
+			mods = psm_series['Assigned Modifications'].split(',')
+			for mod in mods:
+				match = re.search(r"\((-?\d+\.\d+)\)", mod)
+				if match:
+					mass = match.group(1)
+				else:
+					click.echo(
+						"Error: invalid modification {} in spectrum {} was ignored".format(mod, psm_series['Spectrum']))
+					continue
+
+				if 'N-term' in mod:
+					nterm_modification = float(mass)
+				elif 'C-term' in mod:
+					cterm_modification = float(mass)
+				else:
+					# regular mod
+					splits = mod.split('(')
+					location = re.search(r"(\d+)", splits[0]).group(1)
+					modifications += '|{}${}'.format(location, mass)
+					if self.labile_mods != '':
+						if self.labile_mods == 'oglyc':
+							if not(float(mass) > 140 and psm_series['Peptide'][int(location) - 1] in ['S', 'T']):
+								nonlabile_modifications += '|{}${}'.format(location, mass)
+						elif self.labile_mods == 'nglyc':
+							if not(float(mass) > 140 and psm_series['Peptide'][int(location) - 1] in ['N']):
+								nonlabile_modifications += '|{}${}'.format(location, mass)
+						elif self.labile_mods == 'nglyc+':
+							# hard code HexNAc remainder mass as the modification mass for fragment ions rather than full modification mass
+							if not(float(mass) > 140 and psm_series['Peptide'][int(location) - 1] in ['N']):
+								nonlabile_modifications += '|{}${}'.format(location, 203.07937)
+					else:
+						nonlabile_modifications += '|{}${}'.format(location, mass)
+		psm_series['modifications'] = modifications
+		psm_series['nonlabile_modifications'] = nonlabile_modifications
+		psm_series['nterm_modification'] = nterm_modification
+		psm_series['cterm_modification'] = cterm_modification
+		return psm_series
+
+	def parse_protein_and_gene(self, psm_series, decoy_prefix):
+		"""
+		Parse protein and gene IDs from identified and mapped entries and set total_num_proteins and decoy status.
+		"""
+		psm_series['decoy'] = psm_series['Protein'].startswith(decoy_prefix)
+
+		protein_id = psm_series['Protein ID']
+		if pd.notnull(psm_series['Gene']):
+			gene_id = psm_series['Gene']
+		else:
+			gene_id = ''		# contaminants may have empty Gene entry. Ensure string format
+		num_total_proteins = 1
+		uniprot_like_ids = '|' in psm_series['Protein']
+
+		# if mapped proteins/genes not null, capture all entries
+		if pd.notnull(psm_series['Mapped Proteins']):
+			splits = psm_series['Mapped Proteins'].split(',')
+			for split in splits:
+				num_total_proteins += 1
+				# If UniProt-like IDs, take ID portion only. Otherwise, use whole ID
+				if uniprot_like_ids:
+					uniprot_splits = split.split('|')
+					protein_id += ';{}'.format(uniprot_splits[1])
+				else:
+					protein_id += ';{}'.format(split)
+		if pd.notnull(psm_series['Mapped Genes']):
+			splits = psm_series['Mapped Genes'].split(',')
+			for split in splits:
+				gene_id += ';{}'.format(split)
+
+		psm_series['protein_id'] = protein_id
+		psm_series['gene_id'] = gene_id
+		return psm_series
+
+
 class pepxml:
 	def __init__(self, pepxml_file, unimod, base_name, exclude_range, enable_unannotated, enable_massdiff):
 		self.pepxml_file = pepxml_file
@@ -719,6 +988,34 @@ class MSCallback:
 	def consumeSpectrum(self, s):
 		self.id_peaks_map.append((s.getNativeID(), s.get_peaks()))
 
+def parse_psms(psm_file_list, um, base_name, exclude_range, enable_unannotated, ignore_unannotated, enable_massdiff, fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses, decoy_prefix, precision_digits, labile_mods):
+	"""
+	Parsing method with psm.tsv as the primary input instead of pepxml/idxml
+	"""
+	psmslist = []
+	for psmfile in psm_file_list:
+		px = psmtsv(psmfile, um, base_name, exclude_range, enable_unannotated, ignore_unannotated, enable_massdiff, decoy_prefix, labile_mods)
+		psms = px.get()
+		rank = re.compile(r'_rank([0-9]+)\.').search(pathlib.Path(psmfile).name)
+		rank_str = '' if rank is None else '_rank' + rank.group(1)
+		psms['group_id'] = psms['run_id'] + "_" + psms['scan_id'].astype(str) + rank_str
+		click.echo(f"Info: Done parsing psm.tsv: {psmfile}")
+		psmslist.append(psms)
+	psms = pd.concat(psmslist)
+	theoretical = None
+	if psms.shape[0] > 0:
+		# Generate theoretical spectra
+		click.echo("Info: Generate theoretical spectra.")
+		theoretical = {}
+		if labile_mods != '':
+			for modified_peptide, precursor_charge, labile_peptide in psms[['modified_peptide', 'precursor_charge', 'labile_modified_peptide']].drop_duplicates().itertuples(index=False):
+				theoretical.setdefault(modified_peptide, {})[precursor_charge] = generate_ionseries(labile_peptide, precursor_charge, fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses, precision_digits)
+		else:
+			for modified_peptide, precursor_charge, labile_peptide in psms[['modified_peptide', 'precursor_charge']].drop_duplicates().itertuples(index=False):
+				theoretical.setdefault(modified_peptide, {})[precursor_charge] = generate_ionseries(modified_peptide, precursor_charge, fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses, precision_digits)
+	return psms, theoretical
+
+
 def get_map_mzml_or_mzxml(path: str, filetype):
 	assert filetype in ('mzml', 'mzxml')
 	fh = po.MzMLFile() if filetype=='mzml' else po.MzXMLFile()
@@ -763,6 +1060,53 @@ def conversion(pepxmlfile_list, spectralfile, unimodfile, exclude_range, max_del
 		return psms, peaks
 	else:
 		return pd.DataFrame({'run_id': [], 'scan_id': [], 'hit_rank': [], 'massdiff': [], 'precursor_charge': [], 'retention_time': [], 'ion_mobility': [], 'peptide_sequence': [], 'modifications': [], 'nterm_modification': [], 'cterm_modification': [], 'protein_id': [], 'gene_id': [], 'num_tot_proteins': [], 'decoy': []}), pd.DataFrame({'scan_id': [], 'modified_peptide': [], 'precursor_charge': [], 'precursor_mz': [], 'fragment': [], 'product_mz': [], 'intensity': []})
+
+
+def conversion_psm(psm_file_list, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, ignore_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, max_psm_pep, decoy_prefix, precision_digits, labile_mods):
+	# Parse basename
+	base_name = basename_spectralfile(spectralfile)
+	timestamped_echo("Info: Parsing run %s." % base_name)
+
+	# Initialize UniMod
+	um = unimod(unimodfile, max_delta_unimod)
+	import concurrent.futures
+
+	timestamped_echo("Info: Processing spectra from file %s." % spectralfile)
+
+	exe = concurrent.futures.ProcessPoolExecutor(1)
+	psms_fut = exe.submit(parse_psms, psm_file_list, um, base_name, exclude_range, enable_unannotated, ignore_unannotated, enable_massdiff, fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses, decoy_prefix, precision_digits, labile_mods)
+	time.sleep(1)  # allow the process to execute first before using pyOpenMS to read files
+	if spectralfile.lower().endswith(".mzxml"):
+		input_map = get_map_mzml_or_mzxml(spectralfile, 'mzxml')
+	elif spectralfile.casefold().endswith(".mzml"):
+		input_map = get_map_mzml_or_mzxml(spectralfile, 'mzml')
+	else:
+		input_map = None
+
+	timestamped_echo("Info: Loaded %d spectra" % len(input_map))
+
+	# Continue if any PSMS are present
+	psms, theoretical = psms_fut.result()
+	exe.shutdown()
+
+	if psms.shape[0] > 0:
+		# Generate spectrum dataframe
+		click.echo("Info: Processing spectra from file %s." % spectralfile)
+		psms = psms[psms['pep'] <= max_psm_pep]
+		if spectralfile.lower().endswith(".mzxml"):
+			peaks = read_mzml_or_mzxml_impl(input_map, psms[['scan_id','modified_peptide','precursor_charge']], theoretical, max_delta_ppm, 'mzxml')
+		elif spectralfile.casefold().endswith(".mzml"):
+			peaks = read_mzml_or_mzxml_impl(input_map, psms[['scan_id', 'modified_peptide', 'precursor_charge']], theoretical, max_delta_ppm, 'mzml')
+		elif spectralfile.lower().endswith(".mgf"):
+			peaks = read_mgf(spectralfile, psms[['scan_id', 'modified_peptide', 'precursor_charge']], theoretical, max_delta_ppm)
+
+		# Round floating numbers
+		peaks = peaks.round(6)
+
+		return psms, peaks
+	else:
+		return pd.DataFrame({'run_id': [], 'scan_id': [], 'hit_rank': [], 'massdiff': [], 'precursor_charge': [], 'retention_time': [], 'ion_mobility': [], 'peptide_sequence': [], 'modifications': [], 'nterm_modification': [], 'cterm_modification': [], 'protein_id': [], 'gene_id': [], 'num_tot_proteins': [], 'decoy': []}), pd.DataFrame({'scan_id': [], 'modified_peptide': [], 'precursor_charge': [], 'precursor_mz': [], 'fragment': [], 'product_mz': [], 'intensity': []})
+
 
 def basename_spectralfile(spectralfile):
 	'''
