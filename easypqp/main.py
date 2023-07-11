@@ -133,7 +133,7 @@ def library(infiles, outfile, psmtsv, peptidetsv, perform_rt_calibration, rt_ref
 
     generate(infiles, outfile, psmtsv, peptidetsv, perform_rt_calibration, rt_referencefile, rt_reference_run_path, rt_filter, perform_im_calibration, im_referencefile, im_reference_run_path, im_filter, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_fraction, rt_psm_fdr_threshold, im_lowess_fraction, im_psm_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus, nofdr)
     timestamped_echo("Info: Library successfully generated.")
-    timestamped_echo("Info: Total elapsed time: %.2f seconds." % (time.time() - start_time))
+    timestamped_echo("Info: Total elapsed time: %.2f minutes." % ((time.time() - start_time) / 60.0))
 
 # EasyPQP Reduce
 @cli.command()
