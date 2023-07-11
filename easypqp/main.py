@@ -1,7 +1,7 @@
 import ast
 from .util import timestamped_echo
 import time
-import pkg_resources
+import importlib_resources as pkg_resources
 import click
 import sqlite3
 import pandas as pd
@@ -74,7 +74,7 @@ def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, peaksfile, exclude_r
         return 1
 
     if unimodfile is None:
-        unimodfile = pkg_resources.resource_filename('easypqp', 'data/unimod.xml')
+        unimodfile = str(pkg_resources.files('easypqp').joinpath('data/unimod.xml'))
 
     run_id = basename_spectralfile(spectralfile)
     if psmsfile is None:
