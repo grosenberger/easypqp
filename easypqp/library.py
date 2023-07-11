@@ -1,5 +1,5 @@
-# plotting
 import warnings
+from .util import timestamped_echo
 
 try:
     import matplotlib
@@ -140,7 +140,7 @@ def process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_thresh
     psms.drop(["gene_id", "protein_id"], inplace=True, axis=1)
     psms.rename(columns={"Gene": "gene_id", "Protein ID": "protein_id"}, inplace=True)
     psms["num_tot_proteins"] = 1
-    click.echo("Info: %s redundant PSMs identified after filtering with %s and %s" % (psms.shape[0], psmtsv, peptidetsv))
+    timestamped_echo("Info: %s redundant PSMs identified after filtering with %s and %s" % (psms.shape[0], psmtsv, peptidetsv))
   else:
     # Filter proteotypic peptides
     if proteotypic:
@@ -154,9 +154,9 @@ def process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_thresh
 
     # Confident peptides and protein in global context
     peptides, peptide_pp_threshold = peptide_fdr(psms, peptide_fdr_threshold, pi0_lambda, peptide_plot_path, nofdr)
-    click.echo("Info: %s modified peptides identified (q-value < %s; PP threshold = %s)" % (len(peptides), peptide_fdr_threshold, peptide_pp_threshold))
+    timestamped_echo("Info: %s modified peptides identified (q-value < %s; PP threshold = %s)" % (len(peptides), peptide_fdr_threshold, peptide_pp_threshold))
     proteins, protein_pp_threshold = protein_fdr(psms, protein_fdr_threshold, pi0_lambda, protein_plot_path, nofdr)
-    click.echo("Info: %s proteins identified (q-value < %s; PP threshold = %s)" % (len(proteins), protein_fdr_threshold, protein_pp_threshold))
+    timestamped_echo("Info: %s proteins identified (q-value < %s; PP threshold = %s)" % (len(proteins), protein_fdr_threshold, protein_pp_threshold))
 
     # Filter peptides and proteins
     psms = psms[psms['modified_peptide'].isin(peptides)]
@@ -168,7 +168,7 @@ def process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_thresh
     # Remove decoys
     psms = psms[~psms['decoy']]
 
-    click.echo("Info: %s redundant PSMs identified (q-value < %s; PP threshold = %s)" % (psms.shape[0], psm_fdr_threshold, np.min(1-psms['pep'])))
+    timestamped_echo("Info: %s redundant PSMs identified (q-value < %s; PP threshold = %s)" % (psms.shape[0], psm_fdr_threshold, np.min(1-psms['pep'])))
 
   return psms
 
@@ -186,7 +186,7 @@ def lowess_iso(x, y, lowess_frac):
   try:
     return interp1d(lwf_x[mask], lwf_y[mask], bounds_error=False, fill_value="extrapolate")
   except ValueError as e:
-    click.echo(e)
+    timestamped_echo(e)
     return interp1d(lwf_x, lwf_y, bounds_error=False, fill_value="extrapolate")
 
 class LowessIsoEstimator:
@@ -220,7 +220,7 @@ def lowess_iso_predictor(filename, x, y, xpred):
                                              n_jobs=min(os.cpu_count(), 61))
 
   gsc.fit(x.reshape(-1, 1), y)
-  click.echo(f'Info: {filename}; Lowess fraction used: {gsc.best_params_["lowess_frac"]}.')
+  timestamped_echo(f'Info: {filename}; Lowess fraction used: {gsc.best_params_["lowess_frac"]}.')
   return gsc.best_estimator_.predict(xpred)
 
 def lowess(run, reference_run, xcol, ycol, lowess_frac, psm_fdr_threshold, min_peptides, filename, main_path):
@@ -234,9 +234,9 @@ def lowess(run, reference_run, xcol, ycol, lowess_frac, psm_fdr_threshold, min_p
     reference_run_alignment = reference_run
 
   dfm = pd.merge(run_alignment, reference_run_alignment[['modified_peptide','precursor_charge',ycol]], on=['modified_peptide','precursor_charge'])
-  click.echo(f'Info: {filename}; Peptide overlap between run and reference: {dfm.shape[0]}.')
+  timestamped_echo(f'Info: {filename}; Peptide overlap between run and reference: {dfm.shape[0]}.')
   if dfm.shape[0] <= min_peptides:
-    click.echo(f'Info: {filename}; Skipping run because not enough peptides could be found for alignment.')
+    timestamped_echo(f'Info: {filename}; Skipping run because not enough peptides could be found for alignment.')
     return pd.DataFrame()
 
   if dfm.shape[0] < 50:  # use linear regression for small reference size
@@ -329,12 +329,12 @@ def generate(files, outfile, psmtsv, peptidetsv, perform_rt_calibration, rt_refe
     raise click.ClickException("There is a psm.tsv but no peptide.tsv.")
 
   if None not in (psmtsv, peptidetsv):
-    click.echo("Info: There are psm.tsv and peptide.tsv. Will ignore --psm_fdr_threshold, --peptide_fdr_threshold, --protein_fdr_threshold, --pi0_lambda, --proteotypic, and --no-proteotypic.")
+    timestamped_echo("Info: There are psm.tsv and peptide.tsv. Will ignore --psm_fdr_threshold, --peptide_fdr_threshold, --protein_fdr_threshold, --pi0_lambda, --proteotypic, and --no-proteotypic.")
 
   # Read all PSM files
   psms_list = []
   for psm_file in psm_files:
-    click.echo("Info: Reading file %s." % psm_file)
+    timestamped_echo("Info: Reading file %s." % psm_file)
     psm_tab = pd.read_pickle(psm_file)
     if psm_tab.shape[0] > 0:
       psms_list.append(psm_tab)
@@ -365,12 +365,12 @@ def generate(files, outfile, psmtsv, peptidetsv, perform_rt_calibration, rt_refe
     else:
       # Select reference run
       pepidr_stats = pepidr.groupby('base_name')[['modified_peptide']].count().reset_index()
-      click.echo(pepidr_stats)
+      timestamped_echo(pepidr_stats)
 
       if rt_filter is not None:
-        click.echo("Info: Filter candidate RT reference runs by tag '%s'." % rt_filter)
+        timestamped_echo("Info: Filter candidate RT reference runs by tag '%s'." % rt_filter)
         pepidr_stats = pepidr_stats[pepidr_stats['base_name'].str.contains(rt_filter)]
-        click.echo(pepidr_stats)
+        timestamped_echo(pepidr_stats)
 
       rt_reference_run_base_name = pepidr_stats.loc[pepidr_stats['modified_peptide'].idxmax()]['base_name']
 
@@ -412,12 +412,12 @@ def generate(files, outfile, psmtsv, peptidetsv, perform_rt_calibration, rt_refe
     else:
       # Select reference run
       pepidr_stats = pepidr.groupby('base_name')[['modified_peptide']].count().reset_index()
-      click.echo(pepidr_stats)
+      timestamped_echo(pepidr_stats)
 
       if im_filter is not None:
-        click.echo("Info: Filter candidate IM reference runs by tag '%s'." % im_filter)
+        timestamped_echo("Info: Filter candidate IM reference runs by tag '%s'." % im_filter)
         pepidr_stats = pepidr_stats[pepidr_stats['base_name'].str.contains(im_filter)]
-        click.echo(pepidr_stats)
+        timestamped_echo(pepidr_stats)
 
       im_reference_run_base_name = pepidr_stats.loc[pepidr_stats['modified_peptide'].idxmax()]['base_name']
 
@@ -456,7 +456,7 @@ def generate(files, outfile, psmtsv, peptidetsv, perform_rt_calibration, rt_refe
   # Parse mzXML to retrieve peaks and store results in peak files
   replicate_pqp = []
   for idx, peak_file in peak_files.iterrows():
-    click.echo("Info: Parsing file %s." % peak_file['path'])
+    timestamped_echo("Info: Parsing file %s." % peak_file['path'])
     meta_run = pepida[pepida['base_name'] == peak_file['base_name']]
     if meta_run.shape[0] > 0:
       meta_global = pepidb[pepidb['base_name'] == peak_file['base_name']]

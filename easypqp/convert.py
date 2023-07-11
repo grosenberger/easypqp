@@ -1,6 +1,7 @@
 import itertools
 import pathlib
 import time
+from .util import timestamped_echo
 import numpy as np
 import pandas as pd
 import os
@@ -444,9 +445,8 @@ def read_mzml_or_mzxml_impl(path, psms, theoretical, max_delta_ppm, filetype):
 	for scan_id, modified_peptide, precursor_charge in psms.itertuples(index=None):
 		peaks_list.append(psm_df(input_map, theoretical, max_delta_ppm, scan_id, modified_peptide, precursor_charge))
 
-	click.echo("Info: Got %d PSMs in %.2f minutes" % (len(peaks_list), (time.time() - start_time) / 60.0))
-	click.echo("Info: Generating Transitions...")
-	start_time = time.time()
+	timestamped_echo("Info: Got %d PSMs" % len(peaks_list))
+	timestamped_echo("Info: Generating Transitions...")
 
 	if len(peaks_list) > 0:
 		reps = np.array([e[0] for e in peaks_list])
@@ -462,7 +462,7 @@ def read_mzml_or_mzxml_impl(path, psms, theoretical, max_delta_ppm, filetype):
 	else:
 		transitions = pd.DataFrame({'scan_id': [], 'modified_peptide': [], 'precursor_charge': [], 'precursor_mz': [], 'fragment': [], 'product_mz': [], 'intensity': []})
 
-	click.echo("Info: Generated %d transitions in %.2f minutes" % (len(transitions), (time.time() - start_time) / 60.0))
+	timestamped_echo("Info: Generated %d transitions" % len(transitions))
 
 	return(transitions)
 
@@ -641,7 +641,7 @@ def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2
 def conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, max_psm_pep):
 	# Parse basename
 	base_name = basename_spectralfile(spectralfile)
-	click.echo("Info: Parsing run %s." % base_name)
+	timestamped_echo("Info: Parsing run %s." % base_name)
 
 	# Initialize UniMod
 	um = unimod(unimodfile, max_delta_unimod)

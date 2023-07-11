@@ -1,5 +1,5 @@
 import ast
-import re
+from .util import timestamped_echo
 import time
 import pkg_resources
 import click
@@ -70,7 +70,7 @@ def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, peaksfile, exclude_r
     elif pepxmlfile.startswith("[") and pepxmlfile.endswith("]"):
         pepxmlfile_list = ast.literal_eval(pepxmlfile)
     else:
-        click.echo("Error: Invalid pepXML file name.")
+        timestamped_echo("Error: Invalid pepXML file name.")
         return 1
 
     if unimodfile is None:
@@ -85,16 +85,16 @@ def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, peaksfile, exclude_r
     temp = exclude_range_str.split(',')
     exclude_range = [float(temp[0]), float(temp[1])]
 
-    click.echo("Info: Converting %s." % pepxmlfile)
+    timestamped_echo("Info: Converting %s." % pepxmlfile)
     psms, peaks = conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, max_psm_pep)
 
     psms.to_pickle(psmsfile)
-    click.echo("Info: PSMs successfully converted and stored in %s." % psmsfile)
+    timestamped_echo("Info: PSMs successfully converted and stored in %s." % psmsfile)
 
     peaks.to_pickle(peaksfile)
-    click.echo("Info: Peaks successfully converted and stored in %s." % peaksfile)
+    timestamped_echo("Info: Peaks successfully converted and stored in %s." % peaksfile)
 
-    click.echo("Info: Total elapsed time %.2f minutes." % ((time.time() - start_time) / 60.0))
+    timestamped_echo("Info: Total elapsed time %.2f minutes." % ((time.time() - start_time) / 60.0))
 
 # EasyPQP Library
 @cli.command()
@@ -132,8 +132,8 @@ def library(infiles, outfile, psmtsv, peptidetsv, perform_rt_calibration, rt_ref
     start_time = time.time()
 
     generate(infiles, outfile, psmtsv, peptidetsv, perform_rt_calibration, rt_referencefile, rt_reference_run_path, rt_filter, perform_im_calibration, im_referencefile, im_reference_run_path, im_filter, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_fraction, rt_psm_fdr_threshold, im_lowess_fraction, im_psm_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus, nofdr)
-    click.echo("Info: Library successfully generated.")
-    click.echo("Info: Total elapsed time: %.2f seconds." % (time.time() - start_time))
+    timestamped_echo("Info: Library successfully generated.")
+    timestamped_echo("Info: Total elapsed time: %.2f seconds." % (time.time() - start_time))
 
 # EasyPQP Reduce
 @cli.command()
@@ -188,7 +188,7 @@ def reduce(infile, outfile, bins, peptides):
     # Close connection to file
     con.close()
 
-    click.echo("Info: Library successfully processed and stored in %s." % outfile)
+    timestamped_echo("Info: Library successfully processed and stored in %s." % outfile)
 
 # Parameter transformation functions
 def transform_comma_string_to_list(ctx, param, value):
