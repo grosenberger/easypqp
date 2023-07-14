@@ -1,7 +1,7 @@
 import ast
 from .util import timestamped_echo
 import time
-import importlib_resources as pkg_resources
+import importlib.resources as pkg_resources
 import click
 import sqlite3
 import pandas as pd
