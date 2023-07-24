@@ -1,7 +1,7 @@
 import ast
-from email.policy import default
-import os
-import pkg_resources
+from .util import timestamped_echo
+import time
+import importlib.resources as pkg_resources
 import click
 import sqlite3
 import pandas as pd
@@ -42,7 +42,7 @@ class PythonLiteralOption(click.Option):
 
 # EasyPQP Convert
 @cli.command()
-@click.option('--pepxml', 'pepxmlfile', required=True, type=click.Path(exists=True), help='The input MSFragger TSV file.')
+@click.option('--pepxml', 'pepxmlfile', required=True, type=click.Path(exists=False), help='The input interact-*.pep.xml file or a list of interact-*.pep.xml files.')
 @click.option('--spectra', 'spectralfile', required=True, type=click.Path(exists=True), help='The input mzXML or MGF (timsTOF only) file.')
 @click.option('--unimod', 'unimodfile', required=False, type=click.Path(exists=True), help='The input UniMod XML file.')
 @click.option('--psms', 'psmsfile', required=False, type=click.Path(exists=False), help='Output PSMs file.')
@@ -56,15 +56,25 @@ class PythonLiteralOption(click.Option):
 @click.option('--fragment_charges', default='[1,2,3,4]', show_default=True, cls=PythonLiteralOption, help='Allowed fragment ion charges.')
 @click.option('--enable_specific_losses/--no-enable_specific_losses', default=False, show_default=True, help='Enable specific fragment ion losses.')
 @click.option('--enable_unspecific_losses/--no-enable_unspecific_losses', default=False, show_default=True, help='Enable unspecific fragment ion losses.')
-@click.option('--subsample_fraction', default=1.0, show_default=True, type=float, help='Data fraction used for subsampling.')
 @click.option('--max_psm_pep', default=0.5, show_default=True, type=float, help='Maximum posterior error probability (PEP) for a PSM')
-def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, peaksfile, exclude_range_str, max_delta_unimod, max_delta_ppm, enable_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, subsample_fraction, max_psm_pep):
+def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, peaksfile, exclude_range_str, max_delta_unimod, max_delta_ppm, enable_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, max_psm_pep):
     """
     Convert pepXML files for EasyPQP
     """
 
+    start_time = time.time()
+
+    pepxmlfile_list = []
+    if pepxmlfile.endswith(".pep.xml"):
+        pepxmlfile_list.append(pepxmlfile)
+    elif pepxmlfile.startswith("[") and pepxmlfile.endswith("]"):
+        pepxmlfile_list = ast.literal_eval(pepxmlfile)
+    else:
+        timestamped_echo("Error: Invalid pepXML file name.")
+        return 1
+
     if unimodfile is None:
-        unimodfile = pkg_resources.resource_filename('easypqp', 'data/unimod.xml')
+        unimodfile = str(pkg_resources.files('easypqp').joinpath('data/unimod.xml'))
 
     run_id = basename_spectralfile(spectralfile)
     if psmsfile is None:
@@ -75,14 +85,16 @@ def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, peaksfile, exclude_r
     temp = exclude_range_str.split(',')
     exclude_range = [float(temp[0]), float(temp[1])]
 
-    click.echo("Info: Converting %s." % pepxmlfile)
-    psms, peaks = conversion(pepxmlfile, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, max_psm_pep)
+    timestamped_echo("Info: Converting %s." % pepxmlfile_list)
+    psms, peaks = conversion(pepxmlfile_list, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, max_psm_pep)
 
     psms.to_pickle(psmsfile)
-    click.echo("Info: PSMs successfully converted and stored in %s." % psmsfile)
+    timestamped_echo("Info: PSMs successfully converted and stored in %s." % psmsfile)
 
     peaks.to_pickle(peaksfile)
-    click.echo("Info: Peaks successfully converted and stored in %s." % peaksfile)
+    timestamped_echo("Info: Peaks successfully converted and stored in %s." % peaksfile)
+
+    timestamped_echo("Info: Total elapsed time %.2f minutes." % ((time.time() - start_time) / 60.0))
 
 # EasyPQP Library
 @cli.command()
@@ -117,8 +129,11 @@ def library(infiles, outfile, psmtsv, peptidetsv, perform_rt_calibration, rt_ref
     Generate EasyPQP library
     """
 
+    start_time = time.time()
+
     generate(infiles, outfile, psmtsv, peptidetsv, perform_rt_calibration, rt_referencefile, rt_reference_run_path, rt_filter, perform_im_calibration, im_referencefile, im_reference_run_path, im_filter, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_fraction, rt_psm_fdr_threshold, im_lowess_fraction, im_psm_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus, nofdr)
-    click.echo("Info: Library successfully generated.")
+    timestamped_echo("Info: Library successfully generated.")
+    timestamped_echo("Info: Total elapsed time: %.2f minutes." % ((time.time() - start_time) / 60.0))
 
 # EasyPQP Reduce
 @cli.command()
@@ -173,7 +188,7 @@ def reduce(infile, outfile, bins, peptides):
     # Close connection to file
     con.close()
 
-    click.echo("Info: Library successfully processed and stored in %s." % outfile)
+    timestamped_echo("Info: Library successfully processed and stored in %s." % outfile)
 
 # Parameter transformation functions
 def transform_comma_string_to_list(ctx, param, value):
