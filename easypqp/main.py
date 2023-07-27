@@ -57,7 +57,8 @@ class PythonLiteralOption(click.Option):
 @click.option('--enable_specific_losses/--no-enable_specific_losses', default=False, show_default=True, help='Enable specific fragment ion losses.')
 @click.option('--enable_unspecific_losses/--no-enable_unspecific_losses', default=False, show_default=True, help='Enable unspecific fragment ion losses.')
 @click.option('--max_psm_pep', default=0.5, show_default=True, type=float, help='Maximum posterior error probability (PEP) for a PSM')
-def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, peaksfile, exclude_range_str, max_delta_unimod, max_delta_ppm, enable_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, max_psm_pep):
+@click.option('--precision_digits', default=6, show_default=True, type=int, help='Precision (number of digits) for the product m/z reported by the theoretical library generation step. This should match the precision of the downstream consumer of the spectral library. Lowering this number will collapse (more) identical fragment ions of the same precursor to a single value.')
+def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, peaksfile, exclude_range_str, max_delta_unimod, max_delta_ppm, enable_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, max_psm_pep, precision_digits):
     """
     Convert pepXML files for EasyPQP
     """
@@ -86,7 +87,7 @@ def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, peaksfile, exclude_r
     exclude_range = [float(temp[0]), float(temp[1])]
 
     timestamped_echo("Info: Converting %s." % pepxmlfile_list)
-    psms, peaks = conversion(pepxmlfile_list, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, max_psm_pep)
+    psms, peaks = conversion(pepxmlfile_list, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, max_psm_pep, precision_digits)
 
     psms.to_pickle(psmsfile)
     timestamped_echo("Info: PSMs successfully converted and stored in %s." % psmsfile)
