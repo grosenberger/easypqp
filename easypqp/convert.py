@@ -600,7 +600,7 @@ def annotate_mass_spectrum_numba(ionseries, max_delta_ppm, spectrum):
 	return ions[idx_ions[idx_peaks]], ion_masses[idx_ions[idx_peaks]], intensities0[idx_peaks]
 
 
-def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2,3,4], fragment_types=['b','y'], enable_specific_losses = False, enable_unspecific_losses = False):
+def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2,3,4], fragment_types=['b','y'], enable_specific_losses = False, enable_unspecific_losses = False, precision_digits = 6):
 	peptide = po.AASequence.fromString(po.String(peptide_sequence))
 	sequence = peptide.toUnmodifiedString()
 
@@ -639,13 +639,22 @@ def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2
 						mass = ion.getMonoWeight(po.Residue.ResidueType.ZIon, fragment_charge) / fragment_charge;
 					else:
 						raise RuntimeError(f'fragment type "{fragment_type}" is not in (a,b,c,x,y,z)')
+					
+					# Workaround
+					# If two fragment ions have identical product m/z, this can lead to annotation inconsistencies.
+					# E.g. .(UniMod:1)ADQLTEEQIAEFK+2 and the corresponding b5^1 and b10^2 ions.
+					# We thus first generate a dict with product m/z as index and the reserve the dict.
+					# This leads to only the higher charged product to be annotated and reported.
+
 					# Standard fragment ions
-					fragments[fragment_type + str(fragment_ordinal) + "^" + str(fragment_charge)] = mass
+					# fragments[fragment_type + str(fragment_ordinal) + "^" + str(fragment_charge)] = round(mass, precision_digits)
+					fragments[round(mass, precision_digits)] = fragment_type + str(fragment_ordinal) + "^" + str(fragment_charge)
 
 					# unspecific losses that are compatible with DIA-NN
 					if enable_unspecific_losses:
 						for loss in unspecific_losses:
-							fragments[fragment_type + str(fragment_ordinal) + "-" + loss + "^" + str(fragment_charge)] = mass - (unspecific_losses[loss] / fragment_charge)
+							# fragments[fragment_type + str(fragment_ordinal) + "-" + loss + "^" + str(fragment_charge)] = round(mass - (unspecific_losses[loss] / fragment_charge), precision_digits)
+							fragments[round(mass - (unspecific_losses[loss] / fragment_charge), precision_digits)] = fragments[fragment_type + str(fragment_ordinal) + "-" + loss + "^" + str(fragment_charge)]
 
 					# specific losses that are hardcoded in OpenMS
 					if enable_specific_losses:
@@ -655,11 +664,14 @@ def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2
 								for loss in losses:
 									loss_type = loss.toString()
 									if loss_type not in unspecific_losses:
-										fragments[fragment_type + str(fragment_ordinal) + "-" + loss_type + "^" + str(fragment_charge)] = mass - (loss.getMonoWeight() / fragment_charge)
+										# fragments[fragment_type + str(fragment_ordinal) + "-" + loss_type + "^" + str(fragment_charge)] = round(mass - (loss.getMonoWeight() / fragment_charge), precision_digits)
+										fragments[round(mass - (loss.getMonoWeight() / fragment_charge), precision_digits)] = fragment_type + str(fragment_ordinal) + "-" + loss_type + "^" + str(fragment_charge)
 
+	# flip key - values for workaround
+	fragments = {value: key for key, value in fragments.items()}
 	return np.array(list(fragments.keys())), np.fromiter(fragments.values(), float, len(fragments))
 
-def parse_pepxmls(pepxmlfile_list, um, base_name, exclude_range, enable_unannotated, enable_massdiff, fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses):
+def parse_pepxmls(pepxmlfile_list, um, base_name, exclude_range, enable_unannotated, enable_massdiff, fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses, precision_digits):
 	psmslist = []
 	for pepxmlfile in pepxmlfile_list:
 		if pepxmlfile.casefold().endswith(('.pepxml', '.pep.xml')):
@@ -683,7 +695,7 @@ def parse_pepxmls(pepxmlfile_list, um, base_name, exclude_range, enable_unannota
 		timestamped_echo("Info: Generate theoretical spectra.")
 		theoretical = {}
 		for modified_peptide, precursor_charge in psms[['modified_peptide','precursor_charge']].drop_duplicates().itertuples(index=False):
-			theoretical.setdefault(modified_peptide, {})[precursor_charge] = generate_ionseries(modified_peptide, precursor_charge, fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses)
+			theoretical.setdefault(modified_peptide, {})[precursor_charge] = generate_ionseries(modified_peptide, precursor_charge, fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses, precision_digits)
 	return psms, theoretical
 
 class MSCallback:
@@ -708,7 +720,7 @@ def get_map_mzml_or_mzxml(path: str, filetype):
 	fh.transform(path, consumer)
 	return consumer.id_peaks_map
 
-def conversion(pepxmlfile_list, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, max_psm_pep):
+def conversion(pepxmlfile_list, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, max_psm_pep, precision_digits):
 	# Parse basename
 	base_name = basename_spectralfile(spectralfile)
 	timestamped_echo("Info: Parsing run %s." % base_name)
@@ -718,7 +730,7 @@ def conversion(pepxmlfile_list, spectralfile, unimodfile, exclude_range, max_del
 	import concurrent.futures
 
 	exe = concurrent.futures.ProcessPoolExecutor(1)
-	psms_fut = exe.submit(parse_pepxmls, pepxmlfile_list, um, base_name, exclude_range, enable_unannotated, enable_massdiff, fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses)
+	psms_fut = exe.submit(parse_pepxmls, pepxmlfile_list, um, base_name, exclude_range, enable_unannotated, enable_massdiff, fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses, precision_digits)
 	time.sleep(1)  # allow the process to execute first before using pyOpenMS to read files
 
 	timestamped_echo("Info: Processing spectra from file %s." % spectralfile)
