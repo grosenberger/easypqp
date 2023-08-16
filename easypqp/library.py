@@ -486,5 +486,12 @@ def generate(files, outfile, psmtsv, peptidetsv, perform_rt_calibration, rt_refe
     pqp_mass = pqp.groupby(['PrecursorMz','ProductMz','Annotation','ProteinId','GeneName','PeptideSequence','ModifiedPeptideSequence','PrecursorCharge'], dropna=False)['LibraryIntensity'].median().reset_index()
     pqp = pd.merge(pqp_mass,pqp_irt, on=['ModifiedPeptideSequence','PrecursorCharge'])
 
+  # Append fragment information
+  frag_df = pqp['Annotation'].str.extract(r'^([abcxyz])(\d{1,2})(?:-(.*))?\^(\d+)$')
+  frag_df.columns = 'FragmentType', 'FragmentSeriesNumber', 'FragmentLossType', 'FragmentCharge'
+  frag_df = frag_df.reindex(columns=['FragmentType', 'FragmentCharge', 'FragmentSeriesNumber', 'FragmentLossType'], copy=False)
+
+  pqp = pd.concat([pqp, frag_df], axis=1)
+
   # Write output TSV file
   pqp.to_csv(outfile, sep="\t", index=False)
