@@ -654,7 +654,7 @@ def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2
 					if enable_unspecific_losses:
 						for loss in unspecific_losses:
 							# fragments[fragment_type + str(fragment_ordinal) + "-" + loss + "^" + str(fragment_charge)] = round(mass - (unspecific_losses[loss] / fragment_charge), precision_digits)
-							fragments[round(mass - (unspecific_losses[loss] / fragment_charge), precision_digits)] = fragments[fragment_type + str(fragment_ordinal) + "-" + loss + "^" + str(fragment_charge)]
+							fragments[round(mass - (unspecific_losses[loss] / fragment_charge), precision_digits)] = fragment_type + str(fragment_ordinal) + "-" + loss + "^" + str(fragment_charge)
 
 					# specific losses that are hardcoded in OpenMS
 					if enable_specific_losses:
