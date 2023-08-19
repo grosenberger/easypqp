@@ -731,11 +731,8 @@ def conversion(pepxmlfile_list, spectralfile, unimodfile, exclude_range, max_del
 
 	# Initialize UniMod
 	um = unimod(unimodfile, max_delta_unimod)
-	import concurrent.futures
 
-	exe = concurrent.futures.ProcessPoolExecutor(1)
-	psms_fut = exe.submit(parse_pepxmls, pepxmlfile_list, um, base_name, exclude_range, enable_unannotated, enable_massdiff, fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses, precision_digits)
-	time.sleep(1)  # allow the process to execute first before using pyOpenMS to read files
+	psms, theoretical = parse_pepxmls(pepxmlfile_list, um, base_name, exclude_range, enable_unannotated, enable_massdiff, fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses, precision_digits)
 
 	timestamped_echo("Info: Processing spectra from file %s." % spectralfile)
 
@@ -748,9 +745,6 @@ def conversion(pepxmlfile_list, spectralfile, unimodfile, exclude_range, max_del
 
 	timestamped_echo("Info: Loaded %d spectra" % len(input_map))
 
-	# Continue if any PSMS are present
-	psms, theoretical = psms_fut.result()
-	exe.shutdown()
 	if psms.shape[0] > 0:
 		# Generate spectrum dataframe
 		psms = psms[psms['pep'] <= max_psm_pep]
