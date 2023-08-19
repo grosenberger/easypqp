@@ -644,17 +644,20 @@ def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2
 					# If two fragment ions have identical product m/z, this can lead to annotation inconsistencies.
 					# E.g. .(UniMod:1)ADQLTEEQIAEFK+2 and the corresponding b5^1 and b10^2 ions.
 					# We thus first generate a dict with product m/z as index and the reserve the dict.
-					# This leads to only the higher charged product to be annotated and reported.
+					# Then do not update the dicts if the product m/z is already present.
+					# This leads to only the lower charged product to be annotated and reported.
 
 					# Standard fragment ions
-					# fragments[fragment_type + str(fragment_ordinal) + "^" + str(fragment_charge)] = round(mass, precision_digits)
-					fragments[round(mass, precision_digits)] = fragment_type + str(fragment_ordinal) + "^" + str(fragment_charge)
+					k = round(mass, precision_digits)
+					if k not in fragments:
+						fragments[k] = fragment_type + str(fragment_ordinal) + "^" + str(fragment_charge)
 
 					# unspecific losses that are compatible with DIA-NN
 					if enable_unspecific_losses:
 						for loss in unspecific_losses:
-							# fragments[fragment_type + str(fragment_ordinal) + "-" + loss + "^" + str(fragment_charge)] = round(mass - (unspecific_losses[loss] / fragment_charge), precision_digits)
-							fragments[round(mass - (unspecific_losses[loss] / fragment_charge), precision_digits)] = fragment_type + str(fragment_ordinal) + "-" + loss + "^" + str(fragment_charge)
+							k = round(mass - (unspecific_losses[loss] / fragment_charge), precision_digits)
+							if k not in fragments:
+								fragments[k] = fragment_type + str(fragment_ordinal) + "-" + loss + "^" + str(fragment_charge)
 
 					# specific losses that are hardcoded in OpenMS
 					if enable_specific_losses:
@@ -664,8 +667,8 @@ def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2
 								for loss in losses:
 									loss_type = loss.toString()
 									if loss_type not in unspecific_losses:
-										# fragments[fragment_type + str(fragment_ordinal) + "-" + loss_type + "^" + str(fragment_charge)] = round(mass - (loss.getMonoWeight() / fragment_charge), precision_digits)
-										fragments[round(mass - (loss.getMonoWeight() / fragment_charge), precision_digits)] = fragment_type + str(fragment_ordinal) + "-" + loss_type + "^" + str(fragment_charge)
+										k = round(mass - (loss.getMonoWeight() / fragment_charge), precision_digits)
+										fragments[k] = fragment_type + str(fragment_ordinal) + "-" + loss_type + "^" + str(fragment_charge)
 
 	# flip key - values for workaround
 	fragments = {value: key for key, value in fragments.items()}
