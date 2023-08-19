@@ -691,7 +691,7 @@ def parse_pepxmls(pepxmlfile_list, um, base_name, exclude_range, enable_unannota
 			rank_str = '' if rank is None else '_rank' + rank.group(1)
 			psms['group_id'] = psms['run_id'] + "_" + psms['scan_id'].astype(str) + rank_str
 			psmslist.append(psms)
-		timestamped_echo(f"Info: Done parsing pepXML: {pepxmlfile}. {psms.shape[0]} PSMs found.")
+		timestamped_echo(f"Info: {psms.shape[0]} PSMs parsed.")
 	psms = pd.concat(psmslist)
 	theoretical = None
 	if psms.shape[0] > 0:
