@@ -644,17 +644,20 @@ def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2
 					# If two fragment ions have identical product m/z, this can lead to annotation inconsistencies.
 					# E.g. .(UniMod:1)ADQLTEEQIAEFK+2 and the corresponding b5^1 and b10^2 ions.
 					# We thus first generate a dict with product m/z as index and the reserve the dict.
-					# This leads to only the higher charged product to be annotated and reported.
+					# Then do not update the dicts if the product m/z is already present.
+					# This leads to only the lower charged product to be annotated and reported.
 
 					# Standard fragment ions
-					# fragments[fragment_type + str(fragment_ordinal) + "^" + str(fragment_charge)] = round(mass, precision_digits)
-					fragments[round(mass, precision_digits)] = fragment_type + str(fragment_ordinal) + "^" + str(fragment_charge)
+					k = round(mass, precision_digits)
+					if k not in fragments:
+						fragments[k] = fragment_type + str(fragment_ordinal) + "^" + str(fragment_charge)
 
 					# unspecific losses that are compatible with DIA-NN
 					if enable_unspecific_losses:
 						for loss in unspecific_losses:
-							# fragments[fragment_type + str(fragment_ordinal) + "-" + loss + "^" + str(fragment_charge)] = round(mass - (unspecific_losses[loss] / fragment_charge), precision_digits)
-							fragments[round(mass - (unspecific_losses[loss] / fragment_charge), precision_digits)] = fragments[fragment_type + str(fragment_ordinal) + "-" + loss + "^" + str(fragment_charge)]
+							k = round(mass - (unspecific_losses[loss] / fragment_charge), precision_digits)
+							if k not in fragments:
+								fragments[k] = fragment_type + str(fragment_ordinal) + "-" + loss + "^" + str(fragment_charge)
 
 					# specific losses that are hardcoded in OpenMS
 					if enable_specific_losses:
@@ -664,8 +667,8 @@ def generate_ionseries(peptide_sequence, precursor_charge, fragment_charges=[1,2
 								for loss in losses:
 									loss_type = loss.toString()
 									if loss_type not in unspecific_losses:
-										# fragments[fragment_type + str(fragment_ordinal) + "-" + loss_type + "^" + str(fragment_charge)] = round(mass - (loss.getMonoWeight() / fragment_charge), precision_digits)
-										fragments[round(mass - (loss.getMonoWeight() / fragment_charge), precision_digits)] = fragment_type + str(fragment_ordinal) + "-" + loss_type + "^" + str(fragment_charge)
+										k = round(mass - (loss.getMonoWeight() / fragment_charge), precision_digits)
+										fragments[k] = fragment_type + str(fragment_ordinal) + "-" + loss_type + "^" + str(fragment_charge)
 
 	# flip key - values for workaround
 	fragments = {value: key for key, value in fragments.items()}
@@ -683,11 +686,12 @@ def parse_pepxmls(pepxmlfile_list, um, base_name, exclude_range, enable_unannota
 		else:
 			timestamped_echo('unknown format of pepxml identification file')
 		psms = px.get()
-		rank = re.compile(r'_rank([0-9]+)\.').search(pathlib.Path(pepxmlfile).name)
-		rank_str = '' if rank is None else '_rank' + rank.group(1)
-		psms['group_id'] = psms['run_id'] + "_" + psms['scan_id'].astype(str) + rank_str
-		timestamped_echo(f"Info: Done parsing pepXML: {pepxmlfile}")
-		psmslist.append(psms)
+		if psms.shape[0] > 0:
+			rank = re.compile(r'_rank([0-9]+)\.').search(pathlib.Path(pepxmlfile).name)
+			rank_str = '' if rank is None else '_rank' + rank.group(1)
+			psms['group_id'] = psms['run_id'] + "_" + psms['scan_id'].astype(str) + rank_str
+			psmslist.append(psms)
+		timestamped_echo(f"Info: {psms.shape[0]} PSMs parsed.")
 	psms = pd.concat(psmslist)
 	theoretical = None
 	if psms.shape[0] > 0:
@@ -727,11 +731,8 @@ def conversion(pepxmlfile_list, spectralfile, unimodfile, exclude_range, max_del
 
 	# Initialize UniMod
 	um = unimod(unimodfile, max_delta_unimod)
-	import concurrent.futures
 
-	exe = concurrent.futures.ProcessPoolExecutor(1)
-	psms_fut = exe.submit(parse_pepxmls, pepxmlfile_list, um, base_name, exclude_range, enable_unannotated, enable_massdiff, fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses, precision_digits)
-	time.sleep(1)  # allow the process to execute first before using pyOpenMS to read files
+	psms, theoretical = parse_pepxmls(pepxmlfile_list, um, base_name, exclude_range, enable_unannotated, enable_massdiff, fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses, precision_digits)
 
 	timestamped_echo("Info: Processing spectra from file %s." % spectralfile)
 
@@ -744,9 +745,6 @@ def conversion(pepxmlfile_list, spectralfile, unimodfile, exclude_range, max_del
 
 	timestamped_echo("Info: Loaded %d spectra" % len(input_map))
 
-	# Continue if any PSMS are present
-	psms, theoretical = psms_fut.result()
-	exe.shutdown()
 	if psms.shape[0] > 0:
 		# Generate spectrum dataframe
 		psms = psms[psms['pep'] <= max_psm_pep]
