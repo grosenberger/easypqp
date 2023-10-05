@@ -692,15 +692,17 @@ def parse_pepxmls(pepxmlfile_list, um, base_name, exclude_range, enable_unannota
 			psms['group_id'] = psms['run_id'] + "_" + psms['scan_id'].astype(str) + rank_str
 			psmslist.append(psms)
 		timestamped_echo(f"Info: {psms.shape[0]} PSMs parsed.")
-	psms = pd.concat(psmslist)
+
+	out_df = pd.DataFrame()
 	theoretical = None
-	if psms.shape[0] > 0:
-		# Generate theoretical spectra
-		timestamped_echo("Info: Generate theoretical spectra.")
-		theoretical = {}
-		for modified_peptide, precursor_charge in psms[['modified_peptide','precursor_charge']].drop_duplicates().itertuples(index=False):
-			theoretical.setdefault(modified_peptide, {})[precursor_charge] = generate_ionseries(modified_peptide, precursor_charge, fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses, precision_digits)
-	return psms, theoretical
+	if len(psmslist) > 0:
+		out_df = pd.concat(psmslist)
+		if out_df.shape[0] > 0:
+			timestamped_echo("Info: Generate theoretical spectra.")
+			theoretical = {}
+			for modified_peptide, precursor_charge in psms[['modified_peptide','precursor_charge']].drop_duplicates().itertuples(index=False):
+				theoretical.setdefault(modified_peptide, {})[precursor_charge] = generate_ionseries(modified_peptide, precursor_charge, fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses, precision_digits)
+	return out_df, theoretical
 
 class MSCallback:
 	def __init__(self):
