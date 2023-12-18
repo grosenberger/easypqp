@@ -1,6 +1,5 @@
 import unittest
-import pkg_resources
-from easypqp.convert import get_scan, conversion
+from easypqp.convert import get_scan
 
 
 class TestConvert(unittest.TestCase):
