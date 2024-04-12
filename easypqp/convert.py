@@ -69,6 +69,7 @@ class psmtsv:
 									'Expectation': 'var_expect',
 									'PeptideProphet Probability': 'pep'
 									})
+		psms['pep'] = 1 - psms['pep']
 		if 'ion_mobility' not in psms:
 			psms['ion_mobility'] = np.nan
 		if 'hit_rank' not in psms:
