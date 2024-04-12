@@ -29,7 +29,7 @@ class psmtsv:
 							"Hyperscore",
 							"Nextscore",
 							"Expectation",
-							"PeptideProphet Probability",
+							"Probability",
 							"Ion Mobility",
 							"Protein",
 							"Protein ID",
@@ -67,7 +67,7 @@ class psmtsv:
 									'Hyperscore': 'var_hyperscore',
 									'Nextscore': 'var_nextscore',
 									'Expectation': 'var_expect',
-									'PeptideProphet Probability': 'pep'
+									'Probability': 'pep'
 									})
 		psms['pep'] = 1 - psms['pep']
 		if 'ion_mobility' not in psms:
