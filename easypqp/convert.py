@@ -62,7 +62,10 @@ class psmtsv:
 
 		psms = psms.apply(self.parse_psm_info, axis=1)
 		if self.max_glycan_q != 1:
-			psms = psms[(psms['Glycan q-value'] < self.max_glycan_q) | (psms['Glycan q-value'].isnull())]		# include null to include non-glyco peptides
+			if "Glycan q-value" in psms.columns:
+				psms = psms[(psms['Glycan q-value'] < self.max_glycan_q) | (psms['Glycan q-value'].isnull())]		# include null to include non-glyco peptides
+			else:
+				timestamped_echo("Warning: glycan q-value filtering requested, but PSM table does not contain the Glycan q-value column. No filtering performed")
 		psms = psms.rename(columns={'Charge': 'precursor_charge',
 									'Retention': 'retention_time',
 									'Delta Mass': 'massdiff',
@@ -78,7 +81,9 @@ class psmtsv:
 			psms['ion_mobility'] = np.nan
 		if 'hit_rank' not in psms:
 			psms['hit_rank'] = 1
-		psms = psms.drop(columns=['Spectrum', 'Spectrum File', 'Assigned Modifications', 'Protein', 'Gene', 'Mapped Proteins', 'Mapped Genes', 'Protein ID', 'Glycan q-value'])
+		psms = psms.drop(columns=['Spectrum', 'Spectrum File', 'Assigned Modifications', 'Protein', 'Gene', 'Mapped Proteins', 'Mapped Genes', 'Protein ID'])
+		if 'Glycan q-value' in psms.columns:
+			psms.drop(columns=['Glycan q-value'])
 		return psms
 
 	def match_unimod(self, unimod):
