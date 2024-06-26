@@ -1021,7 +1021,7 @@ def parse_psms(psm_file_list, um, base_name, exclude_range, enable_unannotated, 
 			for modified_peptide, precursor_charge, labile_peptide in psms[['modified_peptide', 'precursor_charge', 'labile_modified_peptide']].drop_duplicates().itertuples(index=False):
 				theoretical.setdefault(modified_peptide, {})[precursor_charge] = generate_ionseries(labile_peptide, precursor_charge, fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses, precision_digits)
 		else:
-			for modified_peptide, precursor_charge, labile_peptide in psms[['modified_peptide', 'precursor_charge']].drop_duplicates().itertuples(index=False):
+			for modified_peptide, precursor_charge in psms[['modified_peptide', 'precursor_charge']].drop_duplicates().itertuples(index=False):
 				theoretical.setdefault(modified_peptide, {})[precursor_charge] = generate_ionseries(modified_peptide, precursor_charge, fragment_charges, fragment_types, enable_specific_losses, enable_unspecific_losses, precision_digits)
 	return psms, theoretical
 
