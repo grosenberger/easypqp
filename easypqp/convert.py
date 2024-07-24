@@ -91,11 +91,6 @@ class psmtsv:
 		Match modifications to Unimod as in pepxml. Supports labile modifications
 		"""
 		def match_modifications(peptide, um, modified_peptide_attribute):
-			monomeric_masses = {"A": 71.03711, "R": 156.10111, "N": 114.04293, "D": 115.02694, "C": 103.00919,
-								"E": 129.04259, "Q": 128.05858, "G": 57.02146, "H": 137.05891, "I": 113.08406,
-								"L": 113.08406, "K": 128.09496, "M": 131.04049, "F": 147.06841, "P": 97.05276,
-								"S": 87.03203, "T": 101.04768, "W": 186.07931, "Y": 163.06333, "V": 99.06841,
-								'U': 150.95363, 'O': 237.14773}
 			modified_peptide = peptide['peptide_sequence']
 
 			# parse terminal modifications
