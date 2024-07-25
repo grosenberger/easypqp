@@ -1,5 +1,6 @@
 import itertools
 import pathlib
+import pdb
 import time
 from .util import timestamped_echo
 import numpy as np
@@ -600,7 +601,7 @@ class unimod:
 		root = tree.getroot()
 
 		ptms = {}
-		sites = ['A','R','N','D','C','E','Q','G','H','O','I','L','K','M','F','P','U','S','T','W','Y','V','N-term','C-term']
+		sites = ['A','R','N','D','C','E','Q','G','H','O','I','L','K','M','F','P','U','S','T','W','Y','V','N-term','C-term', 'B', 'J', 'X', 'Z']
 		positions = ['Anywhere','Any N-term','Any C-term','Protein N-term','Protein C-term']
 
 		for site in sites:
