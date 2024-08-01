@@ -256,9 +256,9 @@ def lowess(run, reference_run, xcol, ycol, lowess_frac, psm_fdr_threshold, min_p
       lowess_iso(dfm[xcol].to_numpy(), dfm[ycol].to_numpy(), lowess_frac)(run[xcol].to_numpy())
 
   # Plot regression
-  plt.plot(dfm[xcol], dfm[ycol], 'o')
+  plt.plot(dfm[xcol].to_numpy(), dfm[ycol].to_numpy(), 'o')
   run1 = run[[xcol, ycol]].sort_values(xcol)
-  plt.plot(run1[xcol], run1[ycol])
+  plt.plot(run1[xcol].to_numpy(), run1[ycol].to_numpy())
   plt.xlabel(xcol)
   plt.ylabel(ycol)
   plt.savefig(os.path.join(main_path, filename + ".pdf"))
