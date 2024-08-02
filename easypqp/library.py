@@ -348,7 +348,9 @@ def generate(files, outfile, psmtsv, peptidetsv, perform_rt_calibration, rt_refe
   psms = pd.concat(psms_list).reset_index(drop=True)
   psms['pp'] = 1-psms['pep']
   psms['modified_peptide'], transform_mass = unify_modified_peptide_masses(psms['modified_peptide'])
-  # Process PSMs
+
+  timestamped_echo("Info: In total %s PSMs loaded." % psms.shape[0])
+
   pepid = process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, proteotypic, nofdr)
 
   # Get main path for figures
@@ -444,6 +446,10 @@ def generate(files, outfile, psmtsv, peptidetsv, perform_rt_calibration, rt_refe
 
   pepida = aligned_runs
 
+  if pepida.empty or 'irt' not in pepida.columns:
+    timestamped_echo('Info: Not enough peptides could be found for alignment. There will be a blank spectral library.')
+    return
+
   # Remove peptides without valid iRT
   pepida = pepida.loc[np.isfinite(pepida['irt'])]
 
@@ -452,6 +458,10 @@ def generate(files, outfile, psmtsv, peptidetsv, perform_rt_calibration, rt_refe
     pepida = pepida.loc[np.isfinite(pepida['im'])]
   else:
     pepida.loc[:, 'im'] = np.nan
+
+  if pepida.empty:
+    timestamped_echo('Info: Not enough peptides could be found for alignment. There will be a blank spectral library.')
+    return
 
   # Generate set of non-redundant global best replicate identifications
   pepidb = pepida.loc[pepida.groupby(['modified_peptide','precursor_charge'])['pp'].idxmax()].sort_index()
