@@ -203,9 +203,9 @@ class psmtsv:
 		return psm_series
 
 	def parse_rank(self, psm_series):
-		rank_match = re.match(psmtsv.rank_pattern, psm_series['Spectrum File'])
+		rank_match = re.search(psmtsv.rank_pattern, psm_series['Spectrum File'])
 		if rank_match:
-			psm_series['hit_rank'] = int(rank_match.group())
+			psm_series['hit_rank'] = int(rank_match.group(1))
 		return psm_series
 
 	def parse_assigned_modifications(self, psm_series):
@@ -1002,9 +1002,7 @@ def parse_psms(psm_file_list, um, base_name, exclude_range, enable_unannotated, 
 	for psmfile in psm_file_list:
 		px = psmtsv(psmfile, um, base_name, exclude_range, enable_unannotated, ignore_unannotated, enable_massdiff, decoy_prefix, labile_mods, max_glycan_q)
 		psms = px.get()
-		rank = re.compile(r'_rank([0-9]+)\.').search(pathlib.Path(psmfile).name)
-		rank_str = '' if rank is None else '_rank' + rank.group(1)
-		psms['group_id'] = psms['run_id'] + "_" + psms['scan_id'].astype(str) + rank_str
+		psms['group_id'] = psms['run_id'] + "_" + psms['scan_id'].astype(str) + "_rank" + psms['hit_rank'].astype(str)
 		click.echo(f"Info: Done parsing psm.tsv: {psmfile}")
 		psmslist.append(psms)
 	psms = pd.concat(psmslist)
@@ -1090,6 +1088,7 @@ def conversion_psm(psm_file_list, spectralfile, unimodfile, exclude_range, max_d
 		input_map = None
 
 	timestamped_echo("Info: Loaded %d spectra" % len(input_map))
+	timestamped_echo("Info: Processing PSM file...")
 
 	# Continue if any PSMS are present
 	psms, theoretical = psms_fut.result()
