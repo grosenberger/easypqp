@@ -269,7 +269,6 @@ class psmtsv:
 		else:
 			gene_id = ''		# contaminants may have empty Gene entry. Ensure string format
 		num_total_proteins = 1
-		uniprot_like_ids = '|' in psm_series['Protein']
 
 		# if mapped proteins/genes not null, capture all entries
 		if pd.notnull(psm_series['Mapped Proteins']):
@@ -277,8 +276,8 @@ class psmtsv:
 			for split in splits:
 				num_total_proteins += 1
 				# If UniProt-like IDs, take ID portion only. Otherwise, use whole ID
-				if uniprot_like_ids:
-					uniprot_splits = split.split('|')
+				uniprot_splits = split.split('|')
+				if len(uniprot_splits) > 1:
 					protein_id += ';{}'.format(uniprot_splits[1])
 				else:
 					protein_id += ';{}'.format(split)
