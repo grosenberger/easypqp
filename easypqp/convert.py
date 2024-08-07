@@ -246,8 +246,10 @@ class psmtsv:
 							if not(float(mass) > 140 and psm_series['Peptide'][int(location) - 1] in ['N']):
 								nonlabile_modifications += '|{}${}'.format(location, mass)
 						elif self.labile_mods == 'nglyc+':
-							# hard code HexNAc remainder mass as the modification mass for fragment ions rather than full modification mass
 							if not(float(mass) > 140 and psm_series['Peptide'][int(location) - 1] in ['N']):
+								nonlabile_modifications += '|{}${}'.format(location, mass)
+							else:
+								# hard code HexNAc remainder mass as the modification mass for glycan fragment ions rather than full modification mass
 								nonlabile_modifications += '|{}${}'.format(location, 203.07937)
 					else:
 						nonlabile_modifications += '|{}${}'.format(location, mass)
