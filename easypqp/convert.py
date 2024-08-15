@@ -1064,6 +1064,9 @@ def conversion(pepxmlfile_list, spectralfile, unimodfile, exclude_range, max_del
 		# Round floating numbers
 		peaks = peaks.round(6)
 
+		# Filter PSMs not having any peaks to avoid the "library" command picking the PSM (with the smallest PEP) without any peaks.
+		psms = psms[psms['scan_id'].isin(peaks['scan_id'].unique())]
+
 		return psms, peaks
 	else:
 		return (pd.DataFrame({'run_id': [],
@@ -1131,6 +1134,9 @@ def conversion_psm(psm_file_list, spectralfile, unimodfile, exclude_range, max_d
 
 		# Round floating numbers
 		peaks = peaks.round(6)
+
+		# Filter PSMs not having any peaks to avoid the "library" command picking the PSM (with the smallest PEP) without any peaks.
+		psms = psms[psms['scan_id'].isin(peaks['scan_id'].unique())]
 
 		return psms, peaks
 	else:
