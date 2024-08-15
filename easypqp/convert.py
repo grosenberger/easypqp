@@ -1,7 +1,5 @@
 import itertools
 import pathlib
-import pdb
-import time
 from .util import timestamped_echo
 import numpy as np
 import pandas as pd

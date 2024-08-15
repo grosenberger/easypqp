@@ -12,8 +12,6 @@ import click
 import os
 import pathlib
 import posixpath, ntpath
-import re
-import operator
 import numpy as np
 import pandas as pd
 
