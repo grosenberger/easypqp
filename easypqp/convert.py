@@ -75,14 +75,15 @@ class psmtsv:
 									'Hyperscore': 'var_hyperscore',
 									'Nextscore': 'var_nextscore',
 									'Expectation': 'var_expect',
-									'Probability': 'pep'
+									'Probability': 'pep',
+									'Spectrum File': 'spectrum_file'
 									})
 		psms['pep'] = 1 - psms['pep']
 		if 'ion_mobility' not in psms:
 			psms['ion_mobility'] = np.nan
 		if 'hit_rank' not in psms:
 			psms['hit_rank'] = 1
-		psms = psms.drop(columns=['Spectrum', 'Spectrum File', 'Assigned Modifications', 'Protein', 'Gene', 'Mapped Proteins', 'Mapped Genes', 'Protein ID'])
+		psms = psms.drop(columns=['Spectrum', 'Assigned Modifications', 'Protein', 'Gene', 'Mapped Proteins', 'Mapped Genes', 'Protein ID'])
 		if 'Glycan q-value' in psms.columns:
 			psms.drop(columns=['Glycan q-value'])
 		return psms
@@ -1003,7 +1004,10 @@ def parse_psms(psm_file_list, um, base_name, exclude_range, enable_unannotated, 
 	for psmfile in psm_file_list:
 		px = psmtsv(psmfile, um, base_name, exclude_range, enable_unannotated, ignore_unannotated, enable_massdiff, decoy_prefix, labile_mods, max_glycan_q)
 		psms = px.get()
-		psms['group_id'] = psms['run_id'] + "_" + psms['scan_id'].astype(str) + "_rank" + psms['hit_rank'].astype(str)
+		if psms['spectrum_file'].str.extract(r'_rank(\d+)').isna().all().all():
+			psms['group_id'] = psms['run_id'] + "_" + psms['scan_id'].astype(str)
+		else:
+			psms['group_id'] = psms['run_id'] + "_" + psms['scan_id'].astype(str) + "_rank" + psms['hit_rank'].astype(str)
 		click.echo(f"Info: Done parsing psm.tsv: {psmfile}")
 		psmslist.append(psms)
 	psms = pd.concat(psmslist)

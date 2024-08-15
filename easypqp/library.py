@@ -130,7 +130,7 @@ def process_psms(psms, psmtsv, peptidetsv, psm_fdr_threshold, peptide_fdr_thresh
     # Generate a group_id column
     temp_df = psmtsv_df["Spectrum"].str.split('.', expand=True)
     psmtsv_df["group_id"] = temp_df.iloc[:, 0] + "_" + pd.to_numeric(temp_df.iloc[:, -2]).astype(str) + \
-                            psmtsv_df['Spectrum File'].apply(lambda x: posixpath.basename(ntpath.basename(x))).str.extract('(_rank[0-9]+)', expand=False).apply(lambda x: '_rank1' if pd.isna(x) else x)
+                            psmtsv_df['Spectrum File'].apply(lambda x: posixpath.basename(ntpath.basename(x))).str.extract('(_rank[0-9]+)', expand=False).apply(lambda x: '' if pd.isna(x) else x)
 
     # Filter psm dataframe
     psms = psms[psms["group_id"].isin(psmtsv_df["group_id"])]
