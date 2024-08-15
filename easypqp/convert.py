@@ -1068,7 +1068,28 @@ def conversion(pepxmlfile_list, spectralfile, unimodfile, exclude_range, max_del
 
 		return psms, peaks
 	else:
-		return pd.DataFrame({'run_id': [], 'scan_id': [], 'hit_rank': [], 'massdiff': [], 'precursor_charge': [], 'retention_time': [], 'ion_mobility': [], 'peptide_sequence': [], 'modifications': [], 'nterm_modification': [], 'cterm_modification': [], 'protein_id': [], 'gene_id': [], 'num_tot_proteins': [], 'decoy': []}), pd.DataFrame({'scan_id': [], 'modified_peptide': [], 'precursor_charge': [], 'precursor_mz': [], 'fragment': [], 'product_mz': [], 'intensity': []})
+		return (pd.DataFrame({'run_id': [],
+							  'scan_id': [],
+							  'hit_rank': [],
+							  'massdiff': [],
+							  'precursor_charge': [],
+							  'retention_time': [],
+							  'ion_mobility': [],
+							  'peptide_sequence': [],
+							  'protein_id': [],
+							  'gene_id': [],
+							  'num_tot_proteins': [],
+							  'decoy': [],
+							  'pep': [],
+							  'modified_peptide': [],
+							  'group_id': []}),
+				pd.DataFrame({'scan_id': [],
+							  'modified_peptide': [],
+							  'precursor_charge': [],
+							  'precursor_mz': [],
+							  'fragment': [],
+							  'product_mz': [],
+							  'intensity': []}))
 
 
 def conversion_psm(psm_file_list, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, ignore_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, max_psm_pep, decoy_prefix, precision_digits, labile_mods, max_glycan_q):
@@ -1115,7 +1136,48 @@ def conversion_psm(psm_file_list, spectralfile, unimodfile, exclude_range, max_d
 
 		return psms, peaks
 	else:
-		return pd.DataFrame({'run_id': [], 'scan_id': [], 'hit_rank': [], 'massdiff': [], 'precursor_charge': [], 'retention_time': [], 'ion_mobility': [], 'peptide_sequence': [], 'modifications': [], 'nterm_modification': [], 'cterm_modification': [], 'protein_id': [], 'gene_id': [], 'num_tot_proteins': [], 'decoy': []}), pd.DataFrame({'scan_id': [], 'modified_peptide': [], 'precursor_charge': [], 'precursor_mz': [], 'fragment': [], 'product_mz': [], 'intensity': []})
+		return (pd.DataFrame({'run_id': [],
+							 'scan_id': [],
+							 'hit_rank': [],
+							 'massdiff': [],
+							 'precursor_charge': [],
+							 'retention_time': [],
+							 'ion_mobility': [],
+							 'peptide_sequence': [],
+							 'protein_id': [],
+							 'gene_id': [],
+							 'num_tot_proteins': [],
+							 'decoy': [],
+							 'pep': [],
+							 'modified_peptide': [],
+							 'group_id': []}),
+				pd.DataFrame({'scan_id': [],
+							  'modified_peptide': [],
+							  'precursor_charge': [],
+							  'precursor_mz': [],
+							  'fragment': [],
+							  'product_mz': [],
+							  'intensity': []}))
+
+
+def drop_psm_columns(psms):
+	t = ['run_id',
+		 'scan_id',
+		 'hit_rank',
+		 'massdiff',
+		 'precursor_charge',
+		 'retention_time',
+		 'ion_mobility',
+		 'peptide_sequence',
+		 'protein_id',
+		 'gene_id',
+		 'num_tot_proteins',
+		 'decoy',
+		 'pep',
+		 'modified_peptide',
+		 'group_id']
+	tt = list(set(t) & set(psms.columns))
+	return psms.loc[:, tt]
 
 
 def basename_spectralfile(spectralfile):

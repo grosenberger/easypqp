@@ -6,7 +6,7 @@ import click
 import sqlite3
 import pandas as pd
 from shutil import copyfile
-from .convert import conversion, basename_spectralfile, conversion_psm
+from .convert import conversion, basename_spectralfile, conversion_psm, drop_psm_columns
 from .library import generate
 from .unimoddb import unimod_filter
 from easypqp import pkg_unimod_db
@@ -89,6 +89,8 @@ def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, peaksfile, exclude_r
     timestamped_echo("Info: Converting %s." % pepxmlfile_list)
     psms, peaks = conversion(pepxmlfile_list, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, max_psm_pep, precision_digits)
 
+    psms = drop_psm_columns(psms)
+
     psms.to_pickle(psmsfile)
     timestamped_echo("Info: PSMs successfully converted and stored in %s." % psmsfile)
 
@@ -154,6 +156,8 @@ def convertpsm(psmfile, spectralfile, unimodfile, psmsfile, peaksfile, exclude_r
 
     timestamped_echo("Info: Converting %s." % psmfile_list)
     psms, peaks = conversion_psm(psmfile_list, spectralfile, unimodfile, exclude_range, max_delta_unimod, max_delta_ppm, enable_unannotated, ignore_unannotated, enable_massdiff, fragment_types, fragment_charges, enable_specific_losses, enable_unspecific_losses, max_psm_pep, decoy_prefix, precision_digits, labile_mods, max_glycan_q)
+
+    psms = drop_psm_columns(psms)
 
     psms.to_pickle(psmsfile)
     timestamped_echo("Info: PSMs successfully converted and stored in %s." % psmsfile)
