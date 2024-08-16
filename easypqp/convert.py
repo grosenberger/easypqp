@@ -855,7 +855,7 @@ def annotate_mass_spectrum(ionseries, max_delta_ppm, spectrum):
 import numba
 @numba.jit(nopython=True, nogil=True, fastmath=True)
 def annotate_mass_spectrum_numba(ionseries, max_delta_ppm, spectrum):
-	top_delta = 30
+	top_delta = min(max_delta_ppm, 30)
 	ions, ion_masses = ionseries
 	mzs0, intensities0 = spectrum
 	idx_ions = np.empty_like(intensities0, dtype=np.uint32)
@@ -865,10 +865,9 @@ def annotate_mass_spectrum_numba(ionseries, max_delta_ppm, spectrum):
 		min_ppm = top_delta
 		for ii, ion_mass in enumerate(ion_masses):
 			ppm = np.abs(mz - ion_mass) / ion_mass * 1e6
-			if ppm < min(max_delta_ppm, top_delta):
-				if ppm < min_ppm:
-					min_ppm = ppm
-					min_ion_idx = ii
+			if ppm < min_ppm:
+				min_ppm = ppm
+				min_ion_idx = ii
 		if min_ion_idx != -1:
 			idx_ions[si] = min_ion_idx
 			idx_peaks[si] = True
