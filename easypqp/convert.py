@@ -8,6 +8,7 @@ import posixpath, ntpath
 from statistics import median_low
 import click
 import re
+import time
 
 # Unimod parsing
 import xml.etree.cElementTree as ET
