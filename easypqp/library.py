@@ -500,7 +500,7 @@ def generate(files, outfile, psmtsv, peptidetsv, perform_rt_calibration, rt_refe
     pqp_irt = pqp[['ModifiedPeptideSequence','PrecursorCharge','NormalizedRetentionTime','PrecursorIonMobility']].drop_duplicates().groupby(['ModifiedPeptideSequence','PrecursorCharge'])[['NormalizedRetentionTime','PrecursorIonMobility']].median().reset_index()
     # group by modified peptide sequence before product m/z to avoid intermixing fragments of modified peptide positional isomers (e.g., T[80]PEPTIDE and TPEPT[80]IDE)
     pqp_mass = pqp.groupby(['PrecursorMz','ModifiedPeptideSequence','ProductMz','Annotation','ProteinId','GeneName','PeptideSequence','PrecursorCharge'], dropna=False)['LibraryIntensity'].median().reset_index()
-    pqp_mass = pqp_mass[['PrecursorMz','ProductMz','Annotation','ProteinId','GeneName','PeptideSequence','ModifiedPeptideSequence','PrecursorCharge']]  # rearrange columns back to the normal output order
+    pqp_mass = pqp_mass[['PrecursorMz','ProductMz','Annotation','ProteinId','GeneName','PeptideSequence','ModifiedPeptideSequence','PrecursorCharge','LibraryIntensity']]  # rearrange columns back to the normal output order
     pqp = pd.merge(pqp_mass,pqp_irt, on=['ModifiedPeptideSequence','PrecursorCharge'])
 
   # Write output TSV file
