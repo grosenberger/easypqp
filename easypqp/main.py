@@ -66,7 +66,7 @@ def convert(pepxmlfile, spectralfile, unimodfile, psmsfile, peaksfile, exclude_r
     start_time = time.time()
 
     pepxmlfile_list = []
-    if pepxmlfile.endswith(".pep.xml"):
+    if pepxmlfile.endswith(".pep.xml") or pepxmlfile.lower().endswith(".idxml"):
         pepxmlfile_list.append(pepxmlfile)
     elif pepxmlfile.startswith("[") and pepxmlfile.endswith("]"):
         pepxmlfile_list = ast.literal_eval(pepxmlfile)

@@ -544,45 +544,47 @@ class idxml:
 
         po.IdXMLFile().load(self.idxml_file, proteins, peptides)
 
-        for p in peptides:
+        for i, p in enumerate(peptides):
 
             #percolator probability
-            scores["q_value"] = float(p.getHits()[0].getMetaValue('MS:1001491'))
-            scores["pep"] = float(p.getHits()[0].getMetaValue('MS:1001491'))
+            scores["q_value"] = float(p.getHits()[0].getScore() if p.getScoreType() == "q-value" else 0)
+            scores["pep"] = float(p.getHits()[0].getScore() if p.getScoreType() == "PEP" else 0)
 
             try:
                 parsed_peptides.append({**{'run_id': self.base_name,
-                                           'scan_id': int(str(p.getMetaValue("spectrum_reference")).split('scan=')[-1].strip("'")),
-                                           'hit_rank': int(p.getHits()[0].getRank()),
-                                           'massdiff': float(0),
-                                           'precursor_charge': int(p.getHits()[0].getCharge()),
-                                           'retention_time': float(p.getRT()),
-                                           'modified_peptide': p.getHits()[0].getSequence().toUniModString().decode("utf-8"),
-                                           'peptide_sequence': p.getHits()[0].getSequence().toUnmodifiedString().decode("utf-8"),
-                                           'modifications': '-',
-                                           'nterm_modification': '-',
-                                           'cterm_modification': '-',
-                                           'protein_id': ','.join([prot.getProteinAccession().decode("utf-8") for prot in p.getHits()[0].getPeptideEvidences()]),
-                                           'gene_id': '-',
-                                           'num_tot_proteins': len([prot.getProteinAccession() for prot in p.getHits()[0].getPeptideEvidences()]),
-                                           'decoy': p.getHits()[0].getMetaValue('target_decoy').decode("utf-8")=='decoy'}, **scores})
+                                            'scan_id': int(get_scan(p.getMetaValue("spectrum_reference"), i)),
+                                            'hit_rank': int(p.getHits()[0].getRank()),
+                                            'massdiff': float(0),
+                                            'precursor_charge': int(p.getHits()[0].getCharge()),
+                                            'retention_time': float(p.getRT()),
+											'ion_mobility': float(0),
+                                            'modified_peptide': p.getHits()[0].getSequence().toUniModString().decode("utf-8"),
+                                            'peptide_sequence': p.getHits()[0].getSequence().toUnmodifiedString().decode("utf-8"),
+                                            'modifications': '-',
+                                            'nterm_modification': '-',
+                                            'cterm_modification': '-',
+                                            'protein_id': ','.join([prot.getProteinAccession().decode("utf-8") for prot in p.getHits()[0].getPeptideEvidences()]),
+                                            'gene_id': '-',
+                                            'num_tot_proteins': len([prot.getProteinAccession() for prot in p.getHits()[0].getPeptideEvidences()]),
+                                            'decoy': p.getHits()[0].getMetaValue('target_decoy').decode("utf-8")=='decoy'}, **scores})
 
             except AttributeError:
                 parsed_peptides.append({**{'run_id': self.base_name,
-                                           'scan_id': int(str(p.getMetaValue("spectrum_reference")).split('scan=')[-1].strip("'")),
-                                           'hit_rank': int(p.getHits()[0].getRank()),
-                                           'massdiff': float(0),
-                                           'precursor_charge': int(p.getHits()[0].getCharge()),
-                                           'retention_time': float(p.getRT()),
-                                           'modified_peptide': p.getHits()[0].getSequence().toUniModString(),
-                                           'peptide_sequence': p.getHits()[0].getSequence().toUnmodifiedString(),
-                                           'modifications': '-',
-                                           'nterm_modification': '-',
-                                           'cterm_modification': '-',
-                                           'protein_id': ','.join([prot.getProteinAccession() for prot in p.getHits()[0].getPeptideEvidences()]),
-                                           'gene_id': '-',
-                                           'num_tot_proteins': len([prot.getProteinAccession() for prot in p.getHits()[0].getPeptideEvidences()]),
-                                           'decoy': p.getHits()[0].getMetaValue('target_decoy')=='decoy'}, **scores})
+                                            'scan_id': int(get_scan(p.getMetaValue("spectrum_reference"), i)),
+                                            'hit_rank': int(p.getHits()[0].getRank()),
+                                            'massdiff': float(0),
+                                            'precursor_charge': int(p.getHits()[0].getCharge()),
+                                            'retention_time': float(p.getRT()),
+											'ion_mobility': float(0),
+                                            'modified_peptide': p.getHits()[0].getSequence().toUniModString(),
+                                            'peptide_sequence': p.getHits()[0].getSequence().toUnmodifiedString(),
+                                            'modifications': '-',
+                                            'nterm_modification': '-',
+                                            'cterm_modification': '-',
+                                            'protein_id': ','.join([prot.getProteinAccession() for prot in p.getHits()[0].getPeptideEvidences()]),
+                                            'gene_id': '-',
+                                            'num_tot_proteins': len([prot.getProteinAccession() for prot in p.getHits()[0].getPeptideEvidences()]),
+                                            'decoy': p.getHits()[0].getMetaValue('target_decoy')=='decoy'}, **scores})
 
         df = pd.DataFrame(parsed_peptides)
 
