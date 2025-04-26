@@ -92,8 +92,6 @@ class psmtsv:
 		Match modifications to Unimod as in pepxml. Supports labile modifications
 		"""
 		def match_modifications(peptide, um, modified_peptide_attribute):
-			monomeric_masses = {"A": 71.03711, "R": 156.10111, "N": 114.04293, "D": 115.02694, "C": 103.00919, "E": 129.04259, "Q": 128.05858, "G": 57.02146, "H": 137.05891, "I": 113.08406, "L": 113.08406, "K": 128.09496, "M": 131.04049, "F": 147.06841, "P": 97.05276, "S": 87.03203, "T": 101.04768, "W": 186.07931, "Y": 163.06333, "V": 99.06841,
-								'U': 150.95363, 'O': 237.14773, 'B': 0, 'J': 0, 'X': 0, 'Z': 0}
 			modified_peptide = peptide['peptide_sequence']
 
 			# parse terminal modifications
@@ -138,9 +136,9 @@ class psmtsv:
 					if self.ignore_unannotated:
 						return ''		# set empty modified peptide to ignore with later filtering
 					elif self.enable_unannotated:
-						modified_peptide = "[" + str(round(modifications[site], 6)) + "]" + modified_peptide \
+						modified_peptide = "[" + ("+" if modifications[site] > 0 else "") + str(round(modifications[site], 6)) + "]" + modified_peptide \
 						if is_N_term else \
-						modified_peptide[:site] + "[" + str(round(modifications[site] + monomeric_masses[modified_peptide[site - 1]], 6)) + "]" + modified_peptide[site:]
+						modified_peptide[:site] + "[" + ("+" if modifications[site] > 0 else "") + str(round(modifications[site], 6)) + "]" + modified_peptide[site:]
 					else:
 						raise click.ClickException("Error: Could not annotate site %s (%s) from peptide %s with delta mass %s." % (site, peptide['peptide_sequence'][site-1], peptide['peptide_sequence'], modifications[site]))
 				else:
@@ -354,9 +352,9 @@ class pepxml:
 				is_N_term = isinstance(record_id0, tuple) and position in ('Any N-term', 'Protein N-term')
 				if record_id == -1:
 					if self.enable_unannotated:
-						modified_peptide = "[" + str(round(modifications[site], 6)) + "]" + modified_peptide \
+						modified_peptide = "[" + ("+" if modifications[site] > 0 else "") + str(round(modifications[site], 6)) + "]" + modified_peptide \
 						if is_N_term else \
-						modified_peptide[:site] + "[" + str(round(modifications[site] + monomeric_masses[modified_peptide[site - 1]], 6)) + "]" + modified_peptide[site:]
+						modified_peptide[:site] + "[" + ("+" if modifications[site] > 0 else "") + str(round(modifications[site], 6)) + "]" + modified_peptide[site:]
 					else:
 						raise click.ClickException("Error: Could not annotate site %s (%s) from peptide %s with delta mass %s." % (site, peptide['peptide_sequence'][site-1], peptide['peptide_sequence'], modifications[site]))
 				else:
