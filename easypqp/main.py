@@ -13,6 +13,7 @@ from easypqp import pkg_unimod_db
 from .targetedfileconverter import TargetedFileConverter
 from .openswathassaygenerator import OpenSwathAssayGenerator
 from .openswathdecoygenerator import OpenSwathDecoyGenerator
+from easypqp_rs import generate_insilico_library
 
 try:
     from pyprophet.data_handling import transform_pi0_lambda
@@ -260,6 +261,20 @@ def reduce(infile, outfile, bins, peptides):
     con.close()
 
     timestamped_echo("Info: Library successfully processed and stored in %s." % outfile)
+
+
+# EasyPQP In-Silico Library Generation
+@cli.command()
+@click.option('--config', 'config', required=True, type=click.Path(exists=True), help='JSON configuration file.')
+@click.option('--batch_size', default=10, show_default=True, type=int, help='Batch size (not used).')
+def insilico_library(config, batch_size):
+    """
+    Generate In-Silico Predicted Library
+    """
+    timestamped_echo("Info: Generating In-Silico Predicted Library.")
+    generate_insilico_library(config, batch_size)
+    timestamped_echo("Info: In-Silico Library successfully generated.")
+
 
 # Parameter transformation functions
 def transform_comma_string_to_list(ctx, param, value):
