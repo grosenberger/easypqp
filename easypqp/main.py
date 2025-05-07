@@ -1,5 +1,5 @@
 import ast
-from .util import timestamped_echo
+from .util import timestamped_echo, create_json_config
 import time
 import importlib.resources as pkg_resources
 import click
@@ -262,35 +262,108 @@ def reduce(infile, outfile, bins, peptides):
 
     timestamped_echo("Info: Library successfully processed and stored in %s." % outfile)
 
+def transform_comma_string_to_list(output_type=str):
+    """Factory function that creates a callback for Click options.
+    
+    Args:
+        output_type: The type to convert each element to (str or int)
+    
+    Returns:
+        A callback function suitable for Click's callback parameter
+    """
+    def callback(ctx, param, value):
+        if value is None:
+            return None
+        try:
+            items = value.split(",")
+            if output_type == int:
+                return [int(item.strip()) for item in items]
+            return [item.strip() for item in items]
+        except ValueError as e:
+            raise click.BadParameter(f"Couldn't convert '{value}' to list of {output_type.__name__}: {e}")
+    
+    return callback
 
 # EasyPQP In-Silico Library Generation
 @cli.command()
-@click.option('--config', 'config', required=True, type=click.Path(exists=True), help='JSON configuration file.')
-@click.option('--batch_size', default=10, show_default=True, type=int, help='Batch size (not used).')
-def insilico_library(config, batch_size):
+@click.option('--fasta', 'fasta', required=False, type=click.Path(exists=True), help='FASTA file with protein sequences. Overrides the FASTA file specified in the config.')
+@click.option('--output_file', 'output_file', required=False, type=click.Path(exists=False), help='Output file for the generated library. Overrides the output directory specified in the')
+@click.option('--generate_decoys/--no-generate_decoys', default=False, show_default=True, help='Generate decoy library.')
+@click.option('--decoy_tag', default='rev_', show_default=True, type=str, help='Decoy tag to be used for decoy generation.')
+@click.option('--precursor_charge', default='2,3', show_default=True, type=str, callback=transform_comma_string_to_list(output_type=int), help='Precursor charge states to be used for library generation.')
+@click.option('--max_fragment_charge', default=2, show_default=True, type=int, help='Maximum fragment charge state.')
+@click.option('--min_transitions', default=6, show_default=True, type=int, help='Minimum number of transitions per peptide.')
+@click.option('--max_transitions', default=6, show_default=True, type=int, help='Maximum number of transitions per peptide.')
+@click.option('--fragmentation_model', default='hcd', show_default=True, type=str, help='Fragmentation model to be used for theoretical fragmentaton generation. Options are (etd/td_etd/ethcd/etcad/eacid/ead/hcd/cid/all/none). See: `[FragmentationModel](https://docs.rs/rustyms/latest/rustyms/model/struct.FragmentationModel.html#method.etd)` for more details.')
+@click.option('--allowed_fragment_types', default='b,y', show_default=True, type=str, callback=transform_comma_string_to_list(output_type=str), help='Allowed fragment types. Current MS2 prediction model only supports b and y ions.')
+@click.option('--fine_tune/--no-fine_tune', default=False, show_default=True, help='Fine-tune the predictions models using the provided training data.')
+@click.option('--train_data_path', default=None, show_default=True, type=click.Path(exists=True), help='Path to the training data for fine-tuning. This should be a TSV file with columns: "sequence", "precursor_charge", "intensity", "retention_time", "ion_mobility" (Optional).')
+@click.option('--save_model/--no-save_model', default=False, show_default=True, help='Save the fine-tuned model to the specified path.')
+@click.option('--instrument', default='QE/Lumos/timsTOF/SciexTOF/ThermoTOF', show_default=True, type=str, help='Instrument type. Options are (QE).')
+@click.option('--nce', default=20, show_default=True, type=int, help='Normalized collision energy (NCE) to be used for MS2 intensity prediction.')
+@click.option('--batch_size', default=10, show_default=True, type=int, help='Batch size used for peptide property inferece.')
+@click.option('--config', 'config', required=False, type=click.Path(exists=True), help='JSON configuration file.')
+def insilico_library(
+    fasta,
+    output_file,
+    generate_decoys,
+    decoy_tag,
+    precursor_charge,
+    max_fragment_charge,
+    min_transitions,
+    max_transitions,
+    fragmentation_model,
+    allowed_fragment_types,
+    fine_tune,
+    train_data_path,
+    save_model,
+    instrument,
+    nce,
+    batch_size,
+    config
+):
     """
     Generate In-Silico Predicted Library
     """
+    if fasta is None and config is None:
+        timestamped_echo("Error: Please provide either a FASTA file or a JSON configuration file like below.")
+        print(create_json_config(as_bytes=True).decode())
+        return 1
+    
+    if config is None:
+        config = create_json_config(as_bytes=True).decode()
+        timestamped_echo("Info: Using default configuration.")
+        
     timestamped_echo("Info: Generating In-Silico Predicted Library.")
-    generate_insilico_library(config, batch_size)
+    generate_insilico_library(
+        config,
+        fasta,
+        output_file,
+        generate_decoys,
+        decoy_tag,
+        precursor_charge,
+        max_fragment_charge,
+        min_transitions,
+        max_transitions,
+        fragmentation_model,
+        allowed_fragment_types,
+        fine_tune,
+        train_data_path,
+        save_model,
+        instrument,
+        nce,
+        batch_size,
+    )
     timestamped_echo("Info: In-Silico Library successfully generated.")
 
-
-# Parameter transformation functions
-def transform_comma_string_to_list(ctx, param, value):
-    if value is not None:
-        str_list = value.split(",")
-        return str_list
-    else:
-        return None 
 
 # EasyPQP UniMod Database Filtering
 @cli.command()
 @click.option('--in', 'infile', required=False, default=pkg_unimod_db, show_default=True, type=click.Path(exists=True), help='Input UniMod XML file.')
 @click.option('--out', 'outfile', required=False, default="unimod_ipf.xml", show_default=True, type=click.Path(exists=False), help='Output Filtered UniMod XML file.')
-@click.option('--ids', 'accession_ids', default='1,2,4,5,7,21,26,27,28,34,35,36,40,121,122,259,267,299,354', show_default=True, type=str, help='UniMod record ids to filter for, i.e. 1,2,4,21.', callback=transform_comma_string_to_list)
+@click.option('--ids', 'accession_ids', default='1,2,4,5,7,21,26,27,28,34,35,36,40,121,122,259,267,299,354', show_default=True, type=str, help='UniMod record ids to filter for, i.e. 1,2,4,21.', callback=transform_comma_string_to_list(output_type=str))
 @click.option('--sites', 'site_specificity', default=None, show_default=True, type=str, help="""Optional further restriction for specificity, i.e. [n,],M,nK[,QN,STY,*,*,*,EDcRK,WM,RK,Y,K,[TKnS,K,R,EK,Y]. Ensure, you match the sites you want to restrict per unimod.\b\n\nFor example, if --ids=1,21,35, then you should have the following for --sites=n,STY,M. This will restrict acetylation for any N-Term, phosphorylation for serine, threonine, and tyrosine, and oxidation for methionine.
-\b\n\nValid Sites:\n\n* - wildcard, will not restrict for any specificty for corresponding UniMod entry.\n\n[ - Protein N-Term\n\n] - Protein C-Term\n\nn - Any N-Term\n\nc - Any C-Term\n\nAmino Acid Letter - A valid amino acid one letter code.\n\n""", callback=transform_comma_string_to_list)
+\b\n\nValid Sites:\n\n* - wildcard, will not restrict for any specificty for corresponding UniMod entry.\n\n[ - Protein N-Term\n\n] - Protein C-Term\n\nn - Any N-Term\n\nc - Any C-Term\n\nAmino Acid Letter - A valid amino acid one letter code.\n\n""", callback=transform_comma_string_to_list(output_type=str))
 def filter_unimod(infile, outfile, accession_ids, site_specificity):
     """
     Reduce UniMod XML Database file
@@ -361,7 +434,7 @@ def openswath_assay_generator(infile, in_type, outfile, out_type, min_transition
     assay_generator.read_input_file()
     assay_generator.annotate_transitions()
     assay_generator.write_output_file()
-    
+
 
 # EasyPQP OpenSwathDecoyGenerator
 @cli.command()

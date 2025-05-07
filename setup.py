@@ -32,7 +32,7 @@ setup(
     ],
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
     include_package_data=True,
-    install_requires=['numba','Click>=8.0.0','numpy==1.26.4','scipy','scikit-learn','statsmodels','pandas>=1.5.0','biopython','pyopenms>=3.3.0','matplotlib>=3.5.1','seaborn', 'tqdm'],
+    install_requires=['numba','Click>=8.0.0','numpy==1.26.4','scipy','scikit-learn','statsmodels','pandas>=1.5.0','biopython','pyopenms>=3.3.0','matplotlib>=3.5.1','seaborn', 'tqdm', 'easypqp_rs>=0.1.0'],
     # extras_require={  # Optional
     #     'dev': ['check-manifest'],
     #     'test': ['coverage'],
