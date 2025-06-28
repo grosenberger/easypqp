@@ -709,8 +709,8 @@ def read_mzml_or_mzxml_impl(input_map, psms, theoretical, max_delta_ppm, filetyp
 	assert filetype in ('mzml', 'mzxml')
 
 	timestamped_echo("Info: Collecting PSMs...")
-
-	input_map = {get_scan(getNativeID, idx + 1): e for idx, (getNativeID, e) in enumerate(input_map)}
+	if os.getenv('FRAGPIPE_PARSE_MZML_CMD') is None:
+		input_map = {get_scan(getNativeID, idx + 1): e for idx, (getNativeID, e) in enumerate(input_map)}
 	import concurrent.futures
 	nthreads = min(os.cpu_count(), 5)
 	def f(psms):
@@ -1047,7 +1047,11 @@ def conversion(pepxmlfile_list, spectralfile, unimodfile, exclude_range, max_del
 	if spectralfile.lower().endswith(".mzxml"):
 		input_map = get_map_mzml_or_mzxml(spectralfile, 'mzxml')
 	elif spectralfile.casefold().endswith(".mzml"):
-		input_map = get_map_mzml_or_mzxml(spectralfile, 'mzml')
+		if os.getenv('FRAGPIPE_PARSE_MZML_CMD') is None:
+			input_map = get_map_mzml_or_mzxml(spectralfile, 'mzml')
+		else:
+			from .fragpipe_utils import parse_mzml_cmd
+			input_map = parse_mzml_cmd(os.getenv('FRAGPIPE_PARSE_MZML_CMD'), spectralfile)
 	else:
 		input_map = None
 
