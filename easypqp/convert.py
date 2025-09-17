@@ -131,20 +131,15 @@ class psmtsv:
 					record_id, position = record_id0
 				else:
 					record_id = record_id0
-				is_N_term = isinstance(record_id0, tuple) and position in ('Any N-term', 'Protein N-term')
 				if record_id == -1:
 					if self.ignore_unannotated:
 						return ''		# set empty modified peptide to ignore with later filtering
 					elif self.enable_unannotated:
-						modified_peptide = "[" + ("+" if modifications[site] > 0 else "") + str(round(modifications[site], 6)) + "]" + modified_peptide \
-						if is_N_term else \
-						modified_peptide[:site] + "[" + ("+" if modifications[site] > 0 else "") + str(round(modifications[site], 6)) + "]" + modified_peptide[site:]
+						modified_peptide = modified_peptide[:site] + "[" + ("+" if modifications[site] > 0 else "") + str(round(modifications[site], 6)) + "]" + modified_peptide[site:]
 					else:
 						raise click.ClickException("Error: Could not annotate site %s (%s) from peptide %s with delta mass %s." % (site, peptide['peptide_sequence'][site-1], peptide['peptide_sequence'], modifications[site]))
 				else:
-					modified_peptide = "(UniMod:" + str(record_id) + ")" + modified_peptide \
-						if is_N_term else \
-						modified_peptide[:site] + "(UniMod:" + str(record_id) + ")" + modified_peptide[site:]
+					modified_peptide = modified_peptide[:site] + "(UniMod:" + str(record_id) + ")" + modified_peptide[site:]
 
 			if nterm_modification != '':
 				record_id_nterm = um.get_id("N-term", 'Any N-term', nterm_modification)
@@ -349,18 +344,13 @@ class pepxml:
 					record_id, position = record_id0
 				else:
 					record_id = record_id0
-				is_N_term = isinstance(record_id0, tuple) and position in ('Any N-term', 'Protein N-term')
 				if record_id == -1:
 					if self.enable_unannotated:
-						modified_peptide = "[" + ("+" if modifications[site] > 0 else "") + str(round(modifications[site], 6)) + "]" + modified_peptide \
-						if is_N_term else \
-						modified_peptide[:site] + "[" + ("+" if modifications[site] > 0 else "") + str(round(modifications[site], 6)) + "]" + modified_peptide[site:]
+						modified_peptide = modified_peptide[:site] + "[" + ("+" if modifications[site] > 0 else "") + str(round(modifications[site], 6)) + "]" + modified_peptide[site:]
 					else:
 						raise click.ClickException("Error: Could not annotate site %s (%s) from peptide %s with delta mass %s." % (site, peptide['peptide_sequence'][site-1], peptide['peptide_sequence'], modifications[site]))
 				else:
-					modified_peptide = "(UniMod:" + str(record_id) + ")" + modified_peptide \
-						if is_N_term else \
-						modified_peptide[:site] + "(UniMod:" + str(record_id) + ")" + modified_peptide[site:]
+					modified_peptide = modified_peptide[:site] + "(UniMod:" + str(record_id) + ")" + modified_peptide[site:]
 
 			if nterm_modification != '':
 				record_id_nterm = um.get_id("N-term", 'Any N-term', nterm_modification)
