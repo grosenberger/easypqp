@@ -62,6 +62,7 @@ def create_json_config(as_bytes: bool = False) -> Union[str, bytes]:
             "nce": 20.0,
             "batch_size": 64
         },
+        "peptide_chunking": 0,
         "output_file": "./easypqp_insilico_library.tsv"
     }
 
