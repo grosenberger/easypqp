@@ -42,7 +42,7 @@ class SagePSMParser:
     Output columns:
       run_id, scan_id, hit_rank, massdiff, precursor_charge, retention_time,
       ion_mobility, peptide_sequence, protein_id, gene_id, num_tot_proteins,
-      decoy, pep, modified_peptide, group_id, precursor_mz (helper for join)
+      decoy, pep, modified_peptide, group_id, precursor_mz 
     """
     # Sage bracket delta pattern: A[+15.9949], C[-0.9840], etc.
     BRACKET_RE = re.compile(r'([A-Z])\[(?P<delta>[+-]?\d+(?:\.\d+)?)\]')
@@ -265,7 +265,7 @@ class SagePSMParser:
 
 class SageFragmentParser:
     """
-    Parse matched_fragments.sage.tsv → EasyPQP 'peaks' table:
+    Parse matched_fragments.sage.tsv to EasyPQP 'peaks' table:
       columns: scan_id, modified_peptide, precursor_charge, precursor_mz, fragment, product_mz, intensity
     """
     def __init__(self, frags_tsv: str, mz_precision_digits: int = 6):
