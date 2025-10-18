@@ -1,6 +1,5 @@
 import ast
 import importlib.resources as pkg_resources
-import os
 import sqlite3
 import time
 from shutil import copyfile
@@ -20,9 +19,14 @@ from .unimoddb import unimod_filter
 from .util import timestamped_echo
 
 try:
+    # PyProphet ≤ 2.x
     from pyprophet.data_handling import transform_pi0_lambda
-except ModuleNotFoundError:
-    transform_pi0_lambda = None
+except (ImportError, ModuleNotFoundError):
+    try:
+        # PyProphet ≥ 3.x
+        from pyprophet.cli.util import transform_pi0_lambda
+    except (ImportError, ModuleNotFoundError):
+        transform_pi0_lambda = None
 
 
 @click.group(chain=True)
