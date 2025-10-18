@@ -20,6 +20,20 @@ def _get_first_existing(df: pd.DataFrame, cols: List[str], cast=None, default=No
         return None
     return pd.Series([default] * len(df))
 
+def _read_table(path: str) -> pd.DataFrame:
+    """Read a TSV or Parquet file into a DataFrame."""
+    p = (path or "").lower()
+    if p.endswith((".parquet", ".pq")):
+        try:
+            return pd.read_parquet(path)
+        except Exception as e:
+            raise RuntimeError(f"Failed to read Parquet file: {path}\n{e}")
+    if p.endswith((".tsv")):
+        try:
+            return pd.read_csv(path, sep="\t", dtype=str)
+        except Exception as e:
+            raise RuntimeError(f"Failed to read TSV file: {path}\n{e}")
+
 
 class SagePSMParser:
     """
@@ -176,9 +190,8 @@ class SagePSMParser:
 
 
     def parse(self) -> pd.DataFrame:
-        df = pd.read_csv(self.results_tsv, sep='\t', dtype=str).fillna('')
-
-        # basics
+        df = _read_table(self.results_tsv).fillna('')
+        
         filename = _get_first_existing(df, ['filename', 'file', 'rawfile', 'raw_file', 'source_file'])
         if filename is None:
             raise ValueError("results.sage.tsv is missing a filename/raw file column.")
@@ -190,16 +203,23 @@ class SagePSMParser:
 
         rt = _get_first_existing(df, ['rt', 'retention_time', 'retention', 'retention_time_sec'], cast=float, default=np.nan)
         im = _get_first_existing(df, ['ion_mobility', 'mobility', 'ccs', 'k0'], cast=float, default=np.nan)
+        # If im is all 0s, set to NaN
+        if im.eq(0).all():
+            im = pd.Series([np.nan] * len(df))
 
         pep_seq = df['peptide'].astype(str)
         proteins_raw = _get_first_existing(df, ['proteins', 'protein', 'protein_id'])
         proteins_raw = proteins_raw.astype(str) if proteins_raw is not None else pd.Series([''] * len(df))
         protein_ids, gene_ids, num_prot = self._split_accessions_and_entries(proteins_raw)
 
-        # decoy detection from label 
-        # Sage: label == -1 (decoy), +1 (target)
-        label_series = pd.to_numeric(df['label'], errors='coerce')
-        decoy = (label_series == -1)
+        if "label" in df.columns:
+            # decoy detection from label 
+            # Sage TSV: label == -1 (decoy), +1 (target)
+            label_series = pd.to_numeric(df['label'], errors='coerce')
+            decoy = (label_series == -1)
+        elif "is_decoy" in df.columns:
+            # The parquet format uses a boolean is_decoy column
+            decoy = df['is_decoy']
 
         # spectrum-level q-value, peptide-level q-value and protein-level q-value
         pep = pd.to_numeric(df['posterior_error'], errors='coerce') if 'posterior_error' in df.columns else pd.Series([np.nan]*len(df))
@@ -254,7 +274,8 @@ class SageFragmentParser:
         return f"{ftype}{ord_}^{z}"
 
     def parse(self, psms_with_psmid: pd.DataFrame) -> pd.DataFrame:
-        fr = pd.read_csv(self.frags_tsv, sep='\t', dtype=str).fillna('')
+        fr = _read_table(self.frags_tsv).fillna('')
+
         for c in ['psm_id', 'fragment_ordinals', 'fragment_charge', 'fragment_mz_calculated',
                   'fragment_mz_experimental', 'fragment_intensity']:
             if c in fr.columns:
@@ -306,7 +327,7 @@ def convert_sage(results_tsv: str,
     """
     # Read raw to extract psm_id for joining
     timestamped_echo("Info: Reading Sage PSMs")
-    raw_res = pd.read_csv(results_tsv, sep='\t', dtype=str)
+    raw_res = _read_table(results_tsv)
     if 'psm_id' not in raw_res.columns:
         raise ValueError("results.sage.tsv must contain a 'psm_id' for joining with matched fragments.")
     
