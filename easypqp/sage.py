@@ -52,9 +52,11 @@ class SagePSMParser:
     _DECOY_PREFIX_RE = re.compile(r'^(?:decoy_|rev_)+', flags=re.IGNORECASE)
 
 
-    def __init__(self, results_tsv: str, unimod_xml: Optional[str], max_delta_unimod: float = 0.02):
+    def __init__(self, results_tsv: str, unimod_xml: Optional[str], max_delta_unimod: float = 0.02, mz_precision_digits: int = 6):
         self.results_tsv = results_tsv
         self.um = UniModHelper(unimod_xml, max_delta_unimod) if unimod_xml else None
+        self.max_delta_unimod = max_delta_unimod
+        self.mz_precision_digits = mz_precision_digits
         
     @staticmethod
     def _uniq_preserve(seq):
@@ -154,8 +156,7 @@ class SagePSMParser:
 
         # 3) very small fallback table for the most common N-term losses
         #    (used only if UniMod lookup fails)
-        def fallback_unimod(aa: str, idx: int, delta: float) -> int:
-            tol = 0.02
+        def fallback_unimod(aa: str, idx: int, delta: float, tol=0.02) -> int:
             if idx == 1 and aa == 'Q' and abs(delta - (-17.026549)) <= tol:
                 return 28  # Gln->pyro-Glu (N-term)
             if idx == 1 and aa == 'E' and abs(delta - (-18.010565)) <= tol:
@@ -181,7 +182,7 @@ class SagePSMParser:
 
             # Fallback: known N-term conversions (pyro-Glu/Q,E)
             if rec_id == -1:
-                rec_id = fallback_unimod(aa, idx, delta)
+                rec_id = fallback_unimod(aa, idx, delta, self.max_delta_unimod)
 
             insert = f"(UniMod:{rec_id})" if rec_id != -1 else f"[{delta:+.6f}]"
             out.insert(idx, insert)
@@ -229,6 +230,8 @@ class SagePSMParser:
 
         # precursor m/z if present (for joining with fragments)
         prec_mz = _get_first_existing(df, ['calcmass', 'expmass', 'precursor_mz', 'mz'], cast=float, default=np.nan)
+        ## set precision
+        prec_mz = prec_mz.round(self.mz_precision_digits)
 
         # modified peptide
         modpep = pep_seq.apply(self._annotate_unimod)
@@ -321,9 +324,11 @@ class SageFragmentParser:
 def convert_sage(results_tsv: str,
                  fragments_tsv: str,
                  unimod_xml: Optional[str],
-                 max_delta_unimod: float = 0.02) -> Tuple[pd.DataFrame, pd.DataFrame]:
+                 max_delta_unimod: float = 0.02,
+                 mz_precision_digits: int = 6
+                 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
-    High-level conversion: Sage TSVs -> (psms_df, peaks_df)
+    High-level conversion: Sage TSV/Parquet to EasyPQP PSM and peaks pickles written to disk.
     """
     # Read raw to extract psm_id for joining
     timestamped_echo("Info: Reading Sage PSMs")
@@ -333,14 +338,14 @@ def convert_sage(results_tsv: str,
     
     raw_res['psm_id'] = raw_res['psm_id'].astype(str).str.strip()
 
-    psms = SagePSMParser(results_tsv, unimod_xml, max_delta_unimod).parse()
+    psms = SagePSMParser(results_tsv, unimod_xml, max_delta_unimod, mz_precision_digits).parse()
     psms = raw_res[['psm_id']].join(psms)
     
     if psms.empty:
         raise ValueError("No PSMs were parsed from the provided results.sage.tsv file.")
 
     timestamped_echo("Info: Reading Sage matched fragment peaks")
-    peaks = SageFragmentParser(fragments_tsv).parse(psms)
+    peaks = SageFragmentParser(fragments_tsv, mz_precision_digits).parse(psms)
     
     if peaks.empty:
         raise ValueError("No fragment peaks were parsed from the provided matched_fragments.sage.tsv file.")
@@ -373,5 +378,3 @@ def convert_sage(results_tsv: str,
 
     if len(new_infiles) == 0:
         raise click.ClickException("No non-empty runs detected after Sage conversion.")
-
-    return new_infiles
