@@ -23,25 +23,95 @@ def _get_first_existing(df: pd.DataFrame, cols: List[str], cast=None, default=No
 
 class SagePSMParser:
     """
-    Parse results.sage.tsv → EasyPQP PSM schema (subset used by library.generate)
+    Parse results.sage.tsv to EasyPQP PSM schema (subset used by library.generate)
 
     Output columns:
       run_id, scan_id, hit_rank, massdiff, precursor_charge, retention_time,
       ion_mobility, peptide_sequence, protein_id, gene_id, num_tot_proteins,
       decoy, pep, modified_peptide, group_id, precursor_mz (helper for join)
     """
+    # Sage bracket delta pattern: A[+15.9949], C[-0.9840], etc.
     BRACKET_RE = re.compile(r'([A-Z])\[(?P<delta>[+-]?\d+(?:\.\d+)?)\]')
+    # Uniprot token pattern: db|ACCESSION|ENTRY_NAME  (e.g., sp|P01903|DRA_HUMAN)
+    _ACC_ENTRY_RE = re.compile(r'^[A-Za-z]{2}\|(?P<acc>[^|]+)\|(?P<entry>[^|]+)$')
+    # Common decoy prefixes occasionally carried into protein tokens (we still rely on label for decoy)
+    _DECOY_PREFIX_RE = re.compile(r'^(?:decoy_|rev_)+', flags=re.IGNORECASE)
+
 
     def __init__(self, results_tsv: str, unimod_xml: Optional[str], max_delta_unimod: float = 0.02):
         self.results_tsv = results_tsv
         self.um = UniModHelper(unimod_xml, max_delta_unimod) if unimod_xml else None
+        
+    @staticmethod
+    def _uniq_preserve(seq):
+        """De-duplicate while preserving order."""
+        seen = set()
+        out = []
+        for x in seq:
+            if x not in seen:
+                seen.add(x)
+                out.append(x)
+        return out
+
+    def _clean_token(self, tok: str) -> str:
+        """Strip decoy prefixes and whitespace from an individual protein token."""
+        tok = (tok or "").strip()
+        return self._DECOY_PREFIX_RE.sub("", tok)
+
+    def _parse_protein_token(self, tok: str) -> Tuple[str, str]:
+        """
+        Extract (accession, entry_name) from a single token.
+        Falls back gracefully if format isn't db|ACC|ENTRY.
+        """
+        t = self._clean_token(tok)
+        m = self._ACC_ENTRY_RE.match(t)
+        if m:
+            return m.group('acc'), m.group('entry')
+        # Fallbacks:
+        if '|' in t:
+            parts = t.split('|')
+            if len(parts) >= 3:
+                return parts[1] or '', parts[2] or ''
+            # unknown pipe-y format: best-effort
+            return parts[-1] or '', ''
+        # No pipes at all: treat token as accession-only
+        return t, ''
+
+    def _split_accessions_and_entries(self, proteins: pd.Series) -> Tuple[pd.Series, pd.Series, pd.Series]:
+        """
+        Vectorized split of Sage protein strings into:
+          - accessions (semicolon-joined)
+          - entry names (semicolon-joined)
+          - count of unique accessions (for num_tot_proteins)
+        """
+        acc_list = []
+        entry_list = []
+        counts = []
+        for s in proteins.astype(str):
+            if not s or s == 'nan':
+                accs, entries = [], []
+            else:
+                toks = [t for t in s.split(';') if t.strip()]
+                pairs = [self._parse_protein_token(t) for t in toks]
+                accs   = self._uniq_preserve([a for a, _ in pairs if a])
+                entries= self._uniq_preserve([e for _, e in pairs if e])
+
+            acc_list.append(';'.join(accs))
+            entry_list.append(';'.join(entries))
+            counts.append(len(accs))
+
+        return pd.Series(acc_list), pd.Series(entry_list), pd.Series(counts)
 
     def _annotate_unimod(self, pep: str) -> str:
-        """Convert Sage bracket deltas to (UniMod:ID); leave bracketed mass if not matchable."""
+        """
+        Convert Sage bracket deltas (e.g., M[+15.9949]) to (UniMod:<ID>).
+        Tries position-specific contexts (N-term / C-term) before 'Anywhere'.
+        Falls back to leaving the numeric delta if nothing matches.
+        """
         if self.um is None or '[' not in pep:
             return pep
 
-        # strip to unmodified sequence + map site→delta
+        # 1) get clean sequence and site->delta map from Sage string
         seq = re.sub(r'\[[-+0-9.]+\]', '', pep)
         site2delta: Dict[int, float] = {}
         site = 0
@@ -58,16 +128,52 @@ class SagePSMParser:
             else:
                 i += 1
 
+        # 2) position preference helper
+        def positions_for_site(idx: int, length: int):
+            if idx == 1:
+                # try N-terminus flavors first, then Anywhere
+                return ['Any N-term', 'Protein N-term', 'Anywhere']
+            if idx == length:
+                # try C-terminus flavors first, then Anywhere
+                return ['Any C-term', 'Protein C-term', 'Anywhere']
+            return ['Anywhere']
+
+        # 3) very small fallback table for the most common N-term losses
+        #    (used only if UniMod lookup fails)
+        def fallback_unimod(aa: str, idx: int, delta: float) -> int:
+            tol = 0.02
+            if idx == 1 and aa == 'Q' and abs(delta - (-17.026549)) <= tol:
+                return 28  # Gln->pyro-Glu (N-term)
+            if idx == 1 and aa == 'E' and abs(delta - (-18.010565)) <= tol:
+                return 27  # Glu->pyro-Glu (N-term)
+            return -1
+
+        # 4) build output by injecting (UniMod:<id>) after the modified residue
         out = list(seq)
-        for s in sorted(site2delta.keys(), reverse=True):
-            aa = seq[s - 1]
-            dm = site2delta[s]
-            rid = self.um.get_id(aa, 'Anywhere', dm)
-            if isinstance(rid, tuple):
-                rid = rid[0]
-            ins = f"(UniMod:{rid})" if rid != -1 else f"[{dm:+.6f}]"
-            out.insert(s, ins)
+        L = len(seq)
+        for idx in sorted(site2delta.keys(), reverse=True):
+            delta = site2delta[idx]
+            aa = seq[idx - 1]
+            rec_id = -1
+
+            # Try position-specific contexts first
+            for pos in positions_for_site(idx, L):
+                rid = self.um.get_id(aa, pos, delta)
+                if isinstance(rid, tuple):
+                    rid = rid[0]
+                if rid != -1:
+                    rec_id = rid
+                    break
+
+            # Fallback: known N-term conversions (pyro-Glu/Q,E)
+            if rec_id == -1:
+                rec_id = fallback_unimod(aa, idx, delta)
+
+            insert = f"(UniMod:{rec_id})" if rec_id != -1 else f"[{delta:+.6f}]"
+            out.insert(idx, insert)
+
         return ''.join(out)
+
 
     def parse(self) -> pd.DataFrame:
         df = pd.read_csv(self.results_tsv, sep='\t', dtype=str).fillna('')
@@ -86,11 +192,9 @@ class SagePSMParser:
         im = _get_first_existing(df, ['ion_mobility', 'mobility', 'ccs', 'k0'], cast=float, default=np.nan)
 
         pep_seq = df['peptide'].astype(str)
-        proteins = _get_first_existing(df, ['proteins', 'protein', 'protein_id'])
-        proteins = proteins.astype(str) if proteins is not None else pd.Series([''] * len(df))
-
-        # protein multiplicity
-        num_prot = proteins.apply(lambda s: 0 if s == '' else len(str(s).split(';')))
+        proteins_raw = _get_first_existing(df, ['proteins', 'protein', 'protein_id'])
+        proteins_raw = proteins_raw.astype(str) if proteins_raw is not None else pd.Series([''] * len(df))
+        protein_ids, gene_ids, num_prot = self._split_accessions_and_entries(proteins_raw)
 
         # decoy detection from label 
         # Sage: label == -1 (decoy), +1 (target)
@@ -121,9 +225,9 @@ class SagePSMParser:
             'retention_time': rt,
             'ion_mobility': im,
             'peptide_sequence': pep_seq.str.replace(r'\[[-+0-9.]+\]', '', regex=True),
-            'protein_id': proteins.fillna(''),
-            'gene_id': '',
-            'num_tot_proteins': num_prot,
+            'protein_id': protein_ids.fillna(''),
+            'gene_id': gene_ids.fillna(''),
+            'num_tot_proteins': num_prot.fillna(0).astype(int),
             'decoy': decoy.astype(bool),
             'modified_peptide': modpep,
             'group_id': group_id,
@@ -141,8 +245,9 @@ class SageFragmentParser:
     Parse matched_fragments.sage.tsv → EasyPQP 'peaks' table:
       columns: scan_id, modified_peptide, precursor_charge, precursor_mz, fragment, product_mz, intensity
     """
-    def __init__(self, frags_tsv: str):
+    def __init__(self, frags_tsv: str, mz_precision_digits: int = 6):
         self.frags_tsv = frags_tsv
+        self.mz_precision_digits = mz_precision_digits
 
     @staticmethod
     def _ann(ftype: str, ord_: int, z: int) -> str:
@@ -181,9 +286,9 @@ class SageFragmentParser:
         peaks['intensity'] = peaks['intensity'].fillna(0.0)
 
         # round and de-duplicate (keep most intense per exact fragment/product_mz)
-        peaks['product_mz'] = peaks['product_mz'].round(6)
-        peaks['precursor_mz'] = peaks['precursor_mz'].round(6)
-        peaks['intensity'] = peaks['intensity'].round(6)
+        peaks['product_mz'] = peaks['product_mz'].round(self.mz_precision_digits)
+        peaks['precursor_mz'] = peaks['precursor_mz'].round(self.mz_precision_digits)
+        peaks['intensity'] = peaks['intensity'].round(self.mz_precision_digits)
 
         peaks = (peaks
                  .groupby(['run_id', 'scan_id', 'modified_peptide', 'precursor_charge', 'precursor_mz',
