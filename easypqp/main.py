@@ -179,6 +179,7 @@ def convertpsm(psmfile, spectralfile, unimodfile, psmsfile, peaksfile, exclude_r
 @click.option('--sage_psm', 'sage_psm', required=False, type=click.Path(exists=True), help='Path to Sage results.sage.tsv.')
 @click.option('--sage_fragments', 'sage_fragments', required=False, type=click.Path(exists=True), help='Path to Sage matched_fragments.sage.tsv.')
 @click.option('--unimod', 'unimodfile', required=False, type=click.Path(exists=True), help='UniMod XML (used to map numeric deltas to UniMod IDs).')
+@click.option('--max_delta_unimod', default=0.02, show_default=True, type=float, help='Maximum delta mass (Dalton) for UniMod annotation.')
 ## Library generation options
 @click.option('--perform_rt_calibration', required=False, type=bool, help='Whether to perform RT calibration', default=True, show_default=True)
 @click.option('--rt_reference', 'rt_referencefile', required=False, type=click.Path(exists=True), help='Optional iRT/CiRT reference file.')
@@ -203,7 +204,7 @@ def convertpsm(psmfile, spectralfile, unimodfile, psmsfile, peaksfile, exclude_r
 @click.option('--consensus/--no-consensus', show_default=True, default=True, help='Generate consensus instead of best replicate spectra.')
 @click.option('--nofdr/--no-fdr-filtering', show_default=True, default=False, help='Do not reassess or filter by FDR, as library was already provided using customized FDR filtering.')
 @click.option('--diannpqp/--no-diann-pqp', show_default=True, default=False, help='Generate DIA-NN2-compatible PQP library.')
-def library(infiles, outfile, psmtsv, peptidetsv, sage_psm, sage_fragments, unimodfile, perform_rt_calibration, rt_referencefile, rt_reference_run_path, rt_filter, perform_im_calibration, im_referencefile, im_reference_run_path, im_filter, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_fraction, rt_psm_fdr_threshold, im_lowess_fraction, im_psm_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus, nofdr, diannpqp):
+def library(infiles, outfile, psmtsv, peptidetsv, sage_psm, sage_fragments, unimodfile, max_delta_unimod, perform_rt_calibration, rt_referencefile, rt_reference_run_path, rt_filter, perform_im_calibration, im_referencefile, im_reference_run_path, im_filter, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_fraction, rt_psm_fdr_threshold, im_lowess_fraction, im_psm_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus, nofdr, diannpqp):
     """
     Generate EasyPQP library
     """
@@ -221,7 +222,7 @@ def library(infiles, outfile, psmtsv, peptidetsv, sage_psm, sage_fragments, unim
             unimodfile = str(pkg_resources.files('easypqp').joinpath('data/unimod.xml'))
                 
         timestamped_echo(f"Info: Converting Sage inputs: {sage_psm} + {sage_fragments}")
-        new_infiles = convert_sage(sage_psm, sage_fragments, unimodfile)
+        new_infiles = convert_sage(sage_psm, sage_fragments, unimodfile, max_delta_unimod)
 
     generate(tuple(new_infiles), outfile, psmtsv, peptidetsv, perform_rt_calibration, rt_referencefile, rt_reference_run_path, rt_filter, perform_im_calibration, im_referencefile, im_reference_run_path, im_filter, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_fraction, rt_psm_fdr_threshold, im_lowess_fraction, im_psm_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus, nofdr, diannpqp)
     timestamped_echo("Info: Library successfully generated.")
