@@ -27,9 +27,14 @@ or:
 
 ````
    $ easypqp convert --help
+   $ easypqp convertpsm --help
+   $ easypqp convertsage --help
    $ easypqp library --help
    $ easypqp reduce --help
    $ easypqp filter-unimod --help
+   $ easypqp openswath-assay-generator --help
+   $ easypqp openswath-decoy-generator --help
+   $ easypqp targeted-file-converter --help
 ````
 
 Docker
