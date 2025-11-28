@@ -510,8 +510,29 @@ def convertpsm(
     type=int,
     help="Precision (number of digits) for the product m/z reported by the theoretical library generation step. This should match the precision of the downstream consumer of the spectral library. Lowering this number will collapse (more) identical fragment ions of the same precursor to a single value.",
 )
+@click.option(
+    "--streaming",
+    "streaming",
+    is_flag=True,
+    default=False,
+    help="Force streaming conversion (process runs one-by-one). If omitted, auto-detect by input size.",
+)
+@click.option(
+    "--streaming-threshold-bytes",
+    "streaming_threshold_bytes",
+    default=1000000000,
+    show_default=True,
+    type=int,
+    help="Auto-switch to streaming when combined input size (bytes) >= this threshold. Default: 1GB.",
+)
 def convertsage(
-    sage_psm, sage_fragments, unimodfile, max_delta_unimod, precision_digits
+    sage_psm,
+    sage_fragments,
+    unimodfile,
+    max_delta_unimod,
+    precision_digits,
+    streaming,
+    streaming_threshold_bytes,
 ):
     """
     Convert Sage Search results for EasyPQP
@@ -523,7 +544,17 @@ def convertsage(
         unimodfile = str(pkg_resources.files("easypqp").joinpath("data/unimod.xml"))
 
     timestamped_echo(f"Info: Converting Sage inputs: {sage_psm} + {sage_fragments}")
-    convert_sage(sage_psm, sage_fragments, unimodfile, max_delta_unimod)
+    # Map CLI streaming flag to convert_sage.force_streaming tri-state: True->force streaming, False->auto-detect
+    force_streaming = True if streaming else None
+    convert_sage(
+        sage_psm,
+        sage_fragments,
+        unimodfile,
+        max_delta_unimod,
+        precision_digits,
+        force_streaming=force_streaming,
+        streaming_threshold_bytes=streaming_threshold_bytes,
+    )
     timestamped_echo(
         "Info: Total elapsed time %.2f minutes." % ((time.time() - start_time) / 60.0)
     )
@@ -531,7 +562,7 @@ def convertsage(
 
 # EasyPQP Library
 @cli.command()
-@click.argument("infiles", nargs=-1, type=click.Path(exists=True))
+@click.argument("infiles", nargs=-1, type=click.Path(exists=False))
 @click.option(
     "--out",
     "outfile",
