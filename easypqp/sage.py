@@ -729,9 +729,7 @@ def convert_sage(
         use_stream = False
 
     if use_stream:
-        timestamped_echo(
-            "Info: Using streaming Sage conversion due to large input size"
-        )
+        timestamped_echo("Info: Using streaming Sage conversion for low memory usage")
         return convert_sage_streaming(
             results_tsv,
             fragments_tsv,
@@ -831,8 +829,6 @@ def convert_sage_streaming(
     """
     import tempfile
 
-    timestamped_echo("Info: Discovering runs in results file")
-
     # determine filename column quickly from header
     header = pd.read_csv(results_tsv, sep="\t", nrows=0)
     cols = header.columns.tolist()
@@ -865,6 +861,8 @@ def convert_sage_streaming(
     if not runs:
         raise RuntimeError("No runs discovered in results file")
 
+    timestamped_echo(f"Info: Discovered {len(runs)} runs")
+
     outfiles = []
     tmpdir = tmpdir or tempfile.mkdtemp(prefix="easypqp_sage_")
 
@@ -879,7 +877,9 @@ def convert_sage_streaming(
             # compute run ids for this chunk
             filename = _get_first_existing(
                 chunk, ["filename", "file", "rawfile", "raw_file", "source_file"]
-            ) or pd.Series([""] * len(chunk))
+            )
+            if filename is None:
+                filename = pd.Series([""] * len(chunk))
             chunk_run = filename.astype(str).apply(_basename_wo_ext)
             mask = chunk_run == run
             if not mask.any():
