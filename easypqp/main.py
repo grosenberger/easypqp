@@ -520,10 +520,10 @@ def convertpsm(
 @click.option(
     "--streaming-threshold-bytes",
     "streaming_threshold_bytes",
-    default=1000000000,
+    default=2000000000,
     show_default=True,
     type=int,
-    help="Auto-switch to streaming when combined input size (bytes) >= this threshold. Default: 1GB.",
+    help="Auto-switch to streaming when combined input size (bytes) >= this threshold. Default: 2GB.",
 )
 def convertsage(
     sage_psm,
@@ -544,7 +544,6 @@ def convertsage(
         unimodfile = str(pkg_resources.files("easypqp").joinpath("data/unimod.xml"))
 
     timestamped_echo(f"Info: Converting Sage inputs: {sage_psm} + {sage_fragments}")
-    # Map CLI streaming flag to convert_sage.force_streaming tri-state: True->force streaming, False->auto-detect
     force_streaming = True if streaming else None
     convert_sage(
         sage_psm,
