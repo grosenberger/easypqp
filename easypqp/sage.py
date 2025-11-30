@@ -37,6 +37,46 @@ def _basename_wo_ext(p: str) -> str:
 
 
 def _get_first_existing(df: pd.DataFrame, cols: List[str], cast=None, default=None):
+    """
+    Return the first existing column from a DataFrame as a pandas Series, with optional numeric casting,
+    or a Series filled with a default value if none of the columns exist.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The DataFrame to search for columns.
+    cols : list[str]
+        Ordered list of column names to look for. The function returns the first name in this list
+        that is present in df.columns.
+    cast : Any, optional
+        If None (the default), the matched column is returned unchanged (the Series as stored in df).
+        If not None, the matched column is converted to numeric using pandas.to_numeric(..., errors="coerce")
+        before being returned. Note: the provided value is used only as a flag; it is not called/applied.
+    default : Any, optional
+        If no column from cols is present in df and default is None, the function returns None.
+        If default is not None, the function returns a pandas.Series of length len(df) where every
+        element equals default.
+
+    Returns
+    -------
+    pandas.Series or None
+        - If a matching column is found: the corresponding Series from df (possibly converted to numeric).
+        - If no matching column is found and default is provided: a Series filled with default values.
+        - If no matching column is found and default is None: None.
+
+    Notes
+    -----
+    - Column lookup is an exact string membership check against df.columns.
+    - When cast is not None, non-convertible values in the selected column become NaN due to
+      errors="coerce" in pandas.to_numeric.
+    - The function does not modify the input DataFrame.
+    - If df is empty and default is provided, an empty Series (length 0) of the default value is returned.
+
+    Examples
+    --------
+    - If cols = ["a", "b"] and df has column "b" but not "a", the function returns df["b"] (or its numeric cast).
+    - If none of the cols exist and default=0, the function returns a Series of zeros with length len(df).
+    """
     for c in cols:
         if c in df.columns:
             return df[c] if cast is None else pd.to_numeric(df[c], errors="coerce")
