@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=64.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "easypqp"
+version = "0.1.53"
+description = "EasyPQP: Simple library generation for OpenSWATH"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+  { name = "George Rosenberger", email = "gr2578@cumc.columbia.edu" },
+]
+license = { text = "BSD-3-Clause" }
+dependencies = [
+  "numba",
+  "Click>=8.0.0",
+  "numpy==1.26.4",
+  "scipy",
+  "scikit-learn",
+  "statsmodels",
+  "pandas>=1.5.0",
+  "biopython",
+  "pyopenms>=3.3.0",
+  "matplotlib>=3.5.1",
+  "seaborn",
+  "tqdm",
+]
+
+[project.urls]
+Homepage = "https://github.com/grosenberger/easypqp"
+
+[project.scripts]
+easypqp = "easypqp.main:cli"
+
+[project.optional-dependencies]
+PyProphet = ["pyprophet"]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["easypqp*"]
+
+[tool.setuptools.package-data]
+easypqp = ["data/unimod.xml"]

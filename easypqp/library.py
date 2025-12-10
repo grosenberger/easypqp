@@ -308,7 +308,7 @@ def unify_modified_peptide_masses(mod_pep, transform=None):
   return mod_pep.str.replace('(?<=\\[).+?(?=\\])', transform_func, regex=True), transform
 
 
-def generate(files, outfile, psmtsv, peptidetsv, perform_rt_calibration, rt_referencefile, rt_reference_run_path, rt_filter, perform_im_calibration, im_referencefile, im_reference_run_path, im_filter, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_frac, rt_psm_fdr_threshold, im_lowess_frac, im_psm_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus, nofdr):
+def generate(files, outfile, psmtsv, peptidetsv, perform_rt_calibration, rt_referencefile, rt_reference_run_path, rt_filter, perform_im_calibration, im_referencefile, im_reference_run_path, im_filter, psm_fdr_threshold, peptide_fdr_threshold, protein_fdr_threshold, rt_lowess_frac, rt_psm_fdr_threshold, im_lowess_frac, im_psm_fdr_threshold, pi0_lambda, peptide_plot_path, protein_plot_path, min_peptides, proteotypic, consensus, nofdr, diannpqp):
   # Parse input arguments
   psm_files = []
   spectra = []
@@ -502,6 +502,16 @@ def generate(files, outfile, psmtsv, peptidetsv, perform_rt_calibration, rt_refe
     pqp_mass = pqp.groupby(['PrecursorMz','ModifiedPeptideSequence','ProductMz','Annotation','ProteinId','GeneName','PeptideSequence','PrecursorCharge'], dropna=False)['LibraryIntensity'].median().reset_index()
     pqp_mass = pqp_mass[['PrecursorMz','ProductMz','Annotation','ProteinId','GeneName','PeptideSequence','ModifiedPeptideSequence','PrecursorCharge','LibraryIntensity']]  # rearrange columns back to the normal output order
     pqp = pd.merge(pqp_mass,pqp_irt, on=['ModifiedPeptideSequence','PrecursorCharge'])
+
+  # Generate DIA-NN2 compatible PQP file
+  if diannpqp:
+    pqp['FragmentLossType'] = np.nan
+    pqp['FragmentType'] = pqp['Annotation'].str[0]
+    pqp['FragmentSeriesNumber'] = pqp['Annotation'].str[1]
+    pqp['FragmentCharge'] = pqp['Annotation'].str.split('^').str[1].astype(int)
+    pqp['Proteotypic'] = [1 if ';' in prot_id else 0 for prot_id in pqp['ProteinId']]
+    # Remove redundant columns
+    pqp = pqp.drop(['Annotation'], axis=1)
 
   # Write output TSV file
   pqp.to_csv(outfile, sep="\t", index=False)
