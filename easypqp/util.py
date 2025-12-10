@@ -45,10 +45,10 @@ def create_json_config(as_bytes: bool = False) -> Union[str, bytes]:
             "min_transitions": 6,
             "max_transitions": 6,
             "fragmentation_model": "cid",
-            "allowed_fragment_types": ["b", "y"]
+            "allowed_fragment_types": ["b", "y"],
+            "rt_scale": 100.0
         },
         "dl_feature_generators": {
-            "predict_properties": True,
             "device": "cpu",
             "fine_tune_config": {
                 "fine_tune": False,
@@ -63,7 +63,9 @@ def create_json_config(as_bytes: bool = False) -> Union[str, bytes]:
             "batch_size": 64
         },
         "peptide_chunking": 0,
-        "output_file": "./easypqp_insilico_library.tsv"
+        "output_file": "./easypqp_insilico_library.tsv",
+        "write_report": True,
+        "parquet_output": False
     }
 
     json_str = json.dumps(config, indent=2)

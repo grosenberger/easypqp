@@ -302,6 +302,10 @@ def transform_comma_string_to_list(output_type=str):
 @click.option('--instrument', default='QE/Lumos/timsTOF/SciexTOF/ThermoTOF', show_default=True, type=str, help='Instrument type. Options are (QE).')
 @click.option('--nce', default=20, show_default=True, type=int, help='Normalized collision energy (NCE) to be used for MS2 intensity prediction.')
 @click.option('--batch_size', default=10, show_default=True, type=int, help='Batch size used for peptide property inferece.')
+@click.option('--rt_scale', default=100.0, show_default=True, type=float, help='RT output scaling factor (e.g., 100.0 to convert 0-1 range to 0-100).')
+@click.option('--write_report/--no-write_report', default=True, show_default=True, help='Generate HTML quality report.')
+@click.option('--parquet_output/--no-parquet_output', default=False, show_default=True, help='Output library in Parquet format instead of TSV.')
+@click.option('--threads', default=None, show_default=True, type=int, help='Number of threads for parallel processing. If not specified, uses all available cores.')
 @click.option('--config', 'config', required=False, type=click.Path(exists=True), help='JSON configuration file.')
 def insilico_library(
     fasta,
@@ -320,6 +324,10 @@ def insilico_library(
     instrument,
     nce,
     batch_size,
+    rt_scale,
+    write_report,
+    parquet_output,
+    threads,
     config
 ):
     """
@@ -347,12 +355,16 @@ def insilico_library(
         max_transitions,
         fragmentation_model,
         allowed_fragment_types,
+        rt_scale,
         fine_tune,
         train_data_path,
         save_model,
         instrument,
         nce,
         batch_size,
+        write_report,
+        parquet_output,
+        threads,
     )
     timestamped_echo("Info: In-Silico Library successfully generated.")
 
