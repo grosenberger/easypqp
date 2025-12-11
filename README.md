@@ -55,6 +55,8 @@ For more information on the parameters and JSON configuration file, see the [Con
 > - CCS: `ccs_cnn_tf` - A CNN-Transformer model trained on the [ProteomicsML repository CCS dataset](https://proteomicsml.org/datasets/ionmobility/Meier_TIMS.html). This model is also based on AlphaPeptDeep's CNN-LSTM implementation, with the biLSTM replaced by a Transformer encoder.
 > - MS2: `ms2_bert` - A BERT-based model retreived from AlphaPeptDeep's pretrained models.
 
+If you want just a standalone portable rust binary, you can download one from the [easypqp-rs releases page](https://github.com/singjc/easypqp-rs/releases).
+
 Docker
 ======
 
