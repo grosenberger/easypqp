@@ -51,6 +51,33 @@ class PythonLiteralOption(click.Option):
             raise click.BadParameter(value)
 
 
+# Parameter transformation functions
+def transform_comma_string_to_list(output_type=str):
+    """Factory function that creates a callback for Click options.
+
+    Args:
+        output_type: The type to convert each element to (str or int)
+
+    Returns:
+        A callback function suitable for Click's callback parameter
+    """
+
+    def callback(ctx, param, value):
+        if value is None:
+            return None
+        try:
+            items = value.split(",")
+            if output_type == int:
+                return [int(item.strip()) for item in items]
+            return [item.strip() for item in items]
+        except ValueError as e:
+            raise click.BadParameter(
+                f"Couldn't convert '{value}' to list of {output_type.__name__}: {e}"
+            )
+
+    return callback
+
+
 # EasyPQP Convert
 @cli.command()
 @click.option(
@@ -1063,6 +1090,8 @@ def insilico_library(
 ):
     """
     Generate In-Silico Predicted Library
+
+    For more information on the JSON configuration file, see: https://github.com/singjc/easypqp-rs?tab=readme-ov-file#configuration-reference
     """
     if fasta is None and config is None:
         timestamped_echo(
@@ -1100,33 +1129,6 @@ def insilico_library(
         threads,
     )
     timestamped_echo("Info: In-Silico Library successfully generated.")
-
-
-# Parameter transformation functions
-def transform_comma_string_to_list(output_type=str):
-    """Factory function that creates a callback for Click options.
-
-    Args:
-        output_type: The type to convert each element to (str or int)
-
-    Returns:
-        A callback function suitable for Click's callback parameter
-    """
-
-    def callback(ctx, param, value):
-        if value is None:
-            return None
-        try:
-            items = value.split(",")
-            if output_type == int:
-                return [int(item.strip()) for item in items]
-            return [item.strip() for item in items]
-        except ValueError as e:
-            raise click.BadParameter(
-                f"Couldn't convert '{value}' to list of {output_type.__name__}: {e}"
-            )
-
-    return callback
 
 
 # EasyPQP UniMod Database Filtering
