@@ -1,0 +1,56 @@
+{
+    "database": {
+        "enzyme": {
+            "missed_cleavages": 1,
+            "min_len": 7,
+            "max_len": 50,
+            "cleave_at": "KR",
+            "restrict": "P",
+            "c_terminal": true,
+            "semi_enzymatic": false
+        },
+        "peptide_min_mass": 500.0,
+        "peptide_max_mass": 5000.0,
+        "static_mods": {
+            "C": 57.0215
+        },
+        "variable_mods": {},
+        "max_variable_mods": 2,
+        "decoy_tag": "rev_",
+        "generate_decoys": true,
+        "fasta": "tests/data/Q99536.fasta"
+    },
+    "insilico_settings": {
+        "precursor_charge": [
+            2,
+            4
+        ],
+        "max_fragment_charge": 1,
+        "min_transitions": 6,
+        "max_transitions": 6,
+        "fragmentation_model": "cid",
+        "allowed_fragment_types": [
+            "b",
+            "y"
+        ],
+        "rt_scale": 100.0
+    },
+    "dl_feature_generators": {
+        "device": "cpu",
+        "fine_tune_config": {
+            "fine_tune": false,
+            "train_data_path": "",
+            "batch_size": 256,
+            "epochs": 3,
+            "learning_rate": 0.001,
+            "save_model": true
+        },
+        "instrument": "QE",
+        "nce": 20.0,
+        "batch_size": 64
+    },
+    "peptide_chunking": 0,
+    "output_file": "tests/data/easypqp_insilico_library.tsv",
+    "write_report": true,
+    "parquet_output": false
+}

@@ -25,6 +25,7 @@ dependencies = [
   "matplotlib>=3.5.1",
   "seaborn",
   "tqdm",
+  "easypqp_rs>=0.1.5"
 ]
 
 [project.urls]

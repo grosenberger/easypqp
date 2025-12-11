@@ -16,7 +16,8 @@ from .openswathdecoygenerator import OpenSwathDecoyGenerator
 from .sage import convert_sage
 from .targetedfileconverter import TargetedFileConverter
 from .unimoddb import unimod_filter
-from .util import timestamped_echo
+from .util import timestamped_echo, create_json_config
+from easypqp_rs import generate_insilico_library
 
 try:
     # PyProphet ≤ 2.x
@@ -48,6 +49,33 @@ class PythonLiteralOption(click.Option):
             return ast.literal_eval(value)
         except Exception:
             raise click.BadParameter(value)
+
+
+# Parameter transformation functions
+def transform_comma_string_to_list(output_type=str):
+    """Factory function that creates a callback for Click options.
+
+    Args:
+        output_type: The type to convert each element to (str or int)
+
+    Returns:
+        A callback function suitable for Click's callback parameter
+    """
+
+    def callback(ctx, param, value):
+        if value is None:
+            return None
+        try:
+            items = value.split(",")
+            if output_type == int:
+                return [int(item.strip()) for item in items]
+            return [item.strip() for item in items]
+        except ValueError as e:
+            raise click.BadParameter(
+                f"Couldn't convert '{value}' to list of {output_type.__name__}: {e}"
+            )
+
+    return callback
 
 
 # EasyPQP Convert
@@ -921,13 +949,216 @@ def reduce(infile, outfile, bins, peptides):
     timestamped_echo("Info: Library successfully processed and stored in %s." % outfile)
 
 
-# Parameter transformation functions
-def transform_comma_string_to_list(ctx, param, value):
-    if value is not None:
-        str_list = value.split(",")
-        return str_list
-    else:
-        return None
+# EasyPQP In-Silico Library Generation
+@cli.command()
+@click.option(
+    "--fasta",
+    "fasta",
+    required=False,
+    type=click.Path(exists=True),
+    help="FASTA file with protein sequences. Overrides the FASTA file specified in the config.",
+)
+@click.option(
+    "--output_file",
+    "output_file",
+    required=False,
+    type=click.Path(exists=False),
+    help="Output file for the generated library. Overrides the output directory specified in the",
+)
+@click.option(
+    "--generate_decoys/--no-generate_decoys",
+    default=False,
+    show_default=True,
+    help="Generate decoy library.",
+)
+@click.option(
+    "--decoy_tag",
+    default="rev_",
+    show_default=True,
+    type=str,
+    help="Decoy tag to be used for decoy generation.",
+)
+@click.option(
+    "--precursor_charge",
+    default="2,3",
+    show_default=True,
+    type=str,
+    callback=transform_comma_string_to_list(output_type=int),
+    help="Precursor charge states to be used for library generation.",
+)
+@click.option(
+    "--max_fragment_charge",
+    default=2,
+    show_default=True,
+    type=int,
+    help="Maximum fragment charge state.",
+)
+@click.option(
+    "--min_transitions",
+    default=6,
+    show_default=True,
+    type=int,
+    help="Minimum number of transitions per peptide.",
+)
+@click.option(
+    "--max_transitions",
+    default=6,
+    show_default=True,
+    type=int,
+    help="Maximum number of transitions per peptide.",
+)
+@click.option(
+    "--fragmentation_model",
+    default="hcd",
+    show_default=True,
+    type=str,
+    help="Fragmentation model to be used for theoretical fragmentaton generation. Options are (etd/td_etd/ethcd/etcad/eacid/ead/hcd/cid/all/none). See: `[FragmentationModel](https://docs.rs/rustyms/latest/rustyms/model/struct.FragmentationModel.html#method.etd)` for more details.",
+)
+@click.option(
+    "--allowed_fragment_types",
+    default="b,y",
+    show_default=True,
+    type=str,
+    callback=transform_comma_string_to_list(output_type=str),
+    help="Allowed fragment types. Current MS2 prediction model only supports b and y ions.",
+)
+@click.option(
+    "--fine_tune/--no-fine_tune",
+    default=False,
+    show_default=True,
+    help="Fine-tune the predictions models using the provided training data.",
+)
+@click.option(
+    "--train_data_path",
+    default=None,
+    show_default=True,
+    type=click.Path(exists=True),
+    help='Path to the training data for fine-tuning. This should be a TSV file with columns: "sequence", "precursor_charge", "intensity", "retention_time", "ion_mobility" (Optional).',
+)
+@click.option(
+    "--save_model/--no-save_model",
+    default=False,
+    show_default=True,
+    help="Save the fine-tuned model to the specified path.",
+)
+@click.option(
+    "--instrument",
+    default="QE/Lumos/timsTOF/SciexTOF/ThermoTOF",
+    show_default=True,
+    type=str,
+    help="Instrument type. Options are (QE).",
+)
+@click.option(
+    "--nce",
+    default=20,
+    show_default=True,
+    type=int,
+    help="Normalized collision energy (NCE) to be used for MS2 intensity prediction.",
+)
+@click.option(
+    "--batch_size",
+    default=10,
+    show_default=True,
+    type=int,
+    help="Batch size used for peptide property inferece.",
+)
+@click.option(
+    "--rt_scale",
+    default=100.0,
+    show_default=True,
+    type=float,
+    help="RT output scaling factor (e.g., 100.0 to convert 0-1 range to 0-100).",
+)
+@click.option(
+    "--write_report/--no-write_report",
+    default=True,
+    show_default=True,
+    help="Generate HTML quality report.",
+)
+@click.option(
+    "--parquet_output/--no-parquet_output",
+    default=False,
+    show_default=True,
+    help="Output library in Parquet format instead of TSV.",
+)
+@click.option(
+    "--threads",
+    default=None,
+    show_default=True,
+    type=int,
+    help="Number of threads for parallel processing. If not specified, uses all available cores.",
+)
+@click.option(
+    "--config",
+    "config",
+    required=False,
+    type=click.Path(exists=True),
+    help="JSON configuration file.",
+)
+def insilico_library(
+    fasta,
+    output_file,
+    generate_decoys,
+    decoy_tag,
+    precursor_charge,
+    max_fragment_charge,
+    min_transitions,
+    max_transitions,
+    fragmentation_model,
+    allowed_fragment_types,
+    fine_tune,
+    train_data_path,
+    save_model,
+    instrument,
+    nce,
+    batch_size,
+    rt_scale,
+    write_report,
+    parquet_output,
+    threads,
+    config,
+):
+    """
+    Generate In-Silico Predicted Library
+
+    For more information on the JSON configuration file, see: https://github.com/singjc/easypqp-rs?tab=readme-ov-file#configuration-reference
+    """
+    if fasta is None and config is None:
+        timestamped_echo(
+            "Error: Please provide either a FASTA file or a JSON configuration file like below."
+        )
+        print(create_json_config(as_bytes=True).decode())
+        return 1
+
+    if config is None:
+        config = create_json_config(as_bytes=True).decode()
+        timestamped_echo("Info: Using default configuration.")
+
+    timestamped_echo("Info: Generating In-Silico Predicted Library.")
+    generate_insilico_library(
+        config,
+        fasta,
+        output_file,
+        generate_decoys,
+        decoy_tag,
+        precursor_charge,
+        max_fragment_charge,
+        min_transitions,
+        max_transitions,
+        fragmentation_model,
+        allowed_fragment_types,
+        rt_scale,
+        fine_tune,
+        train_data_path,
+        save_model,
+        instrument,
+        nce,
+        batch_size,
+        write_report,
+        parquet_output,
+        threads,
+    )
+    timestamped_echo("Info: In-Silico Library successfully generated.")
 
 
 # EasyPQP UniMod Database Filtering
