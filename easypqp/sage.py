@@ -9,7 +9,30 @@ from .convert import unimod as UniModHelper
 
 
 def _basename_wo_ext(p: str) -> str:
-    return os.path.splitext(os.path.basename(p))[0]
+    """
+    Return the basename without extensions, handling common compression/archive
+    extensions so that e.g. 'file.mzML.gz' -> 'file'.
+
+    Strategy:
+    - take the basename
+    - if the final extension is a known compression/archive suffix ('.gz', '.bz2',
+      '.zst', '.tgz', etc.) remove it
+    - then remove one remaining extension (the common data file extension)
+    - return the resulting stem
+    """
+    name = os.path.basename(p or "")
+    comp_suffixes = {
+        ".gz",
+        ".zst",
+        ".tar",
+    }
+
+    root, ext = os.path.splitext(name)
+    if ext and ext.lower() in comp_suffixes:
+        name = root
+
+    stem, _ = os.path.splitext(name)
+    return stem
 
 
 def _get_first_existing(df: pd.DataFrame, cols: List[str], cast=None, default=None):
