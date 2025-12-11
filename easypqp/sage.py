@@ -1,4 +1,5 @@
 import os
+import json
 import re
 import numpy as np
 import pandas as pd
@@ -36,6 +37,46 @@ def _basename_wo_ext(p: str) -> str:
 
 
 def _get_first_existing(df: pd.DataFrame, cols: List[str], cast=None, default=None):
+    """
+    Return the first existing column from a DataFrame as a pandas Series, with optional numeric casting,
+    or a Series filled with a default value if none of the columns exist.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The DataFrame to search for columns.
+    cols : list[str]
+        Ordered list of column names to look for. The function returns the first name in this list
+        that is present in df.columns.
+    cast : Any, optional
+        If None (the default), the matched column is returned unchanged (the Series as stored in df).
+        If not None, the matched column is converted to numeric using pandas.to_numeric(..., errors="coerce")
+        before being returned. Note: the provided value is used only as a flag; it is not called/applied.
+    default : Any, optional
+        If no column from cols is present in df and default is None, the function returns None.
+        If default is not None, the function returns a pandas.Series of length len(df) where every
+        element equals default.
+
+    Returns
+    -------
+    pandas.Series or None
+        - If a matching column is found: the corresponding Series from df (possibly converted to numeric).
+        - If no matching column is found and default is provided: a Series filled with default values.
+        - If no matching column is found and default is None: None.
+
+    Notes
+    -----
+    - Column lookup is an exact string membership check against df.columns.
+    - When cast is not None, non-convertible values in the selected column become NaN due to
+      errors="coerce" in pandas.to_numeric.
+    - The function does not modify the input DataFrame.
+    - If df is empty and default is provided, an empty Series (length 0) of the default value is returned.
+
+    Examples
+    --------
+    - If cols = ["a", "b"] and df has column "b" but not "a", the function returns df["b"] (or its numeric cast).
+    - If none of the cols exist and default=0, the function returns a Series of zeros with length len(df).
+    """
     for c in cols:
         if c in df.columns:
             return df[c] if cast is None else pd.to_numeric(df[c], errors="coerce")
@@ -369,6 +410,150 @@ class SagePSMParser:
         )
         return out
 
+    def parse_df(
+        self, df: pd.DataFrame, psm_id_series: Optional[pd.Series] = None
+    ) -> pd.DataFrame:
+        """
+        Parse a provided DataFrame slice (same logic as `parse` but works on an
+        already-loaded DataFrame). This is useful for chunked/streaming flows.
+
+        If `psm_id_series` is provided it will be attached to the returned
+        DataFrame as a `psm_id` column (preserving positional alignment).
+        """
+        df = df.fillna("")
+
+        filename = _get_first_existing(
+            df, ["filename", "file", "rawfile", "raw_file", "source_file"]
+        )
+        if filename is None:
+            raise ValueError("results.sage.tsv is missing a filename/raw file column.")
+        run_id = filename.astype(str).apply(_basename_wo_ext)
+
+        scan_id = (
+            _get_first_existing(
+                df,
+                ["scannr", "scan", "scan_id", "spectrum_index"],
+                cast=float,
+                default=np.nan,
+            )
+            .fillna(1)
+            .astype(int)
+        )
+        hit_rank = (
+            _get_first_existing(df, ["rank", "hit_rank"], cast=float, default=1)
+            .fillna(1)
+            .astype(int)
+        )
+        z = (
+            _get_first_existing(
+                df, ["precursor_charge", "charge", "z"], cast=float, default=2
+            )
+            .fillna(2)
+            .astype(int)
+        )
+
+        rt = _get_first_existing(
+            df,
+            ["rt", "retention_time", "retention", "retention_time_sec"],
+            cast=float,
+            default=np.nan,
+        )
+        im = _get_first_existing(
+            df, ["ion_mobility", "mobility", "ccs", "k0"], cast=float, default=np.nan
+        )
+        # If im is all 0s, set to NaN
+        if im.eq(0).all():
+            im = pd.Series([np.nan] * len(df))
+
+        pep_seq = df["peptide"].astype(str)
+        proteins_raw = _get_first_existing(df, ["proteins", "protein", "protein_id"])
+        proteins_raw = (
+            proteins_raw.astype(str)
+            if proteins_raw is not None
+            else pd.Series([""] * len(df))
+        )
+        protein_ids, gene_ids, num_prot = self._split_accessions_and_entries(
+            proteins_raw
+        )
+
+        if "label" in df.columns:
+            label_series = pd.to_numeric(df["label"], errors="coerce")
+            decoy = label_series == -1
+        elif "is_decoy" in df.columns:
+            decoy = df["is_decoy"]
+        else:
+            decoy = pd.Series([False] * len(df))
+
+        pep = (
+            pd.to_numeric(df["posterior_error"], errors="coerce")
+            if "posterior_error" in df.columns
+            else pd.Series([np.nan] * len(df))
+        )
+        spectrum_q = (
+            pd.to_numeric(df["spectrum_q"], errors="coerce")
+            if "spectrum_q" in df.columns
+            else pd.Series([np.nan] * len(df))
+        )
+        peptide_q = (
+            pd.to_numeric(df["peptide_q"], errors="coerce")
+            if "peptide_q" in df.columns
+            else pd.Series([np.nan] * len(df))
+        )
+        protein_q = (
+            pd.to_numeric(df["protein_q"], errors="coerce")
+            if "protein_q" in df.columns
+            else pd.Series([np.nan] * len(df))
+        )
+
+        calcmass = _get_first_existing(df, ["calcmass"], cast=float, default=np.nan)
+        prec_mz = pd.Series(np.nan, index=df.index, dtype=float)
+        mask_calc = calcmass.notna() & (z > 0)
+        prec_mz.loc[mask_calc] = (calcmass[mask_calc] + z[mask_calc] * self.PROTON) / z[
+            mask_calc
+        ]
+        prec_mz = prec_mz.round(self.mz_precision_digits)
+
+        modpep = pep_seq.apply(self._annotate_unimod)
+
+        group_id = (
+            run_id
+            + "_"
+            + scan_id.astype(str)
+            + np.where(hit_rank > 1, "_rank" + hit_rank.astype(str), "")
+        )
+
+        out = pd.DataFrame(
+            {
+                "run_id": run_id,
+                "scan_id": scan_id,
+                "hit_rank": hit_rank,
+                "massdiff": 0.0,
+                "precursor_charge": z,
+                "retention_time": rt,
+                "ion_mobility": im,
+                "peptide_sequence": pep_seq.str.replace(
+                    r"\[[-+0-9.]+\]", "", regex=True
+                ),
+                "protein_id": protein_ids.fillna(""),
+                "gene_id": gene_ids.fillna(""),
+                "num_tot_proteins": num_prot.fillna(0).astype(int),
+                "decoy": decoy.astype(bool),
+                "modified_peptide": modpep,
+                "group_id": group_id,
+                "precursor_mz": prec_mz,
+                "pep": pep,
+                "q_value": spectrum_q,
+                "peptide_q": peptide_q,
+                "protein_q": protein_q,
+            }
+        )
+
+        if psm_id_series is not None:
+            out = out.reset_index(drop=True)
+            out["psm_id"] = psm_id_series.astype(str).str.strip().reset_index(drop=True)
+
+        return out
+
 
 class SageFragmentParser:
     """
@@ -467,6 +652,90 @@ class SageFragmentParser:
         )["intensity"].max()
         return peaks
 
+    def parse_df(self, fr: pd.DataFrame, psms_with_psmid: pd.DataFrame) -> pd.DataFrame:
+        """
+        Parse a fragments DataFrame (filtered to relevant rows) and join to the
+        provided PSM DataFrame. This mirrors `parse` but operates on in-memory
+        DataFrames to support streaming.
+        """
+        fr = fr.fillna("")
+        for c in [
+            "psm_id",
+            "fragment_ordinals",
+            "fragment_charge",
+            "fragment_mz_calculated",
+            "fragment_mz_experimental",
+            "fragment_intensity",
+        ]:
+            if c in fr.columns:
+                fr[c] = pd.to_numeric(fr[c], errors="coerce")
+        if "psm_id" not in fr.columns:
+            raise ValueError(
+                "matched_fragments.sage.tsv must contain a 'psm_id' column."
+            )
+
+        fr["psm_id"] = fr["psm_id"].astype(str).str.strip()
+
+        fr["fragment"] = fr.apply(
+            lambda r: self._ann(
+                str(r["fragment_type"]),
+                int(r["fragment_ordinals"]),
+                int(r["fragment_charge"]),
+            ),
+            axis=1,
+        )
+        fr["product_mz"] = fr["fragment_mz_calculated"]
+
+        join_cols = [
+            "psm_id",
+            "scan_id",
+            "modified_peptide",
+            "precursor_mz",
+            "precursor_charge",
+            "run_id",
+        ]
+        j = fr.merge(psms_with_psmid[join_cols], on="psm_id", how="inner")
+
+        peaks = j[
+            [
+                "run_id",
+                "scan_id",
+                "modified_peptide",
+                "precursor_charge",
+                "precursor_mz",
+                "fragment",
+                "product_mz",
+                "fragment_intensity",
+            ]
+        ].copy()
+        peaks.rename(columns={"fragment_intensity": "intensity"}, inplace=True)
+
+        peaks["intensity"] = peaks["intensity"].fillna(0.0)
+        grp = peaks.groupby(
+            ["run_id", "scan_id", "modified_peptide", "precursor_charge"], dropna=False
+        )["intensity"]
+        denom = grp.transform(lambda x: np.nanmax(x.values) if len(x) else np.nan)
+        peaks["intensity"] = (peaks["intensity"] / denom) * 10000.0
+        peaks["intensity"] = peaks["intensity"].fillna(0.0)
+
+        peaks["product_mz"] = peaks["product_mz"].round(self.mz_precision_digits)
+        peaks["precursor_mz"] = peaks["precursor_mz"].round(self.mz_precision_digits)
+        peaks["intensity"] = peaks["intensity"].round(self.mz_precision_digits)
+
+        peaks = peaks.groupby(
+            [
+                "run_id",
+                "scan_id",
+                "modified_peptide",
+                "precursor_charge",
+                "precursor_mz",
+                "fragment",
+                "product_mz",
+            ],
+            as_index=False,
+        )["intensity"].max()
+        return peaks
+
 
 def convert_sage(
     results_tsv: str,
@@ -474,10 +743,42 @@ def convert_sage(
     unimod_xml: Optional[str],
     max_delta_unimod: float = 0.02,
     mz_precision_digits: int = 6,
-) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    *,
+    force_streaming: Optional[bool] = None,
+    streaming_threshold_bytes: int = 1_000_000_000,
+) -> Optional[List[str]]:
     """
     High-level conversion: Sage TSV/Parquet to EasyPQP PSM and peaks pickles written to disk.
     """
+    # Auto-switch to streaming mode when inputs are very large, unless caller
+    # explicitly requested non-streaming via force_streaming=False.
+    try:
+        if force_streaming is None:
+            # determine combined size (fall back to streaming if either file is missing)
+            try:
+                rsize = os.path.getsize(results_tsv)
+            except Exception:
+                rsize = 0
+            try:
+                fsize = os.path.getsize(fragments_tsv)
+            except Exception:
+                fsize = 0
+            use_stream = (rsize + fsize) >= streaming_threshold_bytes
+        else:
+            use_stream = bool(force_streaming)
+    except Exception:
+        use_stream = False
+
+    if use_stream:
+        timestamped_echo("Info: Using streaming Sage conversion for low memory usage")
+        return convert_sage_streaming(
+            results_tsv,
+            fragments_tsv,
+            unimod_xml,
+            max_delta_unimod=max_delta_unimod,
+            mz_precision_digits=mz_precision_digits,
+        )
+
     # Read raw to extract psm_id for joining
     timestamped_echo("Info: Reading Sage PSMs")
     raw_res = _read_table(results_tsv)
@@ -549,4 +850,307 @@ def convert_sage(
         new_infiles.extend([psmpkl, peakpkl])
 
     if len(new_infiles) == 0:
-        raise click.ClickException("No non-empty runs detected after Sage conversion.")
+        # click may not be available in all contexts; raise a generic error here
+        raise RuntimeError("No non-empty runs detected after Sage conversion.")
+
+
+def convert_sage_streaming(
+    results_tsv: str,
+    fragments_tsv: str,
+    unimod_xml: Optional[str],
+    max_delta_unimod: float = 0.02,
+    mz_precision_digits: int = 6,
+    chunksize: int = 800_000,
+    tmpdir: Optional[str] = None,
+) -> List[str]:
+    """
+    Memory-efficient streaming conversion that processes one run at a time.
+
+    PSMs are held in memory (they're relatively small); the *fragments* file is
+    streamed twice per run:
+      - pass 1: compute per-PSM-group max intensity (denom)
+      - pass 2: normalize and aggregate peaks
+
+    This is logically equivalent to the non-streaming convert_sage().
+    """
+    import tempfile
+
+    # --- 1) Load all PSMs once (as in non-streaming convert_sage) ---
+    timestamped_echo("Info: [streaming] Reading Sage PSMs (full table in memory)")
+
+    raw_res = _read_table(results_tsv)
+    if "psm_id" not in raw_res.columns:
+        raise ValueError(
+            "results.sage.tsv must contain a 'psm_id' for joining with matched fragments."
+        )
+    raw_res["psm_id"] = raw_res["psm_id"].astype(str).str.strip()
+
+    parser = SagePSMParser(
+        results_tsv, unimod_xml, max_delta_unimod, mz_precision_digits
+    )
+    psms_parsed = parser.parse()
+    # align on index, same as non-streaming convert_sage
+    psms_all = raw_res[["psm_id"]].join(psms_parsed)
+
+    if psms_all.empty:
+        raise ValueError("No PSMs were parsed from the provided results.sage.tsv file.")
+
+    # Runs defined exactly as in non-streaming convert_sage
+    runs = sorted(psms_all["run_id"].dropna().unique().tolist())
+    timestamped_echo(f"Info: [streaming] Discovered {len(runs)} runs")
+
+    outfiles: List[str] = []
+    tmpdir = tmpdir or tempfile.mkdtemp(prefix="easypqp_sage_")
+
+    # --- 2) Process one run at a time ---
+    for run in runs:
+        timestamped_echo(f"Info: [streaming] Processing run {run}")
+
+        psms_run = psms_all.loc[psms_all["run_id"] == run].copy()
+        if psms_run.empty:
+            timestamped_echo(f"Info: Skipping run {run}: no PSMs")
+            continue
+
+        # Limit to columns needed for joins / normalization
+        norm_cols = psms_run[
+            [
+                "psm_id",
+                "run_id",
+                "scan_id",
+                "modified_peptide",
+                "precursor_charge",
+                "precursor_mz",
+            ]
+        ].copy()
+        norm_cols["psm_id"] = norm_cols["psm_id"].astype(str).str.strip()
+
+        run_psm_ids = set(norm_cols["psm_id"])
+
+        # --- PASS 1: build denom_map from joined fragments ---
+        denom_map: Dict[str, float] = {}
+
+        first_pass_matches = 0
+        for fr_chunk in pd.read_csv(
+            fragments_tsv, sep="\t", dtype=str, chunksize=chunksize
+        ):
+            if "psm_id" not in fr_chunk.columns:
+                continue
+
+            fr_chunk["psm_id"] = fr_chunk["psm_id"].astype(str).str.strip()
+            mask = fr_chunk["psm_id"].isin(run_psm_ids)
+            if not mask.any():
+                continue
+
+            sub = fr_chunk.loc[mask].copy()
+            first_pass_matches += int(mask.sum())
+
+            # convert intensity to numeric
+            if "fragment_intensity" not in sub.columns:
+                continue
+            sub["fragment_intensity"] = pd.to_numeric(
+                sub["fragment_intensity"], errors="coerce"
+            ).fillna(0.0)
+
+            # join to get run_id / scan_id / modified_peptide / charge
+            j = sub.merge(norm_cols, on="psm_id", how="inner")
+            if j.empty:
+                continue
+
+            # group key: exactly matches non-streaming normalization groups
+            j["group_key"] = (
+                j["run_id"].astype(str)
+                + "||"
+                + j["scan_id"].astype(str)
+                + "||"
+                + j["modified_peptide"].astype(str)
+                + "||"
+                + j["precursor_charge"].astype(str)
+            )
+
+            gb = j.groupby("group_key")["fragment_intensity"].max()
+            for k, mx in gb.items():
+                prev = denom_map.get(k)
+                if prev is None or mx > prev:
+                    denom_map[k] = float(mx)
+
+        timestamped_echo(
+            f"Info: [streaming] Run {run}: PASS1 matched {first_pass_matches} fragment rows; "
+            f"{len(denom_map)} normalization groups"
+        )
+
+        if not denom_map:
+            timestamped_echo(f"Info: Skipping run {run}: no fragment peaks")
+            continue
+
+        # --- PASS 2: normalize intensities and build peaks_run ---
+        peaks_parts: List[pd.DataFrame] = []
+        second_pass_matches = 0
+
+        join_cols = [
+            "psm_id",
+            "scan_id",
+            "modified_peptide",
+            "precursor_mz",
+            "precursor_charge",
+            "run_id",
+        ]
+        join_psms = psms_run[join_cols].copy()
+        join_psms["psm_id"] = join_psms["psm_id"].astype(str).str.strip()
+
+        for fr_chunk in pd.read_csv(
+            fragments_tsv, sep="\t", dtype=str, chunksize=chunksize
+        ):
+            if "psm_id" not in fr_chunk.columns:
+                continue
+
+            fr_chunk["psm_id"] = fr_chunk["psm_id"].astype(str).str.strip()
+            mask = fr_chunk["psm_id"].isin(run_psm_ids)
+            if not mask.any():
+                continue
+
+            sub = fr_chunk.loc[mask].copy()
+            second_pass_matches += int(mask.sum())
+
+            # numeric conversions
+            for c in [
+                "fragment_ordinals",
+                "fragment_charge",
+                "fragment_mz_calculated",
+                "fragment_mz_experimental",
+                "fragment_intensity",
+            ]:
+                if c in sub.columns:
+                    sub[c] = pd.to_numeric(sub[c], errors="coerce")
+
+            # annotate fragment + product_mz
+            sub["fragment"] = sub.apply(
+                lambda r: SageFragmentParser._ann(
+                    str(r.get("fragment_type", "")),
+                    int(r.get("fragment_ordinals", 0) or 0),
+                    int(r.get("fragment_charge", 0) or 0),
+                ),
+                axis=1,
+            )
+            sub["product_mz"] = sub.get("fragment_mz_calculated")
+
+            # join to PSMs for this run
+            j = sub.merge(join_psms, on="psm_id", how="inner")
+            if j.empty:
+                continue
+
+            peaks = j[
+                [
+                    "run_id",
+                    "scan_id",
+                    "modified_peptide",
+                    "precursor_charge",
+                    "precursor_mz",
+                    "fragment",
+                    "product_mz",
+                    "fragment_intensity",
+                ]
+            ].copy()
+            peaks.rename(columns={"fragment_intensity": "intensity"}, inplace=True)
+
+            # normalize using denom_map
+            peaks["intensity"] = pd.to_numeric(
+                peaks["intensity"], errors="coerce"
+            ).fillna(0.0)
+
+            peaks["group_key"] = (
+                peaks["run_id"].astype(str)
+                + "||"
+                + peaks["scan_id"].astype(str)
+                + "||"
+                + peaks["modified_peptide"].astype(str)
+                + "||"
+                + peaks["precursor_charge"].astype(str)
+            )
+            peaks["denom"] = peaks["group_key"].map(lambda x: denom_map.get(x, np.nan))
+            peaks["intensity"] = (peaks["intensity"] / peaks["denom"]) * 10000.0
+            peaks["intensity"] = peaks["intensity"].fillna(0.0)
+            peaks.drop(columns=["denom", "group_key"], inplace=True)
+
+            # round like non-streaming
+            peaks["product_mz"] = peaks["product_mz"].round(mz_precision_digits)
+            peaks["precursor_mz"] = peaks["precursor_mz"].round(mz_precision_digits)
+            peaks["intensity"] = peaks["intensity"].round(mz_precision_digits)
+
+            peaks_parts.append(peaks)
+
+        timestamped_echo(
+            f"Info: [streaming] Run {run}: PASS2 matched {second_pass_matches} fragment rows"
+        )
+
+        if not peaks_parts:
+            timestamped_echo(
+                f"Info: Skipping run {run}: no fragment peaks after processing"
+            )
+            continue
+
+        peaks_run = pd.concat(peaks_parts, ignore_index=True)
+
+        # Final aggregation: identical grouping keys to non-streaming parse()
+        peaks_run = peaks_run.groupby(
+            [
+                "run_id",
+                "scan_id",
+                "modified_peptide",
+                "precursor_charge",
+                "precursor_mz",
+                "fragment",
+                "product_mz",
+            ],
+            as_index=False,
+        )["intensity"].max()
+
+        # --- PSM export (same schema as non-streaming convert_sage) ---
+        keep = [
+            "run_id",
+            "scan_id",
+            "hit_rank",
+            "massdiff",
+            "precursor_charge",
+            "retention_time",
+            "ion_mobility",
+            "peptide_sequence",
+            "protein_id",
+            "gene_id",
+            "num_tot_proteins",
+            "decoy",
+            "modified_peptide",
+            "group_id",
+            "pep",
+            "q_value",
+            "peptide_q",
+            "protein_q",
+        ]
+        psms_export = psms_run[keep].copy()
+
+        # Optional: dedup by group_id if you really want it,
+        # but to be 1:1 with old convert_sage, you can *omit* this.
+        # psms_export = psms_export.drop_duplicates(subset=["group_id"]).reset_index(drop=True)
+
+        if psms_export.empty or peaks_run.empty:
+            timestamped_echo(
+                f"Info: Skipping run {run}: psms={len(psms_export)}, peaks={len(peaks_run)}"
+            )
+            continue
+
+        psmpkl = f"{run}.psmpkl"
+        peakpkl = f"{run}.peakpkl"
+        psms_export.to_pickle(psmpkl)
+        peaks_run.to_pickle(peakpkl)
+
+        timestamped_echo(
+            f"Info: [streaming] Wrote {psmpkl} (n_psms={len(psms_export)}) "
+            f"and {peakpkl} (n_peaks={len(peaks_run)})"
+        )
+        outfiles.extend([psmpkl, peakpkl])
+
+    if not outfiles:
+        raise RuntimeError(
+            "No non-empty runs detected after Sage streaming conversion."
+        )
+
+    return outfiles
