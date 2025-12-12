@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "easypqp"
-version = "0.1.53"
+version = "0.1.54"
 description = "EasyPQP: Simple library generation for OpenSWATH"
 readme = "README.md"
 requires-python = ">=3.9"
