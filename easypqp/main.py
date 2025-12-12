@@ -17,7 +17,15 @@ from .sage import convert_sage
 from .targetedfileconverter import TargetedFileConverter
 from .unimoddb import unimod_filter
 from .util import timestamped_echo, create_json_config
-from easypqp_rs import generate_insilico_library
+
+# Optional in-silico library generation (requires easypqp_rs)
+try:
+    from easypqp_rs import generate_insilico_library
+
+    HAS_RUST_BACKEND = True
+except (ImportError, ModuleNotFoundError):
+    generate_insilico_library = None
+    HAS_RUST_BACKEND = False
 
 try:
     # PyProphet ≤ 2.x
@@ -1123,6 +1131,17 @@ def insilico_library(
 
     For more information on the JSON configuration file, see: https://github.com/singjc/easypqp-rs?tab=readme-ov-file#configuration-reference
     """
+    # Check if in-silico feature is available
+    if not HAS_RUST_BACKEND:
+        timestamped_echo(
+            "Error: In-silico library generation feature is not available."
+        )
+        timestamped_echo("The easypqp_rs package is required but not installed.")
+        timestamped_echo(
+            "Please install `easypqp_rs` or reinstall EasyPQP with the rust backend enabled. i.e. `pip install easypqp[rust]`"
+        )
+        return 1
+
     if fasta is None and config is None:
         timestamped_echo(
             "Error: Please provide either a FASTA file or a JSON configuration file like below."

@@ -6,12 +6,21 @@ import shutil
 import sys
 
 import pandas as pd
+import pytest
 
 pd.options.display.expand_frame_repr = False
 pd.options.display.precision = 4
 pd.options.display.max_columns = None
 
 DATA_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+
+# Check if insilico feature is available
+try:
+    from easypqp_rs import generate_insilico_library  # noqa: F401
+
+    HAS_RUST_BACKEND = True
+except ImportError:
+    HAS_RUST_BACKEND = False
 
 
 def _run_cmdline(cmdline):
@@ -167,5 +176,9 @@ def _run_insilico_library(regtest, temp_folder):
         )
 
 
+@pytest.mark.skipif(
+    not HAS_RUST_BACKEND,
+    reason="In-silico feature not installed (easypqp_rs package missing - reinstall easypqp)",
+)
 def test_insilico_library(tmpdir, regtest):
     _run_insilico_library(regtest, tmpdir.strpath)
