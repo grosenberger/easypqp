@@ -8,20 +8,25 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
-    - name: Set up Python
-      uses: actions/setup-python@v1
-      with:
-        python-version: '3.x'
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip numpy
-        pip install setuptools wheel twine
-    - name: Build and publish
-      env:
-        TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-      run: |
-        python setup.py sdist
-        twine upload dist/*
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade build twine
+      - name: Build and publish
+        env:
+          # Prefer using a PyPI API token stored in secrets as PYPI_API_TOKEN
+          # If you still use username/password set them in the repo secrets.
+          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+          # alternate (recommended): TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }} and TWINE_USERNAME: __token__
+        run: |
+          # Build sdist and wheel using PEP 517 build backend (reads pyproject.toml)
+          python -m build --sdist --wheel
+          # Upload artifacts with twine
+          python -m twine upload dist/*
         
