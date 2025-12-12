@@ -19,11 +19,8 @@ jobs:
           python -m pip install --upgrade build twine
       - name: Build and publish
         env:
-          # Prefer using a PyPI API token stored in secrets as PYPI_API_TOKEN
-          # If you still use username/password set them in the repo secrets.
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-          # alternate (recommended): TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }} and TWINE_USERNAME: __token__
         run: |
           # Build sdist and wheel using PEP 517 build backend (reads pyproject.toml)
           python -m build --sdist --wheel
