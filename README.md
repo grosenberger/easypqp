@@ -14,6 +14,16 @@ Install the development version of *easypqp* from GitHub:
     $ pip install git+https://github.com/grosenberger/easypqp.git@master
 ````
 
+### Full Installation
+
+To install all optional features:
+
+````
+    $ pip install easypqp[all]
+````
+
+This will install the `easypqp_rs` package, which provides the in-silico library generation feature and pyprophet for statistical validation.
+
 Running EasyPQP
 ===============
 
@@ -40,6 +50,8 @@ or:
 
 Generating an *In-Silico* Library
 =================================
+
+The in-silico library generation feature is included if you installed EasyPQP with the `[all]`  or `[rust]` extras (to install the `easypqp_rs` package).
 
 To generate an in-silico library, you can use the `insilico-library` command. For example:
 
