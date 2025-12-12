@@ -4,6 +4,7 @@ import shutil
 import sys
 
 import pandas as pd
+import re
 
 DATA_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
@@ -31,7 +32,14 @@ def _run_convertsage(temp_folder, regtest):
     )
 
     out = _run_cmdline(cmdline)
-    print(out, file=regtest)
+    # Strip leading timestamps of the form 'YYYY-MM-DD HH:MM:SS - ' for deterministic regtest
+    cleaned_lines = []
+    for line in out.splitlines():
+        cleaned_lines.append(
+            re.sub(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} - ", "", line)
+        )
+    cleaned = "\n".join(cleaned_lines)
+    print(cleaned, file=regtest)
 
     # Expect output files for run 'LQSRPAAPPAPGPGQLTLR'
     run_stem = "LQSRPAAPPAPGPGQLTLR"

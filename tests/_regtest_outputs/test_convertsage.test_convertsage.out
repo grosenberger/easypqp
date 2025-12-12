@@ -1,6 +1,5 @@
-2025-12-12 00:17:02 - Info: Converting Sage inputs: results.sage.tsv + matched_fragments.sage.tsv
-2025-12-12 00:17:02 - Info: Reading Sage PSMs
-2025-12-12 00:17:02 - Info: Reading Sage matched fragment peaks
-2025-12-12 00:17:02 - Info: Wrote LQSRPAAPPAPGPGQLTLR.psmpkl and LQSRPAAPPAPGPGQLTLR.peakpkl
-2025-12-12 00:17:02 - Info: Total elapsed time 0.00 minutes.
-
+Info: Converting Sage inputs: results.sage.tsv + matched_fragments.sage.tsv
+Info: Reading Sage PSMs
+Info: Reading Sage matched fragment peaks
+Info: Wrote LQSRPAAPPAPGPGQLTLR.psmpkl and LQSRPAAPPAPGPGQLTLR.peakpkl
+Info: Total elapsed time 0.00 minutes.
