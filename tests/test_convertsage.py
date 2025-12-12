@@ -32,12 +32,17 @@ def _run_convertsage(temp_folder, regtest):
     )
 
     out = _run_cmdline(cmdline)
-    # Strip leading timestamps of the form 'YYYY-MM-DD HH:MM:SS - ' for deterministic regtest
+    # Strip leading timestamps of the form 'YYYY-MM-DD HH:MM:SS - ' and
+    # filter out pyopenms environment warnings which are non-deterministic
     cleaned_lines = []
     for line in out.splitlines():
-        cleaned_lines.append(
-            re.sub(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} - ", "", line)
-        )
+        line = re.sub(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} - ", "", line)
+        # Remove pyopenms/openms data-path warnings which leak local site-packages paths
+        if re.search(r"pyopenms", line, flags=re.IGNORECASE) or re.search(
+            r"OPENMS_DATA_PATH", line
+        ):
+            continue
+        cleaned_lines.append(line)
     cleaned = "\n".join(cleaned_lines)
     print(cleaned, file=regtest)
 
