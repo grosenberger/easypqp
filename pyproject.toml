@@ -12,6 +12,7 @@ authors = [
   { name = "George Rosenberger", email = "gr2578@cumc.columbia.edu" },
 ]
 license = { text = "BSD-3-Clause" }
+# Core dependencies required for basic EasyPQP functionality
 dependencies = [
   "numba",
   "Click>=8.0.0",
@@ -25,7 +26,6 @@ dependencies = [
   "matplotlib>=3.5.1",
   "seaborn",
   "tqdm",
-  "easypqp_rs>=0.1.5"
 ]
 
 [project.urls]
@@ -35,7 +35,21 @@ Homepage = "https://github.com/grosenberger/easypqp"
 easypqp = "easypqp.main:cli"
 
 [project.optional-dependencies]
-PyProphet = ["pyprophet"]
+
+# PyProphet integration
+# Install with: pip install easypqp[pyprophet]
+pyprophet = ["pyprophet"]
+
+# Rust backend for in-silico library generation
+# Install with: pip install easypqp[rust]
+rust = ["easypqp_rs>=0.1.5"]
+
+# All optional features
+# Install with: pip install easypqp[all]
+all = [
+  "pyprophet",
+  "easypqp_rs>=0.1.5"
+]
 
 [tool.setuptools]
 include-package-data = true
