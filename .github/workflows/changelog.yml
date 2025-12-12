@@ -5,12 +5,13 @@ on:
   workflow_dispatch:  # Manual trigger
     inputs:
       version:
-        description: 'Version tag (e.g., v3.0.4)'
+        description: 'Version tag (e.g., 3.0.4 or v3.0.4). If omitted the latest tag will be used.'
         required: false
         type: string
   push:
+    # Trigger on any tag so releases without a 'v' prefix (e.g. '0.1.53') also run
     tags:
-      - 'v*'
+      - '*'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
