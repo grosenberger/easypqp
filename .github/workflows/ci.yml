@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ master, main ]
 
+# Ensure only one run per branch/PR is active at a time; cancel previous runs when new commits arrive
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Run tests
