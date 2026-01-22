@@ -9,7 +9,13 @@ import pandas as pd
 
 from easypqp import pkg_unimod_db
 
-from .convert import basename_spectralfile, conversion, conversion_psm, drop_psm_columns
+from .convert import (
+    basename_spectralfile,
+    conversion,
+    conversion_psm,
+    drop_psm_columns,
+    reannotate_library_unimod,
+)
 from .library import generate
 from .openswathassaygenerator import OpenSwathAssayGenerator
 from .openswathdecoygenerator import OpenSwathDecoyGenerator
@@ -1097,6 +1103,34 @@ def reduce(infile, outfile, bins, peptides):
     help="Number of threads for parallel processing. If not specified, uses all available cores.",
 )
 @click.option(
+    "--unimod_annotation/--no-unimod_annotation",
+    default=True,
+    show_default=True,
+    help="Re-annotate mass bracket modifications (e.g., [+57.0215]) to UniMod notation (e.g., (UniMod:4)).",
+)
+@click.option(
+    "--unimod",
+    "unimodfile",
+    required=False,
+    default=pkg_unimod_db,
+    show_default=True,
+    type=click.Path(exists=True),
+    help="UniMod XML database file for modification annotation.",
+)
+@click.option(
+    "--max_delta_unimod",
+    default=0.02,
+    show_default=True,
+    type=float,
+    help="Maximum delta mass tolerance (in Da) for matching modifications to UniMod entries.",
+)
+@click.option(
+    "--enable_unannotated/--no-enable_unannotated",
+    default=True,
+    show_default=True,
+    help="Keep mass brackets for modifications that cannot be matched to UniMod. If disabled, raises an error for unmatched modifications.",
+)
+@click.option(
     "--config",
     "config",
     required=False,
@@ -1124,6 +1158,10 @@ def insilico_library(
     write_report,
     parquet_output,
     threads,
+    unimod_annotation,
+    unimodfile,
+    max_delta_unimod,
+    enable_unannotated,
     config,
 ):
     """
@@ -1178,6 +1216,42 @@ def insilico_library(
         threads,
     )
     timestamped_echo("Info: In-Silico Library successfully generated.")
+
+    # Post-process: Re-annotate mass brackets to UniMod notation
+    if unimod_annotation:
+        timestamped_echo(
+            "Info: Re-annotating mass bracket modifications to UniMod notation."
+        )
+        import pandas as pd
+
+        # Determine file format
+        if parquet_output:
+            library_file = (
+                output_file
+                if output_file.endswith(".parquet")
+                else output_file.replace(".tsv", ".parquet")
+            )
+            df = pd.read_parquet(library_file)
+        else:
+            library_file = output_file if output_file.endswith(".tsv") else output_file
+            df = pd.read_csv(library_file, sep="\t")
+
+        # Re-annotate
+        df = reannotate_library_unimod(
+            df,
+            unimodfile,
+            max_delta_unimod=max_delta_unimod,
+            enable_unannotated=enable_unannotated,
+            modified_peptide_column="ModifiedPeptideSequence",
+        )
+
+        # Write back
+        if parquet_output:
+            df.to_parquet(library_file, index=False)
+        else:
+            df.to_csv(library_file, sep="\t", index=False)
+
+        timestamped_echo(f"Info: Re-annotated library saved to {library_file}.")
 
 
 # EasyPQP UniMod Database Filtering
