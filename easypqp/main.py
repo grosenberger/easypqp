@@ -1222,7 +1222,6 @@ def insilico_library(
         timestamped_echo(
             "Info: Re-annotating mass bracket modifications to UniMod notation."
         )
-        import pandas as pd
 
         # Determine file format
         if parquet_output:
@@ -1252,6 +1251,74 @@ def insilico_library(
             df.to_csv(library_file, sep="\t", index=False)
 
         timestamped_echo(f"Info: Re-annotated library saved to {library_file}.")
+
+    # Post-process: ensure decoy protein identifiers are prefixed with decoy_tag
+    if generate_decoys:
+        timestamped_echo(
+            "Info: Applying decoy tag to ProteinId/UniprotId for decoy entries."
+        )
+
+        # Determine file format again
+        if parquet_output:
+            library_file = (
+                output_file
+                if output_file.endswith(".parquet")
+                else output_file.replace(".tsv", ".parquet")
+            )
+            df = pd.read_parquet(library_file)
+        else:
+            library_file = output_file if output_file.endswith(".tsv") else output_file
+            df = pd.read_csv(library_file, sep="\t")
+
+        if "Decoy" in df.columns:
+            # boolean mask of decoy rows
+            try:
+                mask = df["Decoy"].astype(bool)
+            except Exception:
+                mask = df["Decoy"] == 1
+
+            if mask.any():
+                # Prefix ProteinId
+                if "ProteinId" in df.columns:
+
+                    def _prefix_if_needed(x):
+                        if pd.isna(x):
+                            return x
+                        s = str(x)
+                        return s if s.startswith(decoy_tag) else decoy_tag + s
+
+                    df.loc[mask, "ProteinId"] = df.loc[mask, "ProteinId"].apply(
+                        _prefix_if_needed
+                    )
+
+                # Prefix UniprotId (optional)
+                if "UniprotId" in df.columns:
+
+                    def _prefix_uniprot_if_needed(x):
+                        if pd.isna(x):
+                            return x
+                        s = str(x)
+                        return s if s.startswith(decoy_tag) else decoy_tag + s
+
+                    df.loc[mask, "UniprotId"] = df.loc[mask, "UniprotId"].apply(
+                        _prefix_uniprot_if_needed
+                    )
+
+                # Write back
+                if parquet_output:
+                    df.to_parquet(library_file, index=False)
+                else:
+                    df.to_csv(library_file, sep="\t", index=False)
+
+                timestamped_echo(
+                    f"Info: Applied decoy tag and saved to {library_file}."
+                )
+            else:
+                timestamped_echo("Info: No decoy rows found, nothing to prefix.")
+        else:
+            timestamped_echo(
+                "Info: No 'Decoy' column found in output; skipping decoy prefixing."
+            )
 
 
 # EasyPQP UniMod Database Filtering
