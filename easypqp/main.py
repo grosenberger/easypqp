@@ -2,6 +2,8 @@ import ast
 import importlib.resources as pkg_resources
 import sqlite3
 import time
+import os
+import json
 from shutil import copyfile
 
 import click
@@ -1217,6 +1219,18 @@ def insilico_library(
     )
     timestamped_echo("Info: In-Silico Library successfully generated.")
 
+    # Resolve effective output file (use explicit --output_file if provided, else try JSON config)
+    effective_output = output_file
+    if not effective_output:
+        try:
+            if config and os.path.exists(config):
+                cfg = json.load(open(config))
+            else:
+                cfg = json.loads(config) if config else {}
+            effective_output = cfg.get("output_file") or cfg.get("output")
+        except Exception:
+            effective_output = None
+
     # Post-process: Re-annotate mass brackets to UniMod notation
     if unimod_annotation:
         timestamped_echo(
@@ -1226,13 +1240,21 @@ def insilico_library(
         # Determine file format
         if parquet_output:
             library_file = (
-                output_file
-                if output_file.endswith(".parquet")
-                else output_file.replace(".tsv", ".parquet")
+                effective_output
+                if effective_output and effective_output.endswith(".parquet")
+                else (
+                    effective_output.replace(".tsv", ".parquet")
+                    if effective_output
+                    else "easypqp_insilico_library.parquet"
+                )
             )
             df = pd.read_parquet(library_file)
         else:
-            library_file = output_file if output_file.endswith(".tsv") else output_file
+            library_file = (
+                effective_output
+                if (effective_output and effective_output.endswith(".tsv"))
+                else (effective_output or "easypqp_insilico_library.tsv")
+            )
             df = pd.read_csv(library_file, sep="\t")
 
         # Re-annotate
@@ -1258,16 +1280,24 @@ def insilico_library(
             "Info: Applying decoy tag to ProteinId/UniprotId for decoy entries."
         )
 
-        # Determine file format again
+        # Determine file format again (use resolved effective_output)
         if parquet_output:
             library_file = (
-                output_file
-                if output_file.endswith(".parquet")
-                else output_file.replace(".tsv", ".parquet")
+                effective_output
+                if effective_output and effective_output.endswith(".parquet")
+                else (
+                    effective_output.replace(".tsv", ".parquet")
+                    if effective_output
+                    else "easypqp_insilico_library.parquet"
+                )
             )
             df = pd.read_parquet(library_file)
         else:
-            library_file = output_file if output_file.endswith(".tsv") else output_file
+            library_file = (
+                effective_output
+                if (effective_output and effective_output.endswith(".tsv"))
+                else (effective_output or "easypqp_insilico_library.tsv")
+            )
             df = pd.read_csv(library_file, sep="\t")
 
         if "Decoy" in df.columns:
