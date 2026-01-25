@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.55] - 2026-01-25
+
+### 🚀 Features
+
+- Add decoy tag prefixing for ProteinId and UniprotId in insilico_library
+- Enhance insilico_library output file handling with effective resolution from config
+
+### 🐛 Bug Fixes
+
+- Update pythonpublish workflow to use latest actions and improve build process
+- Update pythonpublish workflow to recommend using PyPI API token for authentication
+- Enhance pythonpublish workflow to support manual tag input and improve repository checkout steps
+- Update license format in pyproject.toml
+- Filter additional environment-specific warnings in test_convertsage
+
+### ⚙️ Miscellaneous Tasks
+
+- Update CHANGELOG.md
+
 ## [0.1.54] - 2025-12-12
 
 ### 🚀 Features
