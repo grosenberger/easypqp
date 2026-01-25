@@ -42,6 +42,14 @@ def _run_convertsage(temp_folder, regtest):
             r"OPENMS_DATA_PATH", line
         ):
             continue
+        # Remove pandas/bottleneck version warnings which are environment-specific
+        if re.search(
+            r"Pandas requires version", line, flags=re.IGNORECASE
+        ) or re.search(r"bottleneck", line, flags=re.IGNORECASE):
+            continue
+        # Remove any raw warnings.warn(...) lines that may appear in some envs
+        if "warnings.warn" in line:
+            continue
         cleaned_lines.append(line)
     cleaned = "\n".join(cleaned_lines)
     print(cleaned, file=regtest)
