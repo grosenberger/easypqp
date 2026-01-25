@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "easypqp"
-version = "0.1.54"
+version = "0.1.55"
 description = "EasyPQP: Simple library generation for OpenSWATH"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -42,13 +42,13 @@ pyprophet = ["pyprophet"]
 
 # Rust backend for in-silico library generation
 # Install with: pip install easypqp[rust]
-rust = ["easypqp_rs>=0.1.5"]
+rust = ["easypqp-rs>=0.1.5"]
 
 # All optional features
 # Install with: pip install easypqp[all]
 all = [
   "pyprophet",
-  "easypqp_rs>=0.1.5"
+  "easypqp-rs>=0.1.5"
 ]
 
 [tool.setuptools]
