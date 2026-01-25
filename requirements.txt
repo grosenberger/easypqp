@@ -95,7 +95,7 @@ pyopenms==3.4.0
     #   pyprophet
 pyparsing==3.2.5
     # via matplotlib
-pypdf==6.4.0
+pypdf==6.6.0
     # via pyprophet
 pyprophet==3.0.2
     # via easypqp (pyproject.toml)
