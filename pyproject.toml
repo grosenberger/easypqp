@@ -42,13 +42,13 @@ pyprophet = ["pyprophet"]
 
 # Rust backend for in-silico library generation
 # Install with: pip install easypqp[rust]
-rust = ["easypqp-rs>=0.1.5"]
+rust = ["easypqp-rs>=0.1.7"]
 
 # All optional features
 # Install with: pip install easypqp[all]
 all = [
   "pyprophet",
-  "easypqp-rs>=0.1.5"
+  "easypqp-rs>=0.1.7"
 ]
 
 [tool.setuptools]

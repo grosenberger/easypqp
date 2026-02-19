@@ -10,14 +10,12 @@ def timestamped_echo(message):
     click.echo(f"{timestamp} - {message}")
 
 
-
-
 def create_json_config(as_bytes: bool = False) -> Union[str, bytes]:
     """
     Create a JSON configuration file for EasyPQP In-silico library generation.
     """
     config = {
-        "version": "0.1.0",
+        "version": "0.1.5",
         "database": {
             "enzyme": {
                 "missed_cleavages": 1,
@@ -26,18 +24,16 @@ def create_json_config(as_bytes: bool = False) -> Union[str, bytes]:
                 "cleave_at": "KR",
                 "restrict": "P",
                 "c_terminal": None,
-                "semi_enzymatic": None
+                "semi_enzymatic": None,
             },
             "peptide_min_mass": 500.0,
             "peptide_max_mass": 5000.0,
-            "static_mods": {
-                "C": 57.0215
-            },
+            "static_mods": {"C": 57.0215},
             "variable_mods": {},
             "max_variable_mods": 2,
             "decoy_tag": "rev_",
             "generate_decoys": True,
-            "fasta": ""
+            "fasta": "",
         },
         "insilico_settings": {
             "precursor_charge": [2, 4],
@@ -46,7 +42,11 @@ def create_json_config(as_bytes: bool = False) -> Union[str, bytes]:
             "max_transitions": 6,
             "fragmentation_model": "cid",
             "allowed_fragment_types": ["b", "y"],
-            "rt_scale": 100.0
+            "rt_scale": 100.0,
+            "unimod_annotation": True,
+            "max_delta_unimod": 0.02,
+            "enable_unannotated": True,
+            "unimod_xml_path": None,
         },
         "dl_feature_generators": {
             "device": "cpu",
@@ -56,24 +56,24 @@ def create_json_config(as_bytes: bool = False) -> Union[str, bytes]:
                 "batch_size": 256,
                 "epochs": 3,
                 "learning_rate": 0.001,
-                "save_model": True
+                "save_model": True,
             },
             "instrument": "QE",
             "nce": 20.0,
-            "batch_size": 64
+            "batch_size": 64,
         },
         "peptide_chunking": 0,
         "output_file": "./easypqp_insilico_library.tsv",
         "write_report": True,
-        "parquet_output": False
+        "parquet_output": False,
     }
 
     json_str = json.dumps(config, indent=2)
 
     if as_bytes:
-        return json_str.encode('utf-8')
+        return json_str.encode("utf-8")
     else:
-        with tempfile.NamedTemporaryFile('w+', suffix=".json", delete=False) as tmp:
+        with tempfile.NamedTemporaryFile("w+", suffix=".json", delete=False) as tmp:
             tmp.write(json_str)
             tmp.flush()
             return tmp.name

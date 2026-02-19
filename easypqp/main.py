@@ -16,7 +16,6 @@ from .convert import (
     conversion,
     conversion_psm,
     drop_psm_columns,
-    reannotate_library_unimod,
 )
 from .library import generate
 from .openswathassaygenerator import OpenSwathAssayGenerator
@@ -83,7 +82,7 @@ def transform_comma_string_to_list(output_type=str):
             return None
         try:
             items = value.split(",")
-            if output_type == int:
+            if output_type is int:
                 return [int(item.strip()) for item in items]
             return [item.strip() for item in items]
         except ValueError as e:
@@ -1117,7 +1116,7 @@ def reduce(infile, outfile, bins, peptides):
     default=pkg_unimod_db,
     show_default=True,
     type=click.Path(exists=True),
-    help="UniMod XML database file for modification annotation.",
+    help="Custom UniMod XML database file for modification annotation.",
 )
 @click.option(
     "--max_delta_unimod",
@@ -1198,157 +1197,30 @@ def insilico_library(
         config,
         fasta,
         output_file,
-        generate_decoys,
-        decoy_tag,
-        precursor_charge,
-        max_fragment_charge,
-        min_transitions,
-        max_transitions,
-        fragmentation_model,
-        allowed_fragment_types,
-        rt_scale,
-        fine_tune,
-        train_data_path,
-        save_model,
-        instrument,
-        nce,
-        batch_size,
-        write_report,
-        parquet_output,
-        threads,
+        generate_decoys=generate_decoys,
+        decoy_tag=decoy_tag,
+        precursor_charge=precursor_charge,
+        max_fragment_charge=max_fragment_charge,
+        min_transitions=min_transitions,
+        max_transitions=max_transitions,
+        fragmentation_model=fragmentation_model,
+        allowed_fragment_types=allowed_fragment_types,
+        rt_scale=rt_scale,
+        unimod_annotation=unimod_annotation,
+        max_delta_unimod=max_delta_unimod,
+        enable_unannotated=enable_unannotated,
+        unimod_xml_path=unimodfile,
+        fine_tune=fine_tune,
+        train_data_path=train_data_path,
+        save_model=save_model,
+        instrument=instrument,
+        nce=nce,
+        batch_size=batch_size,
+        write_report=write_report,
+        parquet_output=parquet_output,
+        threads=threads,
     )
     timestamped_echo("Info: In-Silico Library successfully generated.")
-
-    # Resolve effective output file (use explicit --output_file if provided, else try JSON config)
-    effective_output = output_file
-    if not effective_output:
-        try:
-            if config and os.path.exists(config):
-                cfg = json.load(open(config))
-            else:
-                cfg = json.loads(config) if config else {}
-            effective_output = cfg.get("output_file") or cfg.get("output")
-        except Exception:
-            effective_output = None
-
-    # Post-process: Re-annotate mass brackets to UniMod notation
-    if unimod_annotation:
-        timestamped_echo(
-            "Info: Re-annotating mass bracket modifications to UniMod notation."
-        )
-
-        # Determine file format
-        if parquet_output:
-            library_file = (
-                effective_output
-                if effective_output and effective_output.endswith(".parquet")
-                else (
-                    effective_output.replace(".tsv", ".parquet")
-                    if effective_output
-                    else "easypqp_insilico_library.parquet"
-                )
-            )
-            df = pd.read_parquet(library_file)
-        else:
-            library_file = (
-                effective_output
-                if (effective_output and effective_output.endswith(".tsv"))
-                else (effective_output or "easypqp_insilico_library.tsv")
-            )
-            df = pd.read_csv(library_file, sep="\t")
-
-        # Re-annotate
-        df = reannotate_library_unimod(
-            df,
-            unimodfile,
-            max_delta_unimod=max_delta_unimod,
-            enable_unannotated=enable_unannotated,
-            modified_peptide_column="ModifiedPeptideSequence",
-        )
-
-        # Write back
-        if parquet_output:
-            df.to_parquet(library_file, index=False)
-        else:
-            df.to_csv(library_file, sep="\t", index=False)
-
-        timestamped_echo(f"Info: Re-annotated library saved to {library_file}.")
-
-    # Post-process: ensure decoy protein identifiers are prefixed with decoy_tag
-    if generate_decoys:
-        timestamped_echo(
-            "Info: Applying decoy tag to ProteinId/UniprotId for decoy entries."
-        )
-
-        # Determine file format again (use resolved effective_output)
-        if parquet_output:
-            library_file = (
-                effective_output
-                if effective_output and effective_output.endswith(".parquet")
-                else (
-                    effective_output.replace(".tsv", ".parquet")
-                    if effective_output
-                    else "easypqp_insilico_library.parquet"
-                )
-            )
-            df = pd.read_parquet(library_file)
-        else:
-            library_file = (
-                effective_output
-                if (effective_output and effective_output.endswith(".tsv"))
-                else (effective_output or "easypqp_insilico_library.tsv")
-            )
-            df = pd.read_csv(library_file, sep="\t")
-
-        if "Decoy" in df.columns:
-            # boolean mask of decoy rows
-            try:
-                mask = df["Decoy"].astype(bool)
-            except Exception:
-                mask = df["Decoy"] == 1
-
-            if mask.any():
-                # Prefix ProteinId
-                if "ProteinId" in df.columns:
-
-                    def _prefix_if_needed(x):
-                        if pd.isna(x):
-                            return x
-                        s = str(x)
-                        return s if s.startswith(decoy_tag) else decoy_tag + s
-
-                    df.loc[mask, "ProteinId"] = df.loc[mask, "ProteinId"].apply(
-                        _prefix_if_needed
-                    )
-
-                # Prefix UniprotId (optional)
-                if "UniprotId" in df.columns:
-
-                    def _prefix_uniprot_if_needed(x):
-                        if pd.isna(x):
-                            return x
-                        s = str(x)
-                        return s if s.startswith(decoy_tag) else decoy_tag + s
-
-                    df.loc[mask, "UniprotId"] = df.loc[mask, "UniprotId"].apply(
-                        _prefix_uniprot_if_needed
-                    )
-
-                # Write back
-                if parquet_output:
-                    df.to_parquet(library_file, index=False)
-                else:
-                    df.to_csv(library_file, sep="\t", index=False)
-
-                timestamped_echo(
-                    f"Info: Applied decoy tag and saved to {library_file}."
-                )
-            else:
-                timestamped_echo("Info: No decoy rows found, nothing to prefix.")
-        else:
-            timestamped_echo(
-                "Info: No 'Decoy' column found in output; skipping decoy prefixing."
-            )
 
 
 # EasyPQP UniMod Database Filtering
