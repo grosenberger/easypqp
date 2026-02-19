@@ -75,14 +75,10 @@ def _run_insilico_library(regtest, temp_folder):
     # Print basic statistics about the generated library
     print(f"Generated library contains {len(library_df)} transitions", file=regtest)
 
-    # Use TransitionGroupId for unique precursors if available, otherwise compute from other columns
-    if "TransitionGroupId" in library_df.columns:
-        num_precursors = library_df["TransitionGroupId"].nunique()
-    else:
-        # Compute unique precursors from PrecursorMz, PrecursorCharge, and PeptideSequence
-        num_precursors = library_df.groupby(
-            ["PrecursorMz", "PrecursorCharge", "PeptideSequence"]
-        ).ngroups
+    # Compute unique precursors from PrecursorMz, PrecursorCharge, and PeptideSequence
+    num_precursors = library_df.groupby(
+        ["PrecursorMz", "PrecursorCharge", "PeptideSequence"]
+    ).ngroups
 
     print(f"Number of unique precursors: {num_precursors}", file=regtest)
 
@@ -100,8 +96,15 @@ def _run_insilico_library(regtest, temp_folder):
     print(f"\nColumns: {list(library_df.columns)}", file=regtest)
 
     # Round LibraryIntensity to make test more stable (DL predictions can vary slightly)
-    # Keep only deterministic columns for display
-    display_df = library_df.head().copy()
+    # Keep only deterministic columns for display. Sort the entire library first to
+    # ensure a stable, deterministic sample (taking head() after sorting can
+    # otherwise pick different rows across runs).
+    display_df = (
+        library_df.sort_values(["PrecursorMz", "ProductMz", "PeptideSequence"])
+        .reset_index(drop=True)
+        .head()
+        .copy()
+    )
     if "LibraryIntensity" in display_df.columns:
         display_df["LibraryIntensity"] = display_df["LibraryIntensity"].round(0)
 
@@ -123,8 +126,6 @@ def _run_insilico_library(regtest, temp_folder):
         "FragmentType",
         "FragmentSeriesNumber",
         "Annotation",
-        "TransitionGroupId",
-        "TransitionId",
         "Decoy",
     ]
     available_cols = [col for col in deterministic_cols if col in display_df.columns]
