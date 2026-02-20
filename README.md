@@ -2,6 +2,7 @@ EasyPQP: Simple library generation for OpenSWATH
 ================================================
 
 [![CI](https://github.com/grosenberger/easypqp/actions/workflows/ci.yml/badge.svg)](https://github.com/grosenberger/easypqp/actions/workflows/ci.yml)
+[![PyPI - Version](https://img.shields.io/pypi/v/easypqp?link=https%3A%2F%2Fpypi.org%2Fproject%2Feasypqp%2F)](https://pypi.org/project/easypqp/)
 
 EasyPQP is a Python package that provides simplified and fast peptide query parameter generation for OpenSWATH. It can process input from MSFragger, Sage or other database search engines in pepXML/idXML/tsv format. Statistical validation can be conducted either using PyProphet or PeptideProphet/iProphet. Retention times and ion mobilities are calibrated using an internal or external standard. In addition to a cumulative library, run-specific libraries are generated for non-linear RT alignment in OpenSWATH. For generation of PTM specific libraries that utilizes a unimod.xml database, you can further restrict the unimod.xml database file for modifications and site-specificities of interest. It also supports in-silico library generation.
 
