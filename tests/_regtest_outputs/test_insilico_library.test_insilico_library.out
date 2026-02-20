@@ -5,12 +5,12 @@ Number of unique peptides: 41
 Columns: ['PrecursorMz', 'ProductMz', 'PrecursorCharge', 'ProductCharge', 'LibraryIntensity', 'NormalizedRetentionTime', 'PeptideSequence', 'ModifiedPeptideSequence', 'PeptideGroupLabel', 'LabelType', 'CompoundName', 'SumFormula', 'SMILES', 'Adducts', 'ProteinId', 'UniprotId', 'GeneName', 'FragmentType', 'FragmentSeriesNumber', 'Annotation', 'CollisionEnergy', 'PrecursorIonMobility', 'TransitionGroupId', 'TransitionId', 'Decoy', 'DetectingTransition', 'IdentifyingTransition', 'QuantifyingTransition', 'Peptidoforms']
 
 First 5 transitions (deterministic columns only):
-   PrecursorMz  ProductMz  PrecursorCharge  ProductCharge PeptideSequence ModifiedPeptideSequence ProteinId UniprotId    GeneName FragmentType  FragmentSeriesNumber Annotation  Decoy
-0     315.5201   350.2022                3              2        RNLMALAR                RNLMALAR    Q99536    Q99536  VAT1_HUMAN            b                     6       b6^2      0
-1     315.5201   384.2354                3              1        RNLMALAR                RNLMALAR    Q99536    Q99536  VAT1_HUMAN            b                     3       b3^1      0
-2     315.5201   515.2759                3              1        RNLMALAR                RNLMALAR    Q99536    Q99536  VAT1_HUMAN            b                     4       b4^1      0
-3     315.5201   586.3130                3              1        RNLMALAR                RNLMALAR    Q99536    Q99536  VAT1_HUMAN            b                     5       b5^1      0
-4     315.5201   699.3970                3              1        RNLMALAR                RNLMALAR    Q99536    Q99536  VAT1_HUMAN            b                     6       b6^1      0
+   PrecursorMz  ProductMz  PrecursorCharge  ProductCharge PeptideSequence ModifiedPeptideSequence ProteinId UniprotId    GeneName FragmentType  FragmentSeriesNumber Annotation  TransitionGroupId  TransitionId  Decoy
+0     315.5201   350.2022                3              2        RNLMALAR                RNLMALAR    Q99536    Q99536  VAT1_HUMAN            b                     6       b6^2                 13         13019      0
+1     315.5201   384.2354                3              1        RNLMALAR                RNLMALAR    Q99536    Q99536  VAT1_HUMAN            b                     3       b3^1                 13         13006      0
+2     315.5201   515.2759                3              1        RNLMALAR                RNLMALAR    Q99536    Q99536  VAT1_HUMAN            b                     4       b4^1                 13         13010      0
+3     315.5201   586.3130                3              1        RNLMALAR                RNLMALAR    Q99536    Q99536  VAT1_HUMAN            b                     5       b5^1                 13         13014      0
+4     315.5201   699.3970                3              1        RNLMALAR                RNLMALAR    Q99536    Q99536  VAT1_HUMAN            b                     6       b6^1                 13         13018      0
 
 Statistics:
   Precursor charge range: 2-3

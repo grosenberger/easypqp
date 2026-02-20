@@ -75,19 +75,25 @@ def _run_insilico_library(regtest, temp_folder):
     # Print basic statistics about the generated library
     print(f"Generated library contains {len(library_df)} transitions", file=regtest)
 
-    # Compute unique precursors from PrecursorMz, PrecursorCharge, and PeptideSequence
-    num_precursors = library_df.groupby(
-        ["PrecursorMz", "PrecursorCharge", "PeptideSequence"]
-    ).ngroups
-
-    print(f"Number of unique precursors: {num_precursors}", file=regtest)
-
-    # Use appropriate column for peptide count
+    # Use appropriate column for peptide count (prefer ModifiedPeptideSequence)
     peptide_col = (
         "ModifiedPeptideSequence"
         if "ModifiedPeptideSequence" in library_df.columns
         else "PeptideSequence"
     )
+
+    # Compute unique precursors. Prefer TransitionGroupId if present; otherwise
+    # group by PrecursorMz, PrecursorCharge and the peptide column (which may
+    # include modification information). This avoids conflating different
+    # peptidoforms that share the same base sequence.
+    if "TransitionGroupId" in library_df.columns:
+        num_precursors = library_df["TransitionGroupId"].nunique()
+    else:
+        num_precursors = library_df.groupby(
+            ["PrecursorMz", "PrecursorCharge", peptide_col]
+        ).ngroups
+
+    print(f"Number of unique precursors: {num_precursors}", file=regtest)
     print(
         f"Number of unique peptides: {library_df[peptide_col].nunique()}", file=regtest
     )
@@ -96,11 +102,28 @@ def _run_insilico_library(regtest, temp_folder):
     print(f"\nColumns: {list(library_df.columns)}", file=regtest)
 
     # Round LibraryIntensity to make test more stable (DL predictions can vary slightly)
-    # Keep only deterministic columns for display. Sort the entire library first to
-    # ensure a stable, deterministic sample (taking head() after sorting can
-    # otherwise pick different rows across runs).
+    # Keep only deterministic columns for display. Sort the entire library first
+    # to ensure a stable, deterministic sample (taking head() after sorting can
+    # otherwise pick different rows across runs). Use a stable sort (mergesort)
+    # and include several tie-breaker columns to avoid non-determinism when many
+    # fragments share the same precursor/product m/z values.
+    preferred_sort_cols = [
+        "PrecursorMz",
+        "PrecursorCharge",
+        "ProductMz",
+        "ProductCharge",
+        peptide_col,
+        "FragmentType",
+        "FragmentSeriesNumber",
+        "Annotation",
+        "TransitionId",
+    ]
+    sort_cols = [c for c in preferred_sort_cols if c in library_df.columns]
+    if not sort_cols:
+        # Fallback to a minimal deterministic sort
+        sort_cols = ["PrecursorMz", "ProductMz"]
     display_df = (
-        library_df.sort_values(["PrecursorMz", "ProductMz", "PeptideSequence"])
+        library_df.sort_values(sort_cols, kind="mergesort")
         .reset_index(drop=True)
         .head()
         .copy()
@@ -126,6 +149,8 @@ def _run_insilico_library(regtest, temp_folder):
         "FragmentType",
         "FragmentSeriesNumber",
         "Annotation",
+        "TransitionGroupId",
+        "TransitionId",
         "Decoy",
     ]
     available_cols = [col for col in deterministic_cols if col in display_df.columns]
