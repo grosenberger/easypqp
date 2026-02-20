@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.56] - 2026-02-20
+
+### 🐛 Bug Fixes
+
+- Update UniMod version in configuration and improve in-silico library generation options
+- Update unique precursor calculation and improve output stability in insilico library tests
+- Enhance unique precursor calculation and improve output stability in insilico library tests
+
+### ⚙️ Miscellaneous Tasks
+
+- Update CHANGELOG.md
+
 ## [0.1.55] - 2026-01-25
 
 ### 🚀 Features
