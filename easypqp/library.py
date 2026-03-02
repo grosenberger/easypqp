@@ -904,10 +904,11 @@ def generate(
 
     # Generate DIA-NN2 compatible PQP file
     if diannpqp:
-        pqp["FragmentLossType"] = np.nan
-        pqp["FragmentType"] = pqp["Annotation"].str[0]
-        pqp["FragmentSeriesNumber"] = pqp["Annotation"].str[1]
-        pqp["FragmentCharge"] = pqp["Annotation"].str.split("^").str[1].astype(int)
+        parsed = pqp["Annotation"].str.extract(r'^(?P<FragmentType>[a-z])(?P<FragmentSeriesNumber>\d+)(?:-(?P<FragmentLossType>[^^]+))?\^(?P<FragmentCharge>\d+)$')
+        pqp["FragmentType"] = parsed["FragmentType"]
+        pqp["FragmentSeriesNumber"] = parsed["FragmentSeriesNumber"].astype(int)
+        pqp["FragmentLossType"] = parsed["FragmentLossType"]
+        pqp["FragmentCharge"] = parsed["FragmentCharge"].astype(int)
         pqp["Proteotypic"] = [
             1 if ";" in prot_id else 0 for prot_id in pqp["ProteinId"]
         ]
