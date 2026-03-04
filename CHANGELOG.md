@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.58] - 2026-03-04
+
+### ⚙️ Miscellaneous Tasks
+
+- Update CHANGELOG.md
+
 ## [0.1.57] - 2026-03-02
 
 ### ⚙️ Miscellaneous Tasks
