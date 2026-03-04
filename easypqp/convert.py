@@ -1354,8 +1354,9 @@ def read_mzml_or_mzxml_impl(input_map, psms, theoretical, max_delta_ppm, filetyp
             )
         return peaks_list
 
+    chunks = [psms.iloc[idx] for idx in np.array_split(range(len(psms)), nthreads)]
     with concurrent.futures.ThreadPoolExecutor(nthreads) as exe:
-        l = exe.map(f, np.array_split(psms, nthreads))
+        l = exe.map(f, chunks)
     peaks_list = sum(l, [])
 
     timestamped_echo("Info: Got %d PSMs" % len(peaks_list))
