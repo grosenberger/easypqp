@@ -41,7 +41,9 @@ def _run_cmdline(cmdline):
 
 
 def _run_insilico_library(regtest, temp_folder):
-    os.chdir(temp_folder)
+    # Store original working directory
+    original_cwd = os.getcwd()
+
     config_path = os.path.join(DATA_FOLDER, "config.json")
     fasta_path = os.path.join(DATA_FOLDER, "Q99536.fasta")
 
@@ -53,20 +55,28 @@ def _run_insilico_library(regtest, temp_folder):
     project_root = os.path.dirname(os.path.dirname(DATA_FOLDER))
     src_data_dir = os.path.join(project_root, "data")
     dest_data_dir = os.path.join(temp_folder, "data")
+    data_dir_copied = False
     if os.path.exists(src_data_dir):
-        shutil.copytree(src_data_dir, dest_data_dir)
+        try:
+            shutil.copytree(src_data_dir, dest_data_dir)
+            data_dir_copied = True
+        except Exception:
+            # If copy fails, we'll use absolute paths instead
+            pass
 
     # Update config to use local paths in temp folder
     import json
 
-    with open("config.json", "r") as f:
+    with open(os.path.join(temp_folder, "config.json"), "r") as f:
         config = json.load(f)
 
-    # Update paths to be relative to temp folder
-    config["database"]["fasta"] = "Q99536.fasta"
-    config["output_file"] = "easypqp_insilico_library.tsv"
+    # Update fasta path to absolute path
+    fasta_abs_path = os.path.join(temp_folder, "Q99536.fasta")
+    output_abs_path = os.path.join(temp_folder, "easypqp_insilico_library.tsv")
+    config["database"]["fasta"] = fasta_abs_path
+    config["output_file"] = output_abs_path
 
-    # Add model configurations to use correct paths
+    # Add model configurations with absolute paths to ensure they work from temp directory
     if "dl_feature_generators" not in config:
         config["dl_feature_generators"] = {
             "device": "cpu",
@@ -83,32 +93,68 @@ def _run_insilico_library(regtest, temp_folder):
             "batch_size": 64,
         }
 
+    # Determine paths based on whether data directory was copied
+    if data_dir_copied:
+        # Use relative paths from temp directory
+        rt_model_path = "data/pretrained_models/redeem/20251205_100_epochs_min_max_rt_cnn_tf.safetensors"
+        rt_const_path = (
+            "data/pretrained_models/alphapeptdeep/generic/rt.pth.model_const.yaml"
+        )
+        ms2_model_path = "data/pretrained_models/alphapeptdeep/generic/ms2.pth"
+        ms2_const_path = (
+            "data/pretrained_models/alphapeptdeep/generic/ms2.pth.model_const.yaml"
+        )
+    else:
+        # Use absolute paths from project root
+        rt_model_path = os.path.join(
+            src_data_dir,
+            "pretrained_models/redeem/20251205_100_epochs_min_max_rt_cnn_tf.safetensors",
+        )
+        rt_const_path = os.path.join(
+            src_data_dir,
+            "pretrained_models/alphapeptdeep/generic/rt.pth.model_const.yaml",
+        )
+        ms2_model_path = os.path.join(
+            src_data_dir, "pretrained_models/alphapeptdeep/generic/ms2.pth"
+        )
+        ms2_const_path = os.path.join(
+            src_data_dir,
+            "pretrained_models/alphapeptdeep/generic/ms2.pth.model_const.yaml",
+        )
+
     # Add retention_time model configuration
     config["dl_feature_generators"]["retention_time"] = {
-        "model_path": "data/pretrained_models/redeem/20251205_100_epochs_min_max_rt_cnn_tf.safetensors",
-        "constants_path": "data/pretrained_models/alphapeptdeep/generic/rt.pth.model_const.yaml",
+        "model_path": rt_model_path,
+        "constants_path": rt_const_path,
         "architecture": "rt_cnn_tf",
     }
 
     # Add ms2_intensity model configuration
     config["dl_feature_generators"]["ms2_intensity"] = {
-        "model_path": "data/pretrained_models/alphapeptdeep/generic/ms2.pth",
-        "constants_path": "data/pretrained_models/alphapeptdeep/generic/ms2.pth.model_const.yaml",
+        "model_path": ms2_model_path,
+        "constants_path": ms2_const_path,
         "architecture": "ms2_bert",
     }
 
-    with open("config.json", "w") as f:
+    with open(os.path.join(temp_folder, "config.json"), "w") as f:
         json.dump(config, f, indent=2)
 
-    cmdline = "easypqp insilico-library --config config.json"
+    # Change to temp directory for running command
+    os.chdir(temp_folder)
 
-    _run_cmdline(cmdline)
+    try:
+        cmdline = "easypqp insilico-library --config config.json"
+        _run_cmdline(cmdline)
+    finally:
+        # Restore original working directory
+        os.chdir(original_cwd)
 
     # Read and verify the output TSV file
-    output_file = "easypqp_insilico_library.tsv"
-    assert os.path.exists(output_file), f"Output file {output_file} was not created"
+    assert os.path.exists(output_abs_path), (
+        f"Output file {output_abs_path} was not created"
+    )
 
-    library_df = pd.read_csv(output_file, sep="\t")
+    library_df = pd.read_csv(output_abs_path, sep="\t")
 
     # Print basic statistics about the generated library
     print(f"Generated library contains {len(library_df)} transitions", file=regtest)
