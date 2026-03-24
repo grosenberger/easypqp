@@ -49,6 +49,13 @@ def _run_insilico_library(regtest, temp_folder):
     shutil.copy(config_path, temp_folder)
     shutil.copy(fasta_path, temp_folder)
 
+    # Copy the data directory with pretrained models so relative paths work
+    project_root = os.path.dirname(os.path.dirname(DATA_FOLDER))
+    src_data_dir = os.path.join(project_root, "data")
+    dest_data_dir = os.path.join(temp_folder, "data")
+    if os.path.exists(src_data_dir):
+        shutil.copytree(src_data_dir, dest_data_dir)
+
     # Update config to use local paths in temp folder
     import json
 
@@ -58,6 +65,37 @@ def _run_insilico_library(regtest, temp_folder):
     # Update paths to be relative to temp folder
     config["database"]["fasta"] = "Q99536.fasta"
     config["output_file"] = "easypqp_insilico_library.tsv"
+
+    # Add model configurations to use correct paths
+    if "dl_feature_generators" not in config:
+        config["dl_feature_generators"] = {
+            "device": "cpu",
+            "fine_tune_config": {
+                "fine_tune": False,
+                "train_data_path": "",
+                "batch_size": 256,
+                "epochs": 3,
+                "learning_rate": 0.001,
+                "save_model": True,
+            },
+            "instrument": "QE",
+            "nce": 20.0,
+            "batch_size": 64,
+        }
+
+    # Add retention_time model configuration
+    config["dl_feature_generators"]["retention_time"] = {
+        "model_path": "data/pretrained_models/redeem/20251205_100_epochs_min_max_rt_cnn_tf.safetensors",
+        "constants_path": "data/pretrained_models/alphapeptdeep/generic/rt.pth.model_const.yaml",
+        "architecture": "rt_cnn_tf",
+    }
+
+    # Add ms2_intensity model configuration
+    config["dl_feature_generators"]["ms2_intensity"] = {
+        "model_path": "data/pretrained_models/alphapeptdeep/generic/ms2.pth",
+        "constants_path": "data/pretrained_models/alphapeptdeep/generic/ms2.pth.model_const.yaml",
+        "architecture": "ms2_bert",
+    }
 
     with open("config.json", "w") as f:
         json.dump(config, f, indent=2)
