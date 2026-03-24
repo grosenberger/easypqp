@@ -58,7 +58,7 @@ def create_json_config(as_bytes: bool = False) -> Union[str, bytes]:
                 "learning_rate": 0.001,
                 "save_model": True,
             },
-            "instrument": "QE",
+            "instrument": "timsTOF",
             "nce": 20.0,
             "batch_size": 64,
         },

@@ -1058,10 +1058,10 @@ def reduce(infile, outfile, bins, peptides):
 )
 @click.option(
     "--instrument",
-    default="QE/Lumos/timsTOF/SciexTOF/ThermoTOF",
+    default="timsTOF",
     show_default=True,
     type=str,
-    help="Instrument type. Options are (QE).",
+    help="Instrument type (supported: 'QE', 'Lumos', 'timsTOF', 'SciexTOF', 'ThermoTOF').",
 )
 @click.option(
     "--nce",
