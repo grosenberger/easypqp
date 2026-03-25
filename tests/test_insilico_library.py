@@ -41,28 +41,12 @@ def _run_cmdline(cmdline):
 
 
 def _run_insilico_library(regtest, temp_folder):
-    # Store original working directory
-    original_cwd = os.getcwd()
-
     config_path = os.path.join(DATA_FOLDER, "config.json")
     fasta_path = os.path.join(DATA_FOLDER, "Q99536.fasta")
 
     # Copy test files to temp directory
     shutil.copy(config_path, temp_folder)
     shutil.copy(fasta_path, temp_folder)
-
-    # Copy the data directory with pretrained models so relative paths work
-    project_root = os.path.dirname(os.path.dirname(DATA_FOLDER))
-    src_data_dir = os.path.join(project_root, "data")
-    dest_data_dir = os.path.join(temp_folder, "data")
-    data_dir_copied = False
-    if os.path.exists(src_data_dir):
-        try:
-            shutil.copytree(src_data_dir, dest_data_dir)
-            data_dir_copied = True
-        except Exception:
-            # If copy fails, we'll use absolute paths instead
-            pass
 
     # Update config to use local paths in temp folder
     import json
@@ -76,70 +60,18 @@ def _run_insilico_library(regtest, temp_folder):
     config["database"]["fasta"] = fasta_abs_path
     config["output_file"] = output_abs_path
 
-    # Add model configurations with absolute paths to ensure they work from temp directory
-    if "dl_feature_generators" not in config:
-        config["dl_feature_generators"] = {
-            "device": "cpu",
-            "fine_tune_config": {
-                "fine_tune": False,
-                "train_data_path": "",
-                "batch_size": 256,
-                "epochs": 3,
-                "learning_rate": 0.001,
-                "save_model": True,
-            },
-            "instrument": "QE",
-            "nce": 20.0,
-            "batch_size": 64,
-        }
-
-    # Determine paths based on whether data directory was copied
-    if data_dir_copied:
-        # Use relative paths from temp directory
-        rt_model_path = "data/pretrained_models/redeem/20251205_100_epochs_min_max_rt_cnn_tf.safetensors"
-        rt_const_path = (
-            "data/pretrained_models/alphapeptdeep/generic/rt.pth.model_const.yaml"
-        )
-        ms2_model_path = "data/pretrained_models/alphapeptdeep/generic/ms2.pth"
-        ms2_const_path = (
-            "data/pretrained_models/alphapeptdeep/generic/ms2.pth.model_const.yaml"
-        )
-    else:
-        # Use absolute paths from project root
-        rt_model_path = os.path.join(
-            src_data_dir,
-            "pretrained_models/redeem/20251205_100_epochs_min_max_rt_cnn_tf.safetensors",
-        )
-        rt_const_path = os.path.join(
-            src_data_dir,
-            "pretrained_models/alphapeptdeep/generic/rt.pth.model_const.yaml",
-        )
-        ms2_model_path = os.path.join(
-            src_data_dir, "pretrained_models/alphapeptdeep/generic/ms2.pth"
-        )
-        ms2_const_path = os.path.join(
-            src_data_dir,
-            "pretrained_models/alphapeptdeep/generic/ms2.pth.model_const.yaml",
-        )
-
-    # Add retention_time model configuration
-    config["dl_feature_generators"]["retention_time"] = {
-        "model_path": rt_model_path,
-        "constants_path": rt_const_path,
-        "architecture": "rt_cnn_tf",
-    }
-
-    # Add ms2_intensity model configuration
-    config["dl_feature_generators"]["ms2_intensity"] = {
-        "model_path": ms2_model_path,
-        "constants_path": ms2_const_path,
-        "architecture": "ms2_bert",
-    }
+    # Remove model configurations so Rust backend auto-downloads them
+    # This works in both local and CI environments without needing local model files
+    if "dl_feature_generators" in config:
+        model_keys = ["retention_time", "ion_mobility", "ms2_intensity"]
+        for key in model_keys:
+            config["dl_feature_generators"].pop(key, None)
 
     with open(os.path.join(temp_folder, "config.json"), "w") as f:
         json.dump(config, f, indent=2)
 
     # Change to temp directory for running command
+    original_cwd = os.getcwd()
     os.chdir(temp_folder)
 
     try:
