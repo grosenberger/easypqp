@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.59] - 2026-03-25
+
+### 🐛 Bug Fixes
+
+- Update default instrument to 'timsTOF' in CLI options and JSON config
+- Update CLI options to allow overriding config values for decoy generation and other parameters
+- Update rust dependency version to 0.1.8 in pyproject.toml
+- Enhance insilico library setup by copying pretrained models and updating configuration paths
+- Fix insilico library setup by handling data directory copying and updating config paths for absolute references
+- Simplify insilico library setup by removing unnecessary model configuration handling
+- Update insilico library command to use absolute paths for config and improve model handling
+- Update rust dependency version to 0.1.9 in pyproject.toml
+- Update config to disable decoy generation and adjust precursor charge
+
+### 🧪 Testing
+
+- *(insilico)* Update regression baseline for CI environment (Python 3.10)
+
+### ⚙️ Miscellaneous Tasks
+
+- Update CHANGELOG.md
+
 ## [0.1.58] - 2026-03-04
 
 ### ⚙️ Miscellaneous Tasks
