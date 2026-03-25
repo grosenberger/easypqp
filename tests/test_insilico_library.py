@@ -60,8 +60,7 @@ def _run_insilico_library(regtest, temp_folder):
     config["database"]["fasta"] = fasta_abs_path
     config["output_file"] = output_abs_path
 
-    # Remove model configurations so Rust backend auto-downloads them
-    # This works in both local and CI environments without needing local model files
+    # Remove model configurations so Rust backend auto-downloads pretrained models
     if "dl_feature_generators" in config:
         model_keys = ["retention_time", "ion_mobility", "ms2_intensity"]
         for key in model_keys:
@@ -70,12 +69,16 @@ def _run_insilico_library(regtest, temp_folder):
     with open(os.path.join(temp_folder, "config.json"), "w") as f:
         json.dump(config, f, indent=2)
 
-    # Change to temp directory for running command
+    # Run command from the project root so relative paths like data/pretrained_models/ work
+    # The Rust backend uses these relative paths when downloading/loading models
+    project_root = os.path.dirname(os.path.dirname(DATA_FOLDER))
     original_cwd = os.getcwd()
-    os.chdir(temp_folder)
+    os.chdir(project_root)
 
     try:
-        cmdline = "easypqp insilico-library --config config.json"
+        # Use absolute path to config file
+        config_abs_path = os.path.join(temp_folder, "config.json")
+        cmdline = f"easypqp insilico-library --config {config_abs_path}"
         _run_cmdline(cmdline)
     finally:
         # Restore original working directory
