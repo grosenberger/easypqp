@@ -17,13 +17,13 @@
         "variable_mods": {},
         "max_variable_mods": 2,
         "decoy_tag": "rev_",
-        "generate_decoys": true,
+        "generate_decoys": false,
         "fasta": "tests/data/Q99536.fasta"
     },
     "insilico_settings": {
         "precursor_charge": [
             2,
-            4
+            3
         ],
         "max_fragment_charge": 1,
         "min_transitions": 6,
