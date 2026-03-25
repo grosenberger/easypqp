@@ -41,7 +41,6 @@ def _run_cmdline(cmdline):
 
 
 def _run_insilico_library(regtest, temp_folder):
-    os.chdir(temp_folder)
     config_path = os.path.join(DATA_FOLDER, "config.json")
     fasta_path = os.path.join(DATA_FOLDER, "Q99536.fasta")
 
@@ -52,25 +51,45 @@ def _run_insilico_library(regtest, temp_folder):
     # Update config to use local paths in temp folder
     import json
 
-    with open("config.json", "r") as f:
+    with open(os.path.join(temp_folder, "config.json"), "r") as f:
         config = json.load(f)
 
-    # Update paths to be relative to temp folder
-    config["database"]["fasta"] = "Q99536.fasta"
-    config["output_file"] = "easypqp_insilico_library.tsv"
+    # Update fasta path to absolute path
+    fasta_abs_path = os.path.join(temp_folder, "Q99536.fasta")
+    output_abs_path = os.path.join(temp_folder, "easypqp_insilico_library.tsv")
+    config["database"]["fasta"] = fasta_abs_path
+    config["output_file"] = output_abs_path
 
-    with open("config.json", "w") as f:
+    # Remove model configurations so Rust backend auto-downloads pretrained models
+    if "dl_feature_generators" in config:
+        model_keys = ["retention_time", "ion_mobility", "ms2_intensity"]
+        for key in model_keys:
+            config["dl_feature_generators"].pop(key, None)
+
+    with open(os.path.join(temp_folder, "config.json"), "w") as f:
         json.dump(config, f, indent=2)
 
-    cmdline = "easypqp insilico-library --config config.json"
+    # Run command from the project root so relative paths like data/pretrained_models/ work
+    # The Rust backend uses these relative paths when downloading/loading models
+    project_root = os.path.dirname(os.path.dirname(DATA_FOLDER))
+    original_cwd = os.getcwd()
+    os.chdir(project_root)
 
-    _run_cmdline(cmdline)
+    try:
+        # Use absolute path to config file
+        config_abs_path = os.path.join(temp_folder, "config.json")
+        cmdline = f"easypqp insilico-library --config {config_abs_path}"
+        _run_cmdline(cmdline)
+    finally:
+        # Restore original working directory
+        os.chdir(original_cwd)
 
     # Read and verify the output TSV file
-    output_file = "easypqp_insilico_library.tsv"
-    assert os.path.exists(output_file), f"Output file {output_file} was not created"
+    assert os.path.exists(output_abs_path), (
+        f"Output file {output_abs_path} was not created"
+    )
 
-    library_df = pd.read_csv(output_file, sep="\t")
+    library_df = pd.read_csv(output_abs_path, sep="\t")
 
     # Print basic statistics about the generated library
     print(f"Generated library contains {len(library_df)} transitions", file=regtest)

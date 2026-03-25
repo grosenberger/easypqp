@@ -982,132 +982,130 @@ def reduce(infile, outfile, bins, peptides):
 )
 @click.option(
     "--generate_decoys/--no-generate_decoys",
-    default=False,
-    show_default=True,
-    help="Generate decoy library.",
+    default=None,
+    show_default=False,
+    help="Generate decoy library. Overrides config value if provided.",
 )
 @click.option(
     "--decoy_tag",
-    default="rev_",
-    show_default=True,
+    default=None,
+    show_default=False,
     type=str,
-    help="Decoy tag to be used for decoy generation.",
+    help="Decoy tag to be used for decoy generation. Overrides config value if provided.",
 )
 @click.option(
     "--precursor_charge",
-    default="2,3",
-    show_default=True,
+    default=None,
+    show_default=False,
     type=str,
-    callback=transform_comma_string_to_list(output_type=int),
-    help="Precursor charge states to be used for library generation.",
+    help="Precursor charge states to be used for library generation (comma-separated, e.g., 2,3,4). Overrides config value if provided.",
 )
 @click.option(
     "--max_fragment_charge",
-    default=2,
-    show_default=True,
+    default=None,
+    show_default=False,
     type=int,
-    help="Maximum fragment charge state.",
+    help="Maximum fragment charge state. Overrides config value if provided.",
 )
 @click.option(
     "--min_transitions",
-    default=6,
-    show_default=True,
+    default=None,
+    show_default=False,
     type=int,
-    help="Minimum number of transitions per peptide.",
+    help="Minimum number of transitions per peptide. Overrides config value if provided.",
 )
 @click.option(
     "--max_transitions",
-    default=6,
-    show_default=True,
+    default=None,
+    show_default=False,
     type=int,
-    help="Maximum number of transitions per peptide.",
+    help="Maximum number of transitions per peptide. Overrides config value if provided.",
 )
 @click.option(
     "--fragmentation_model",
-    default="hcd",
-    show_default=True,
+    default=None,
+    show_default=False,
     type=str,
-    help="Fragmentation model to be used for theoretical fragmentaton generation. Options are (etd/td_etd/ethcd/etcad/eacid/ead/hcd/cid/all/none). See: `[FragmentationModel](https://docs.rs/rustyms/latest/rustyms/model/struct.FragmentationModel.html#method.etd)` for more details.",
+    help="Fragmentation model to be used for theoretical fragmentaton generation. Options are (etd/td_etd/ethcd/etcad/eacid/ead/hcd/cid/all/none). Overrides config value if provided.",
 )
 @click.option(
     "--allowed_fragment_types",
-    default="b,y",
-    show_default=True,
+    default=None,
+    show_default=False,
     type=str,
-    callback=transform_comma_string_to_list(output_type=str),
-    help="Allowed fragment types. Current MS2 prediction model only supports b and y ions.",
+    help="Allowed fragment types (comma-separated, e.g., b,y). Overrides config value if provided.",
 )
 @click.option(
     "--fine_tune/--no-fine_tune",
-    default=False,
-    show_default=True,
-    help="Fine-tune the predictions models using the provided training data.",
+    default=None,
+    show_default=False,
+    help="Fine-tune the predictions models using the provided training data. Overrides config value if provided.",
 )
 @click.option(
     "--train_data_path",
     default=None,
-    show_default=True,
+    show_default=False,
     type=click.Path(exists=True),
     help='Path to the training data for fine-tuning. This should be a TSV file with columns: "sequence", "precursor_charge", "intensity", "retention_time", "ion_mobility" (Optional).',
 )
 @click.option(
     "--save_model/--no-save_model",
-    default=False,
-    show_default=True,
-    help="Save the fine-tuned model to the specified path.",
+    default=None,
+    show_default=False,
+    help="Save the fine-tuned model to the specified path. Overrides config value if provided.",
 )
 @click.option(
     "--instrument",
-    default="QE/Lumos/timsTOF/SciexTOF/ThermoTOF",
-    show_default=True,
+    default=None,
+    show_default=False,
     type=str,
-    help="Instrument type. Options are (QE).",
+    help="Instrument type (supported: 'QE', 'Lumos', 'timsTOF', 'SciexTOF', 'ThermoTOF'). Overrides config value if provided.",
 )
 @click.option(
     "--nce",
-    default=20,
-    show_default=True,
+    default=None,
+    show_default=False,
     type=int,
-    help="Normalized collision energy (NCE) to be used for MS2 intensity prediction.",
+    help="Normalized collision energy (NCE) to be used for MS2 intensity prediction. Overrides config value if provided.",
 )
 @click.option(
     "--batch_size",
-    default=10,
-    show_default=True,
+    default=None,
+    show_default=False,
     type=int,
-    help="Batch size used for peptide property inferece.",
+    help="Batch size used for peptide property inference. Overrides config value if provided.",
 )
 @click.option(
     "--rt_scale",
-    default=100.0,
-    show_default=True,
+    default=None,
+    show_default=False,
     type=float,
-    help="RT output scaling factor (e.g., 100.0 to convert 0-1 range to 0-100).",
+    help="RT output scaling factor (e.g., 100.0 to convert 0-1 range to 0-100). Overrides config value if provided.",
 )
 @click.option(
     "--write_report/--no-write_report",
-    default=True,
-    show_default=True,
-    help="Generate HTML quality report.",
+    default=None,
+    show_default=False,
+    help="Generate HTML quality report. Overrides config value if provided.",
 )
 @click.option(
     "--parquet_output/--no-parquet_output",
-    default=False,
-    show_default=True,
-    help="Output library in Parquet format instead of TSV.",
+    default=None,
+    show_default=False,
+    help="Output library in Parquet format instead of TSV. Overrides config value if provided.",
 )
 @click.option(
     "--threads",
     default=None,
-    show_default=True,
+    show_default=False,
     type=int,
     help="Number of threads for parallel processing. If not specified, uses all available cores.",
 )
 @click.option(
     "--unimod_annotation/--no-unimod_annotation",
-    default=True,
-    show_default=True,
-    help="Re-annotate mass bracket modifications (e.g., [+57.0215]) to UniMod notation (e.g., (UniMod:4)).",
+    default=None,
+    show_default=False,
+    help="Re-annotate mass bracket modifications (e.g., [+57.0215]) to UniMod notation. Overrides config value if provided.",
 )
 @click.option(
     "--unimod",
@@ -1120,16 +1118,16 @@ def reduce(infile, outfile, bins, peptides):
 )
 @click.option(
     "--max_delta_unimod",
-    default=0.02,
-    show_default=True,
+    default=None,
+    show_default=False,
     type=float,
-    help="Maximum delta mass tolerance (in Da) for matching modifications to UniMod entries.",
+    help="Maximum delta mass tolerance (in Da) for matching modifications to UniMod entries. Overrides config value if provided.",
 )
 @click.option(
     "--enable_unannotated/--no-enable_unannotated",
-    default=True,
-    show_default=True,
-    help="Keep mass brackets for modifications that cannot be matched to UniMod. If disabled, raises an error for unmatched modifications.",
+    default=None,
+    show_default=False,
+    help="Keep mass brackets for modifications that cannot be matched to UniMod. Overrides config value if provided.",
 )
 @click.option(
     "--config",
@@ -1191,6 +1189,13 @@ def insilico_library(
     if config is None:
         config = create_json_config(as_bytes=True).decode()
         timestamped_echo("Info: Using default configuration.")
+
+    # Convert comma-separated string values to lists if provided
+    if precursor_charge is not None:
+        precursor_charge = [int(x.strip()) for x in precursor_charge.split(",")]
+    
+    if allowed_fragment_types is not None:
+        allowed_fragment_types = [x.strip() for x in allowed_fragment_types.split(",")]
 
     timestamped_echo("Info: Generating In-Silico Predicted Library.")
     generate_insilico_library(
