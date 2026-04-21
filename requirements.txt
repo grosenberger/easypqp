@@ -35,7 +35,7 @@ llvmlite==0.45.1
     # via numba
 loguru==0.7.3
     # via pyprophet
-lxml==6.0.2
+lxml==6.1.0
     # via pyprophet
 matplotlib==3.10.7
     # via
