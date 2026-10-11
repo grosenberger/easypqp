@@ -910,7 +910,7 @@ def generate(
         pqp["FragmentLossType"] = parsed["FragmentLossType"]
         pqp["FragmentCharge"] = parsed["FragmentCharge"].astype(int)
         pqp["Proteotypic"] = [
-            1 if ";" in prot_id else 0 for prot_id in pqp["ProteinId"]
+            0 if ";" in prot_id else 1 for prot_id in pqp["ProteinId"]
         ]
         # Remove redundant columns
         pqp = pqp.drop(["Annotation"], axis=1)
