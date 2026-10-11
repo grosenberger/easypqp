@@ -230,12 +230,9 @@ def process_psms(
         # Filter proteotypic peptides
         if proteotypic:
             psms = psms[psms["num_tot_proteins"] == 1].copy()
-        else:
-            raise click.ClickException(
-                "Support for non-proteotypic peptides is not yet implemented."
-            )
 
         # Generate canonical set of protein identifiers
+        # (converters join shared proteins with ";" or, for idXML, with ",")
         proteinset = psms[["peptide_sequence", "protein_id"]].drop_duplicates()
         proteinset["protein_id"] = proteinset["protein_id"].astype(str)
         proteinset_canonical = (
@@ -247,7 +244,9 @@ def process_psms(
                             set(
                                 [
                                     a
-                                    for b in x["protein_id"].str.split(";").tolist()
+                                    for b in x["protein_id"]
+                                    .str.split("[;,]", regex=True)
+                                    .tolist()
                                     for a in b
                                 ]
                             )

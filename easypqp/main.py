@@ -775,7 +775,7 @@ def convertsage(
     "--proteotypic/--no-proteotypic",
     show_default=True,
     default=True,
-    help="Use only proteotypic, unique, non-shared peptides.",
+    help="Use only proteotypic, unique, non-shared peptides. With --no-proteotypic, shared peptides are kept and their protein identifiers are joined by ';'.",
 )
 @click.option(
     "--consensus/--no-consensus",
