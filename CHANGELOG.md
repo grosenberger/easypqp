@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.60] - 2026-10-12
+
+### 🚀 Features
+
+- *(library)* Support --no-proteotypic to keep peptides shared between proteins
+
+### 🐛 Bug Fixes
+
+- *(library)* Set Proteotypic to 1 for single-protein peptides in --diannpqp output
+
+### ⚙️ Miscellaneous Tasks
+
+- Update CHANGELOG.md
+
 ## [0.1.59] - 2026-03-25
 
 ### 🐛 Bug Fixes
