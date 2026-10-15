@@ -852,7 +852,12 @@ class idxml:
         return self.psms
 
     def parse_idxml(self):
-        peptides = []
+        # pyopenms >= 3.5 rejects a plain list for the peptide identifications
+        peptides = (
+            po.PeptideIdentificationList()
+            if hasattr(po, "PeptideIdentificationList")
+            else []
+        )
         proteins = []
         scores = {}
 
