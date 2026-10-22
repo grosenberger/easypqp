@@ -66,11 +66,7 @@ jobs:
   publish:
     needs: build
     runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/project/easypqp/
-    permissions:
-      id-token: write
+    permissions: {}
     steps:
       - name: Download validated distributions
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -78,5 +74,19 @@ jobs:
           name: python-distributions
           path: dist
 
-      - name: Publish to PyPI using Trusted Publishing
+      - name: Check PyPI upload credentials
+        env:
+          PYPI_USERNAME: ${{ secrets.PYPI_USERNAME }}
+          PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        run: |
+          if [ "$PYPI_USERNAME" != "__token__" ] || [ -z "$PYPI_PASSWORD" ]; then
+            echo "::error::Set PYPI_USERNAME to __token__ and PYPI_PASSWORD to a valid PyPI API token. PyPI account passwords are not supported."
+            exit 1
+          fi
+
+      - name: Publish to PyPI using existing repository secrets
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+        with:
+          user: ${{ secrets.PYPI_USERNAME }}
+          password: ${{ secrets.PYPI_PASSWORD }}
+          attestations: false

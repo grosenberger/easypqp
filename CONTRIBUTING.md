@@ -72,6 +72,25 @@ the supported source distributions; use the `.tar.gz` published on PyPI.
 
 ### One-time setup
 
+The publishing workflow currently uses the existing repository secrets:
+
+- `PYPI_USERNAME`: `__token__`
+- `PYPI_PASSWORD`: a valid PyPI API token authorized to upload `easypqp`
+
+PyPI account passwords are no longer supported. Keep tokens in GitHub Actions
+secrets, never in source files or chat. Existing secrets can be reused only if
+their token is still valid; account recovery may still be required if PyPI has
+disabled the token or account. No Trusted Publisher or GitHub `pypi` environment
+is required for this secret-based workflow. Attestations are disabled because
+PyPI upload attestations require Trusted Publishing.
+
+Docker publishing still requires `DOCKER_USERNAME` and `DOCKER_PASSWORD`
+(use a scoped Docker Hub access token, not an account password).
+
+### Optional later migration to Trusted Publishing
+
+After PyPI account access is restored:
+
 1. In the PyPI `easypqp` project's Publishing settings, add a **Trusted Publisher**:
    - Owner: `grosenberger`
    - Repository: `easypqp`
@@ -79,11 +98,12 @@ the supported source distributions; use the `.tar.gz` published on PyPI.
    - Environment: `pypi`
 2. Create the GitHub Actions environment `pypi`, restrict it to release tags,
    and configure required reviewers as appropriate.
-3. After a successful Trusted Publishing upload, remove the obsolete
-   `PYPI_USERNAME` / `PYPI_PASSWORD` secrets. No PyPI password or long-lived
-   upload token is needed by the new workflow.
-4. Docker publishing still requires `DOCKER_USERNAME` and `DOCKER_PASSWORD`
-   (use a scoped Docker Hub access token, not an account password).
+3. Update the workflow's `publish` job to use that environment and grant
+   `id-token: write`. Remove the credential-check step and the action's
+   `user`, `password`, and `attestations: false` inputs to enable OIDC publishing
+   and attestations.
+4. After a successful Trusted Publishing upload, remove the obsolete
+   `PYPI_USERNAME` / `PYPI_PASSWORD` secrets. Keep them until migration succeeds.
 
 ### Release procedure
 
@@ -99,13 +119,14 @@ the supported source distributions; use the `.tar.gz` published on PyPI.
 4. **Upload Python Package** builds the exact tag on Python 3.11, checks wheel
    and sdist metadata against the tag, checks the packaged UniMod database,
    installs/tests the wheel with locked dependencies, and stores the validated
-   distributions. A separate `pypi` environment job uploads those same files
-   using OIDC Trusted Publishing and attestations. Docker runs independently.
+   distributions. A separate publishing job uploads those same files using
+   the existing repository secrets. Docker runs independently.
 
 For a failed upload, inspect the error before retrying. Manual dispatch of
 **Upload Python Package** requires an explicit existing tag; it never silently
-publishes the default branch. If the `pypi` environment is restricted to tags,
-also select that tag in GitHub's **Use workflow from** selector when dispatching.
+publishes the default branch. After migrating to Trusted Publishing, if the
+`pypi` environment is restricted to tags, also select that tag in GitHub's
+**Use workflow from** selector when dispatching.
 Do not use `skip-existing` to hide version
 mismatches. Existing tags predating the packaging fix cannot be repaired by
 retagging; release a new version containing the fix instead.
