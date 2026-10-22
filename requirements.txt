@@ -89,7 +89,7 @@ psutil==7.1.0
     # via pyprophet
 pyarrow==21.0.0
     # via pyprophet
-pyopenms==3.4.0
+pyopenms==3.5.0
     # via
     #   easypqp (pyproject.toml)
     #   pyprophet
