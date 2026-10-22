@@ -9,7 +9,7 @@ EasyPQP is a Python package that provides simplified and fast peptide query para
 Installation
 ============
 
-We strongly advice to install EasyPQP in a Python [*virtualenv*](https://virtualenv.pypa.io/en/stable/). EasyPQP is compatible with Python 3.
+We strongly advise installing EasyPQP in a Python [*virtualenv*](https://virtualenv.pypa.io/en/stable/). EasyPQP requires Python 3.11 or newer; CI tests Python 3.11–3.13. Python 3.9/3.10 are no longer supported because the patched Pillow dependency requires Python 3.11.
 
 Install the development version of *easypqp* from GitHub:
 

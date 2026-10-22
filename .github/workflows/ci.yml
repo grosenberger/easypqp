@@ -5,6 +5,12 @@ on:
     branches: [ master, main ]
   pull_request:
     branches: [ master, main ]
+  schedule:
+    - cron: '23 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 # Ensure only one run per branch/PR is active at a time; cancel previous runs when new commits arrive
 concurrency:
@@ -18,16 +24,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ '3.10', '3.11', '3.12', '3.13' ]
+        python-version: [ '3.11', '3.12', '3.13' ]
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            requirements.txt
 
       - name: Install system dependencies
         run: |
@@ -35,22 +47,36 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential gcc git cmake swig pkg-config libxml2-dev zlib1g-dev libbz2-dev liblzma-dev libcurl4-openssl-dev libssl-dev libglib2.0-0 libgomp1
 
-      - name: Upgrade pip and setuptools
-        run: pip install --upgrade pip setuptools wheel
-
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/pyproject.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-${{ matrix.python-version }}-
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools wheel
 
       - name: Install package with all extras
-        run: pip install --no-cache-dir ".[all]"
+        run: |
+          python -m pip install ".[all]"
+          python -m pip check
 
       - name: Install test dependencies
-        run: python -m pip install pytest pytest-regtest
+        run: python -m pip install pytest pytest-regtest packaging
 
       - name: Run pytest
         run: pytest -q
+
+  security:
+    name: Audit locked dependencies and build distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.11'
+      - name: Install audit and build tools
+        run: python -m pip install --upgrade pip-audit build twine
+      - name: Audit locked runtime dependencies
+        run: pip-audit --strict --no-deps --disable-pip -r requirements.txt
+      - name: Build and check package metadata
+        run: |
+          python -m build
+          python -m twine check --strict dist/*

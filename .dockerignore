@@ -1,0 +1,9 @@
+# Retain .git: setuptools-scm needs the tag when building from a checkout.
+.venv*
+.env
+.env.*
+build
+dist
+*.egg-info
+**/__pycache__
+.pytest_cache

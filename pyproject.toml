@@ -1,13 +1,13 @@
 [build-system]
-requires = ["setuptools>=64.0.0", "wheel"]
+requires = ["setuptools>=83.0.0", "setuptools-scm>=8.2", "wheel>=0.46.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "easypqp"
-version = "0.1.60"
+dynamic = ["version"]
 description = "EasyPQP: Simple library generation for OpenSWATH"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 authors = [
   { name = "George Rosenberger", email = "gr2578@cumc.columbia.edu" },
 ]
@@ -21,9 +21,12 @@ dependencies = [
   "scikit-learn>=1.4.2",
   "statsmodels>=0.14.2",
   "pandas>=2.2.2",
-  "biopython>=1.84",
+  "biopython>=1.87",
   "pyopenms>=3.3.0,<3.6",
   "matplotlib>=3.8.4",
+  # Security floors for transitive dependencies and Parquet input support.
+  "pillow>=13.0.0",
+  "pyarrow>=23.0.1",
   "seaborn",
   "tqdm",
 ]
@@ -38,7 +41,7 @@ easypqp = "easypqp.main:cli"
 
 # PyProphet integration
 # Install with: pip install easypqp[pyprophet]
-pyprophet = ["pyprophet"]
+pyprophet = ["pyprophet>=3.0.2", "pypdf>=6.21.1"]
 
 # Rust backend for in-silico library generation
 # Install with: pip install easypqp[rust]
@@ -47,9 +50,12 @@ rust = ["easypqp-rs>=0.1.9"]
 # All optional features
 # Install with: pip install easypqp[all]
 all = [
-  "pyprophet",
+  "pyprophet>=3.0.2",
+  "pypdf>=6.21.1",
   "easypqp-rs>=0.1.9"
 ]
+
+[tool.setuptools_scm]
 
 [tool.setuptools]
 include-package-data = true
