@@ -6,45 +6,77 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to publish (e.g. 0.1.53). If omitted on manual dispatch the workflow will try to use the latest release tag.'
-        required: false
+        description: 'Existing release tag to publish (e.g. 0.1.62)'
+        required: true
         type: string
 
+permissions:
+  contents: read
+
+concurrency:
+  group: pypi-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository (full history)
-        uses: actions/checkout@v4
+      - name: Check out the exact release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: refs/tags/${{ github.event.release.tag_name || inputs.tag }}
           fetch-depth: 0
+          persist-credentials: false
 
-      - name: Checkout requested tag (workflow_dispatch)
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '' }}
-        run: |
-          git fetch --tags --force
-          git checkout tags/${{ github.event.inputs.tag }} -b publish-${{ github.event.inputs.tag }}
-
-      - name: Checkout release tag (release event)
-        if: ${{ github.event_name == 'release' }}
-        run: |
-          git fetch --tags --force
-          git checkout tags/${{ github.event.release.tag_name }} -b publish-${{ github.event.release.tag_name }}
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: '3.x'
-      - name: Install build tools
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install --upgrade build twine
-      - name: Build and publish
+          python-version: '3.11'
+
+      - name: Install build and validation tools
+        run: python -m pip install --upgrade build twine packaging
+
+      - name: Build and validate distributions
         env:
-          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
         run: |
-          # Build sdist and wheel using PEP 517 build backend (reads pyproject.toml)
-          python -m build --sdist --wheel
-          # Upload artifacts with twine
-          python -m twine upload dist/*
-        
+          python -m build
+          python -m twine check --strict dist/*
+          python scripts/check_release.py "$RELEASE_TAG" dist
+
+      - name: Install and test the built wheel
+        run: |
+          python -m venv .venv-test
+          source .venv-test/bin/activate
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install -r requirements.txt
+          python -m pip install --no-deps dist/*.whl
+          python -m pip install pytest pytest-regtest
+          python -m pip check
+          easypqp --help
+          pytest -q
+
+      - name: Store validated distributions
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: python-distributions
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/easypqp/
+    permissions:
+      id-token: write
+    steps:
+      - name: Download validated distributions
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: python-distributions
+          path: dist
+
+      - name: Publish to PyPI using Trusted Publishing
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3

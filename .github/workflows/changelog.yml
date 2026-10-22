@@ -1,79 +1,59 @@
-# filepath: .github/workflows/changelog.yml
-name: Generate Changelog
+name: Prepare draft release
 
 on:
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag (e.g., 3.0.4 or v3.0.4). If omitted the latest tag will be used.'
-        required: false
+        description: 'Existing version tag (e.g. 0.1.62 or v0.1.62)'
+        required: true
         type: string
   push:
-    # Trigger on any tag so releases without a 'v' prefix (e.g. '0.1.53') also run
     tags:
       - '*'
 
+permissions:
+  contents: read
+
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: draft-release-${{ inputs.version || github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
   changelog:
-    name: Generate Changelog
+    name: Prepare draft release
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
-    
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Check out release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0  # Fetch all history for changelog generation
+          ref: refs/tags/${{ inputs.version || github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: false
 
-      - name: Install git-cliff
-        run: |
-          wget https://github.com/orhun/git-cliff/releases/download/v2.7.0/git-cliff-2.7.0-x86_64-unknown-linux-gnu.tar.gz
-          tar -xzf git-cliff-2.7.0-x86_64-unknown-linux-gnu.tar.gz
-          sudo mv git-cliff-2.7.0/git-cliff /usr/local/bin/
-          chmod +x /usr/local/bin/git-cliff
-
-      - name: Generate full CHANGELOG
-        run: |
-          git-cliff --output CHANGELOG.md
-
-      - name: Generate release notes for latest tag
-        if: startsWith(github.ref, 'refs/tags/')
-        run: |
-          # Get the latest tag
-          LATEST_TAG=$(git describe --tags --abbrev=0)
-          
-          # Generate changelog for this release only
-          git-cliff --latest --strip header > RELEASE_NOTES.md
-          
-          echo "Release notes for ${LATEST_TAG}:"
-          cat RELEASE_NOTES.md
-
-      - name: Commit and push CHANGELOG
-        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add CHANGELOG.md
-          
-          if git diff --staged --quiet; then
-            echo "No changes to CHANGELOG.md"
-          else
-            git commit -m "chore: update CHANGELOG.md"
-            git push origin HEAD:master || git push origin HEAD:main
-          fi
-
-      - name: Create/Update Release with Changelog
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
+      - name: Generate release notes
+        uses: orhun/git-cliff-action@a9a95522b26fe6403f7bb24031f21fb573d0f5ff # v4.9.1
         with:
-          body_path: RELEASE_NOTES.md
-          draft: false
-          prerelease: false
+          version: v2.14.2
+          args: --latest --strip header --output RELEASE_NOTES.md
+
+      # GITHUB_TOKEN cannot trigger downstream release workflows.
+      # A maintainer publishing the draft triggers PyPI and Docker.
+      - name: Create or update draft release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.version || github.ref_name }}
+        run: |
+          if gh release view "$RELEASE_TAG" --json isDraft > release.json; then
+            if jq -e '.isDraft' release.json > /dev/null; then
+              gh release edit "$RELEASE_TAG" --notes-file RELEASE_NOTES.md
+            else
+              echo "Release is already published; leaving it unchanged."
+            fi
+          else
+            gh release create "$RELEASE_TAG" --verify-tag --draft \
+              --title "EasyPQP $RELEASE_TAG" --notes-file RELEASE_NOTES.md
+          fi
