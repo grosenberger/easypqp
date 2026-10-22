@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.61] - 2026-10-22
+
+### 🐛 Bug Fixes
+
+- *(convert)* Load idXML with pyopenms 3.5 PeptideIdentificationList
+
+### 💼 Other
+
+- *(deps)* Move to numpy 2 and cap pyopenms below 3.6
+
+### ⚙️ Miscellaneous Tasks
+
+- Update CHANGELOG.md
+
 ## [0.1.60] - 2026-10-12
 
 ### 🚀 Features
