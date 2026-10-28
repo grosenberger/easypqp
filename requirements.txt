@@ -2,50 +2,50 @@
 #    uv pip compile pyproject.toml --all-extras --python-version 3.11 --python-platform x86_64-manylinux_2_34 -o requirements.txt
 biopython==1.88
     # via easypqp (pyproject.toml)
-click==8.3.0
+click==8.5.0
     # via
     #   easypqp (pyproject.toml)
     #   pyprophet
-contourpy==1.3.2
+contourpy==1.3.3
     # via matplotlib
 cycler==0.12.1
     # via matplotlib
-cython==3.1.4
+cython==3.3.0
     # via pyprophet
-duckdb==1.3.2
+duckdb==2.0.0
     # via
     #   duckdb-extension-sqlite-scanner
     #   duckdb-extensions
     #   pyprophet
-duckdb-extension-sqlite-scanner==1.3.2
+duckdb-extension-sqlite-scanner==1.5.5
     # via pyprophet
-duckdb-extensions==1.3.2
+duckdb-extensions==1.5.5
     # via pyprophet
 easypqp-rs==0.1.13
     # via easypqp (pyproject.toml)
-fonttools==4.60.2
+fonttools==4.67.0
     # via matplotlib
-joblib==1.5.2
+joblib==1.6.0
     # via scikit-learn
-kiwisolver==1.4.9
+kiwisolver==1.5.1
     # via matplotlib
-llvmlite==0.45.1
+llvmlite==0.50.0
     # via numba
 loguru==0.7.3
     # via pyprophet
-lxml==6.1.0
+lxml==6.1.3
     # via pyprophet
-matplotlib==3.10.7
+matplotlib==3.11.2
     # via
     #   easypqp (pyproject.toml)
     #   pyopenms
     #   pyprophet
     #   seaborn
-numba==0.62.1
+numba==0.68.0
     # via easypqp (pyproject.toml)
-numexpr==2.14.1
+numexpr==2.14.2
     # via pyprophet
-numpy==2.2.6
+numpy==2.4.6
     # via
     #   easypqp (pyproject.toml)
     #   biopython
@@ -62,58 +62,58 @@ numpy==2.2.6
     #   seaborn
     #   statsmodels
     #   xgboost
-nvidia-nccl-cu12==2.28.3
+nvidia-nccl-cu12==2.32.3
     # via xgboost
-packaging==25.0
+packaging==26.3
     # via
     #   matplotlib
     #   statsmodels
-pandas==2.3.3
+pandas==3.1.0
     # via
     #   easypqp (pyproject.toml)
     #   pyopenms
     #   pyprophet
     #   seaborn
     #   statsmodels
-patsy==1.0.1
+patsy==1.0.3
     # via statsmodels
 pillow==13.0.0
     # via
     #   easypqp (pyproject.toml)
     #   matplotlib
-polars==1.34.0
+polars==2.0.0
     # via pyprophet
-polars-runtime-32==1.34.0
+polars-runtime-32==2.0.0
     # via polars
-psutil==7.1.0
+psutil==7.2.2
     # via pyprophet
 pyarrow==26.0.0
     # via
     #   easypqp (pyproject.toml)
     #   pyprophet
-pyopenms==3.5.0
+pyopenms==3.6.0
     # via
     #   easypqp (pyproject.toml)
     #   pyprophet
-pyparsing==3.2.5
+pyparsing==3.3.3
     # via matplotlib
 pypdf==6.21.2
     # via
     #   easypqp (pyproject.toml)
     #   pyprophet
-pyprophet==3.0.2
+pyprophet==3.0.15
     # via easypqp (pyproject.toml)
-python-dateutil==2.9.0.post0
+python-dateutil==3.0.0
     # via
     #   matplotlib
     #   pandas
-pytz==2025.2
+pytz==2026.5
     # via pandas
-scikit-learn==1.7.2
+scikit-learn==1.9.1
     # via
     #   easypqp (pyproject.toml)
     #   pyprophet
-scipy==1.15.3
+scipy==1.17.1
     # via
     #   easypqp (pyproject.toml)
     #   pyprophet
@@ -126,17 +126,17 @@ seaborn==0.13.2
     #   pyprophet
 six==1.17.0
     # via python-dateutil
-statsmodels==0.14.5
+statsmodels==0.15.0
     # via
     #   easypqp (pyproject.toml)
     #   pyprophet
-tabulate==0.9.0
+tabulate==0.10.0
     # via pyprophet
-threadpoolctl==3.6.0
+threadpoolctl==3.7.0
     # via scikit-learn
-tqdm==4.67.1
+tqdm==4.70.1
     # via easypqp (pyproject.toml)
-tzdata==2025.2
+tzdata==2026.5
     # via pandas
-xgboost==3.1.0
+xgboost==3.2.0
     # via pyprophet
