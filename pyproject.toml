@@ -22,7 +22,7 @@ dependencies = [
   "statsmodels>=0.14.2",
   "pandas>=2.2.2",
   "biopython>=1.87",
-  "pyopenms>=3.3.0,<3.6",
+  "pyopenms>=3.3.0,<3.7",
   "matplotlib>=3.8.4",
   # Security floors for transitive dependencies and Parquet input support.
   "pillow>=13.0.0",
